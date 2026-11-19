@@ -57,6 +57,72 @@ class TestComposeCheck(unittest.TestCase):
                       {"cap_add": ["SYS_ADMIN"]}, {"devices": [{"source": "/dev/sda", "target": "/dev/sda"}]}]:
             self.assertEqual(len(self.v(cfg(**extra))), 1, extra)
 
+    def test_named_volume_that_is_really_a_host_bind_is_a_violation(self):
+        c = cfg(volumes=[{"type": "volume", "source": "hostroot", "target": "/outside"}])
+        c["volumes"] = {"hostroot": {"name": "p_hostroot", "driver": "local",
+                                     "driver_opts": {"type": "none", "o": "bind", "device": "/tmp"}}}
+        out = self.v(c)
+        self.assertEqual(len(out), 1, out)
+        self.assertIn("hostroot", out[0])
+
+    def test_plain_named_volume_passes_and_unusual_ones_do_not(self):
+        c = cfg(volumes=[{"type": "volume", "source": "pgdata", "target": "/var/lib"}])
+        c["volumes"] = {"pgdata": {"name": "p_pgdata"}}
+        self.assertEqual(self.v(c), [])
+        for odd in ({"driver": "nfs"}, {"external": True}, {"driver_opts": {"device": "/x"}}):
+            c["volumes"] = {"pgdata": dict({"name": "p_pgdata"}, **odd)}
+            self.assertEqual(len(self.v(c)), 1, odd)
+        c["volumes"] = {}
+        self.assertEqual(len(self.v(cfg(volumes=[{"type": "npipe", "source": "x", "target": "/y"}]))), 1)
+
+    def test_secrets_and_configs_from_host_files_are_violations(self):
+        for key in ("secrets", "configs"):
+            inside = cfg(**{key: [{"source": "s"}]})
+            inside[key] = {"s": {"file": str(self.root / "data" / "s.txt")}}
+            self.assertEqual(self.v(inside), [], key)
+            outside = cfg(**{key: [{"source": "s"}]})
+            outside[key] = {"s": {"file": "/etc/passwd"}}
+            self.assertEqual(len(self.v(outside)), 1, key)
+            external = cfg()
+            external[key] = {"s": {"external": True}}
+            self.assertEqual(len(self.v(external)), 1, key)
+
+    def test_build_context_outside_the_project_is_a_violation(self):
+        self.assertEqual(self.v({"services": {"app": {"build": {"context": str(self.root)}}}}), [])
+        self.assertEqual(self.v({"services": {"app": {"build": {
+            "context": str(self.root), "dockerfile": "Dockerfile.dev"}}}}), [])
+        for build in ({"context": "/tmp"}, {"context": str(self.root.parent)},
+                      {"context": str(self.root), "dockerfile": "/tmp/Dockerfile"},
+                      {"context": str(self.root), "additional_contexts": {"x": "/tmp"}},
+                      {"context": str(self.root), "ssh": ["default"]},
+                      {"context": str(self.root), "secrets": [{"source": "s"}]}):
+            self.assertEqual(len(self.v({"services": {"app": {"build": build}}})), 1, build)
+
+    def test_env_file_outside_the_project_is_a_violation(self):
+        ok = cfg(env_file=[{"path": str(self.root / ".env")}])
+        self.assertEqual(self.v(ok), [])
+        self.assertEqual(len(self.v(cfg(env_file=[{"path": "/etc/environment"}]))), 1)
+        self.assertEqual(len(self.v(cfg(env_file=["/etc/environment"]))), 1)
+
+    def test_fields_outside_the_known_set_are_refused(self):
+        for extra in ({"security_opt": ["seccomp:unconfined"]}, {"userns_mode": "host"},
+                      {"cgroup_parent": "x"}, {"volumes_from": ["container:other"]},
+                      {"network_mode": "container:other"}, {"campo_inventado": 1}):
+            out = self.v(cfg(**extra))
+            self.assertEqual(len(out), 1, extra)
+            self.assertIn(next(iter(extra)), out[0])
+
+    def test_common_dev_fields_pass(self):
+        c = cfg(command=["postgres"], environment={"A": "b"}, healthcheck={"test": ["CMD", "true"]},
+                depends_on={"x": {"condition": "service_started"}}, restart="unless-stopped",
+                networks={"default": None}, ports=[{"published": "1", "target": 1}], user="1000",
+                working_dir="/app", labels={"a": "b"}, ulimits={"nofile": 1024}, shm_size="1gb",
+                extra_hosts=["host.docker.internal=host-gateway"], init=True, platform="linux/arm64",
+                profiles=["dev"], stop_grace_period="5s", tmpfs=["/tmp"], logging={"driver": "json-file"},
+                container_name="c", hostname="h", entrypoint=["x"], expose=["1"], tty=True, stdin_open=True,
+                read_only=True, pull_policy="missing", mem_limit="1g", cpus=1, network_mode="bridge")
+        self.assertEqual(self.v(c), [])
+
     def test_every_service_is_checked(self):
         c = cfg()
         c["services"]["evil"] = {"image": "x", "privileged": True}

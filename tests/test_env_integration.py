@@ -112,6 +112,22 @@ class TestTwoFeaturesWithRealDocker(unittest.TestCase):
         self.assertIn("fora do projeto", r.stderr)
         self.assertEqual(self.containers("harnesstest-feat-a"), [])
 
+    def test_escapes_found_in_review_are_refused_with_the_real_docker_config(self):
+        escapes = {
+            "volume nomeado que é bind": "    volumes:\n      - hostroot:/outside\nvolumes:\n  hostroot:\n"
+                                          "    driver: local\n    driver_opts:\n      type: none\n"
+                                          "      o: bind\n      device: /tmp\n",
+            "secret de arquivo da máquina": "    secrets:\n      - s\nsecrets:\n  s:\n    file: /etc/hosts\n",
+            "build fora do projeto": "    build:\n      context: /tmp\n",
+            "security_opt": "    security_opt:\n      - seccomp:unconfined\n",
+        }
+        for label, extra in escapes.items():
+            (self.a / "dc.yml").write_text(COMPOSE + extra)
+            r = self.run_script(self.a, "up")
+            self.assertEqual(r.returncode, 1, label + ": " + r.stderr + r.stdout)
+            self.assertIn("ambiente recusado", r.stderr, label)
+            self.assertEqual(self.containers("harnesstest-feat-a"), [], label)
+
 
 if __name__ == "__main__":
     unittest.main()
