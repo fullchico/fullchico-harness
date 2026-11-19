@@ -2,7 +2,7 @@ import json
 import os
 import unittest
 
-from tests.helpers import git, make_repo, run_hook
+from tests.helpers import git, make_repo, run_hook, read_approval
 import common
 import gate_stamp
 
@@ -33,7 +33,7 @@ class TestGateStamp(unittest.TestCase):
         repo = make_repo()
         run_hook("gate_stamp.py", payload(repo))
         sha = git(repo, "rev-parse", "HEAD")
-        a = json.load(open(common.approval_path(common.state_dir(str(repo)), "seguranca", sha)))
+        a = read_approval(repo, "seguranca")
         self.assertEqual((a["gate"], a["sha"], a["status"], a["by"], a["resumo"], a["agent_type"]),
                          ("seguranca", sha, "PASS", "hook", "sem achados", "harness:seguranca"))
         self.assertEqual(a["transcript"], "/t.jsonl")

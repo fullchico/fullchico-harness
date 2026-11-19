@@ -53,3 +53,11 @@ def run_hook(script: str, payload, cwd=None, raw=None):
     r = subprocess.run([sys.executable, str(HOOKS / script)], input=data,
                        capture_output=True, text=True, cwd=cwd)
     return r.returncode, r.stdout, r.stderr
+
+
+def read_approval(repo, gate):
+    """Aprovação gravada para o commit atual do repositório, como dicionário."""
+    import common
+    path = common.approval_path(common.state_dir(str(repo)), gate, git(repo, "rev-parse", "HEAD"))
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
