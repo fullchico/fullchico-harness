@@ -20,6 +20,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "hoo
 import common  # noqa: E402
 
 SUMMARY_LIMIT = 1500
+NOTE_LIMIT = 1200
+NOTE_NAME = None  # definido abaixo, depois do import de re
 DEFAULT_EXCLUDE = "docs .harness .claude .github"
 STALE = " (envelhecido: o código mudou desde o resumo)"
 
@@ -88,6 +90,7 @@ def changed_since(root, commit, paths) -> bool:
     return _git(root, "diff", "--quiet", commit, "--", *paths).returncode != 0
 
 
+NOTE_NAME = re.compile(r"^[a-z0-9][a-z0-9-]{0,60}$")
 KINDS = ("glossary", "adr")
 TERM = re.compile(r"^(?:#{2,3}\s+(.+?)\s*#*\s*$|\*\*(.+?)\*\*)")
 ADR = re.compile(r"^\d{4}-.+\.md$")
@@ -127,11 +130,7 @@ def anchor(root, kind, key, paths) -> None:
     known = glossary_terms(root) if kind == "glossary" else adrs(root)
     if key not in known:
         raise ValueError(f"`{key}` não está no {'GLOSSARY.md' if kind == 'glossary' else 'docs/adr/'}")
-    if not paths:
-        raise ValueError("faltam os caminhos")
-    for path in paths:
-        if os.path.isabs(path) or ".." in path.split("/") or not _exists_in_head(root, path):
-            raise ValueError(f"`{path}` não é um caminho versionado deste repositório")
+    _versioned(root, paths)
     data = _load(root, "anchors.json")
     data.setdefault(kind, {})[key] = {"paths": list(paths), "commit": common.head_sha(root)}
     _save(root, "anchors.json", data)
@@ -159,11 +158,82 @@ def _anchor_status(root) -> dict:
             "adr": {"review": review, "unanchored": [k for k in records if k not in data.get("adr", {})]}}
 
 
+def _versioned(root, paths) -> None:
+    if not paths:
+        raise ValueError("faltam os caminhos de código que sustentam isto")
+    for path in paths:
+        if os.path.isabs(path) or ".." in path.split("/") or not _exists_in_head(root, path):
+            raise ValueError(f"`{path}` não é um caminho versionado deste repositório")
+
+
+def _note_path(root, slug):
+    return os.path.join(_store(root), "notes", slug + ".md")
+
+
+def note_add(root, slug, text, paths, source=None) -> None:
+    """Guarda o que uma sessão ensinou sobre o projeto, ancorado no código que o sustenta.
+
+    Sem caminho de código a nota não entra: é a âncora que diz quando ela envelheceu.
+    """
+    if not isinstance(slug, str) or not NOTE_NAME.match(slug):
+        raise ValueError("o nome da nota usa só minúsculas, dígitos e hífen")
+    text = (text or "").strip()
+    if not text:
+        raise ValueError("a nota está vazia")
+    if len(text) > NOTE_LIMIT:
+        raise ValueError(f"a nota tem {len(text)} caracteres; o limite é {NOTE_LIMIT}")
+    _versioned(root, paths)
+    path = _note_path(root, slug)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path + ".tmp", "w", encoding="utf-8") as f:
+        f.write(text + "\n")
+    os.replace(path + ".tmp", path)
+    data = _load(root, "notes.json")
+    data[slug] = {"paths": list(paths), "commit": common.head_sha(root), "source": source}
+    _save(root, "notes.json", data)
+
+
+def note_forget(root, slug) -> None:
+    data = _load(root, "notes.json")
+    data.pop(slug, None)
+    _save(root, "notes.json", data)
+    try:
+        os.remove(_note_path(root, slug))
+    except OSError:
+        pass
+
+
+def note_show(root, slug):
+    try:
+        with open(_note_path(root, slug), encoding="utf-8") as f:
+            return f.read().strip()
+    except OSError:
+        return None
+
+
+def _notes_status(root) -> dict:
+    result = {"fresh": [], "stale": []}
+    for slug, entry in sorted(_load(root, "notes.json").items()):
+        stale = changed_since(root, entry.get("commit"), entry.get("paths") or [])
+        result["stale" if stale else "fresh"].append(slug)
+    return result
+
+
+def notes_index(root) -> str:
+    lines = []
+    for slug in _notes_status(root)["fresh"]:
+        first = (note_show(root, slug) or "").splitlines()[0:1]
+        if first:
+            lines.append(f"{slug}: {first[0]}")
+    return "\n".join(lines)
+
+
 def status(root) -> dict:
     recorded = _load(root, "map.json").get("units", {})
     current = units(root)
     result = {"fresh": [], "stale": [], "missing": [], "orphan": sorted(u for u in recorded if u not in current)}
     result.update(_anchor_status(root))
+    result["notes"] = _notes_status(root)
     for unit in current:
         if unit not in recorded or not os.path.exists(_summary_path(root, unit)):
             result["missing"].append(unit)
@@ -268,6 +338,9 @@ def _print_check(root) -> int:
     for key in state["adr"]["review"]:
         print(f"adr: {key}: a área mudou bastante desde a decisão; vale o dono reler")
         dirty = True
+    for slug in state["notes"]["stale"]:
+        print(f"nota: {slug}: o código que a sustentava mudou; reconferir ou apagar")
+        dirty = True
     # Sem âncora ainda não é problema: só não há como dizer se envelheceu.
     for label, items in (("glossário", state["glossary"]["unanchored"]), ("adr", state["adr"]["unanchored"])):
         if items:
@@ -277,7 +350,7 @@ def _print_check(root) -> int:
 
 def main(argv) -> int:
     if len(argv) < 2:
-        sys.stderr.write("uso: memory <units|check|record|show|slice|index|forget|anchor|anchors> ...\n")
+        sys.stderr.write("uso: memory <units|check|record|show|slice|index|forget|anchor|anchors|note|notes> ...\n")
         return 2
     root, command, args = argv[0], argv[1], [a for a in argv[2:] if a != "--"]
     try:
@@ -300,10 +373,20 @@ def main(argv) -> int:
         elif command == "anchor" and len(args) >= 2:
             anchor(root, args[0], args[1], args[2:])
             print(f"âncora gravada: {args[1]}")
+        elif command == "note" and len(args) >= 4 and args[0] == "add":
+            with open(args[2], encoding="utf-8") as f:
+                note_add(root, args[1], f.read(), args[3:])
+            print(f"nota gravada: {args[1]}")
+        elif command == "note" and len(args) == 2 and args[0] == "show":
+            print(note_show(root, args[1]) or "(sem nota)")
+        elif command == "note" and len(args) == 2 and args[0] == "forget":
+            note_forget(root, args[1])
+        elif command == "notes":
+            print(notes_index(root))
         elif command == "anchors":
             print(json.dumps(_load(root, "anchors.json"), ensure_ascii=False, indent=2, sort_keys=True))
         else:
-            sys.stderr.write("uso: memory <units|check|record|show|slice|index|forget|anchor|anchors> ...\n")
+            sys.stderr.write("uso: memory <units|check|record|show|slice|index|forget|anchor|anchors|note|notes> ...\n")
             return 2
     except (ValueError, OSError) as exc:
         sys.stderr.write(f"memory: {exc}\n")

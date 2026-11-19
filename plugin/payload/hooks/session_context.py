@@ -31,7 +31,15 @@ def context(cwd):
         return "Este repositório ainda não tem mapa do código. Para gerar: /harness:mapear."
     if len(index) > LIMIT:
         index = index[:LIMIT].rsplit("\n", 1)[0] + "\n(mapa cortado: veja o resto com `.harness/memory index`)"
-    pending = len(state["stale"]) + len(state["missing"]) + len(state["glossary"]["gone"]) + len(state["adr"]["review"])
+    notes = memory.notes_index(root)
+    if notes:
+        room = LIMIT - len(index)
+        if len(notes) > room:
+            notes = notes[:max(room, 0)].rsplit("\n", 1)[0]
+        if notes:
+            index += "\n\nNotas sobre o projeto, de sessões anteriores, ainda válidas para o código atual:\n" + notes
+    pending = (len(state["stale"]) + len(state["missing"]) + len(state["glossary"]["gone"])
+               + len(state["adr"]["review"]) + len(state["notes"]["stale"]))
     tail = (f"\n\n{pending} itens do mapa ou das âncoras envelheceram ou estão sem resumo. "
             "Para atualizar: /harness:mapear.") if pending else ""
     return f"{HEAD}\n\n{index}{tail}"
