@@ -18,6 +18,25 @@ valem do começo ao fim:
 
 Siga os passos em ordem. Só pare nas duas paradas marcadas.
 
+## Modo autônomo
+
+Se o dono mandar seguir até o fim ("segue", "pode seguir com o recomendado", "confio na sua
+análise"), a entrega passa a correr sem ele, e continua assim até ele dizer o contrário:
+
+- **Toda pergunta recebe a resposta recomendada.** Na entrevista, nos achados do revisor da
+  spec e em qualquer escolha do caminho, você decide pelo que recomendaria e segue.
+- **A PARADA 1 não acontece.** Você resolve os achados do revisor da spec e continua.
+- **Cada decisão fica escrita.** A spec ganha a seção `## Decisões tomadas sem o dono`: uma
+  linha por decisão, com o que foi escolhido, a alternativa descartada e o motivo. É por ela
+  que o dono confere depois.
+- **Não peça nada por mensagem que tenha comando próprio.** O `harness.conf` se propõe com
+  `.harness/conf-apply` e o ambiente sobe com `.harness/up`. O dono confirma no aviso que o
+  próprio comando abre; não espere um "pronto" na conversa.
+
+O que continua parando, mesmo assim: um aviso de permissão da plataforma, a PARADA 2, uma
+decisão sem alternativa recomendável (falta um dado que só o dono tem), e o merge, que é
+sempre dele. O que o modo autônomo não muda: os portões, as revisões e o sandbox.
+
 ## 0. Antes de começar
 
 - Confira que a sessão está num worktree de feature, numa branch que não é a padrão. Se
@@ -46,7 +65,7 @@ Escreva a spec seguindo `references/spec.md` e faça o commit.
 
 Dispare o `revisor-spec` com o pedido de `references/spec.md`. Apresente os achados ao dono.
 
-**PARADA 1.** O dono resolve cada achado e aprova a spec. Ajuste a spec com o que ele
+**PARADA 1, fora do modo autônomo.** O dono resolve cada achado e aprova a spec. Ajuste a spec com o que ele
 decidir, faça o commit, e só então siga.
 
 ## 4. Fatiar em tickets
@@ -69,6 +88,7 @@ do motivo.
 ## 7. Relatar
 
 Diga ao dono: o link do pull request, o que entrou, o que ficou de fora, quantas rodadas
-de correção houve, e qualquer coisa que os subagentes relataram fora do escopo.
+de correção houve, e qualquer coisa que os subagentes relataram fora do escopo. No modo
+autônomo, liste também as decisões tomadas sem ele, que estão na spec.
 
 Depois do merge, o dono fecha o ciclo com `/harness:aprender`.

@@ -74,6 +74,7 @@ o servidor de git e só acessa os sites liberados. Para você, no terminal, nada
 | `.harness/dev` | o app | você ou o agente |
 | `.harness/down` | para o ambiente, mantém os dados | você ou o agente, com a sua permissão |
 | `.harness/destroy` | remove o ambiente da feature | você ou o agente, com a sua permissão |
+| `.harness/conf-apply` | grava o `harness.conf` que o agente propôs | o agente, com a sua permissão |
 | `.harness/fetch` | atualiza as referências do remoto | o agente |
 | `.harness/push` | envia a branch, depois do portão | o agente |
 | `.harness/pr` | abre ou consulta o pull request | o agente |
@@ -98,6 +99,14 @@ fragmento do projeto.
 4. Acompanhe: os tickets são criados, os implementadores trabalham em paralelo, a
    checagem roda, os dois revisores dão o veredito, a branch é enviada e o pull request é aberto.
 5. Faça o merge, preservando os commits.
+
+## Seguir sem você
+
+Se você disser "segue até o fim" durante uma entrega, ela corre em modo autônomo: toda
+pergunta recebe a resposta recomendada, a aprovação da spec deixa de ser uma parada, e cada
+decisão tomada sem você fica escrita na spec, na seção "Decisões tomadas sem o dono". Você
+ainda é chamado nos avisos de permissão (gravar o `harness.conf`, subir o ambiente), se a
+entrega não fechar em três rodadas de correção, e para o merge.
 
 ## O mapa do código
 

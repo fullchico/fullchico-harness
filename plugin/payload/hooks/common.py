@@ -164,9 +164,21 @@ def read_conf(path: str) -> dict:
     return conf
 
 
+def conf_approval_path(root):
+    """Onde fica a proposta de harness.conf que o dono acabou de ver, para este worktree."""
+    import hashlib
+    state = state_dir(root)
+    if not state:
+        return None
+    key = hashlib.sha256(os.path.realpath(root).encode("utf-8")).hexdigest()[:16]
+    return os.path.join(state, "conf", key)
+
+
 if __name__ == "__main__":
-    # Uso pelos scripts de shell: common.py state-dir | common.py branch-base <sha>
+    # Uso pelos scripts de shell: common.py state-dir | common.py branch-base <sha> | common.py conf-approval <raiz>
     out = None
+    if len(sys.argv) == 3 and sys.argv[1] == "conf-approval":
+        out = conf_approval_path(sys.argv[2])
     if sys.argv[1:] == ["state-dir"]:
         out = state_dir(os.getcwd())
     elif len(sys.argv) == 3 and sys.argv[1] == "branch-base":

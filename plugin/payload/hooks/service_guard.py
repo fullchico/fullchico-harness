@@ -72,6 +72,42 @@ def env_reason(action: str, cwd: str) -> str:
         return head + " Não consegui resumir o compose; o script confere e mostra o resumo ao rodar."
 
 
+CONF_FORMS = (".harness/conf-apply", "./.harness/conf-apply")
+CONF_LIMIT = 4000
+CONF_HEAD = ("Gravar o harness.conf deste projeto com o conteúdo abaixo, proposto pelo agente. "
+             "Atenção: os comandos dele (instalação, migration, checagens) rodam fora do sandbox.")
+
+
+def conf_question(cwd: str) -> str:
+    """Confere a proposta, guarda a cópia que o dono vai ver e devolve o texto da pergunta.
+
+    O script grava essa cópia, e não o arquivo do agente: o que é aplicado é o que foi mostrado.
+    """
+    root = common.repo_root(cwd)
+    if not root:
+        common.deny("conf-apply: fora de um repositório git.")
+    proposal = os.path.join(root, ".harness-run", "harness.conf")
+    if os.path.islink(proposal) or not os.path.isfile(proposal):
+        common.deny("conf-apply: escreva antes a proposta em .harness-run/harness.conf.")
+    with open(proposal, encoding="utf-8") as f:
+        text = f.read(CONF_LIMIT + 1)
+    if len(text) > CONF_LIMIT:
+        common.deny(f"conf-apply: a proposta passa de {CONF_LIMIT} caracteres.")
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#") and not common._CONF_LINE.match(stripped):
+            common.deny(f"conf-apply: linha fora do formato CHAVE=valor: {stripped[:80]}")
+    if not common.read_conf(proposal).get("PROJECT"):
+        common.deny("conf-apply: a proposta precisa trazer PROJECT.")
+    target = common.conf_approval_path(root)
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    tmp = f"{target}.{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(text)
+    os.replace(tmp, target)
+    return f"{CONF_HEAD}\n\n{text}"
+
+
 def main():
     try:
         payload = json.load(sys.stdin)
@@ -88,6 +124,13 @@ def main():
     reason = classify(command, cwd if isinstance(cwd, str) else None)
     if reason:
         common.deny(reason)
+    if command.strip() in CONF_FORMS and isinstance(cwd, str):
+        print(json.dumps({"hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "ask",
+            "permissionDecisionReason": conf_question(cwd),
+        }}, ensure_ascii=False))
+        return
     action = ENV_FORMS.get(command.strip())
     if action and isinstance(cwd, str):
         # A pergunta em si vem da regra nativa permissions.ask, que vale em todo modo.

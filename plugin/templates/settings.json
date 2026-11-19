@@ -127,6 +127,8 @@
       "./.harness/down",
       ".harness/destroy",
       "./.harness/destroy",
+      ".harness/conf-apply",
+      "./.harness/conf-apply",
       ".harness/push",
       "./.harness/push",
       ".harness/push --force",
@@ -164,7 +166,9 @@
       "Bash(.harness/down)",
       "Bash(./.harness/down)",
       "Bash(.harness/destroy)",
-      "Bash(./.harness/destroy)"
+      "Bash(./.harness/destroy)",
+      "Bash(.harness/conf-apply)",
+      "Bash(./.harness/conf-apply)"
     ],
     "allow": [
       "Bash(.harness/fetch)",

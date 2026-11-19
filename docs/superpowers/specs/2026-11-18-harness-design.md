@@ -134,6 +134,17 @@ começa pela entrevista e vai até o PR aberto. O dono só é chamado em:
 
 Depois o dono faz o merge.
 
+**Modo autônomo [dono].** Se o dono mandar seguir até o fim, a entrega corre sem ele: toda
+pergunta recebe a resposta recomendada, a aprovação da spec deixa de ser parada, e cada decisão
+fica escrita na spec, na seção "Decisões tomadas sem o dono". Continuam parando: os avisos de
+permissão da plataforma, o limite de rodadas e o merge. Os portões, as revisões e o sandbox não
+mudam.
+
+**O `harness.conf` num projeto novo [autor].** O agente não grava o arquivo, porque os comandos
+dele rodam fora do sandbox. Ele propõe: escreve `.harness-run/harness.conf` e roda
+`.harness/conf-apply`. O guard mostra o conteúdo inteiro ao dono e guarda a cópia mostrada no
+estado, onde o agente não grava; o script aplica essa cópia, uma vez.
+
 | Passo | Peça | De quem | Quem executa | Saída |
 |---|---|---|---|---|
 | 1. Entrevistar | `grilling` e `domain-modeling` | autor | elefante + dono | entendimento; `GLOSSARY.md` e ADRs |

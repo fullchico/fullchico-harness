@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Grava o harness.conf que o agente propôs e o dono acabou de confirmar.
+#
+# O agente escreve a proposta em .harness-run/harness.conf e roda `.harness/conf-apply`,
+# sem argumento. O guard mostra o conteúdo inteiro ao dono e guarda a cópia mostrada num
+# lugar onde o agente não grava. Este script aplica essa cópia, uma vez.
+set -uo pipefail
+. "$(dirname "$0")/env-common.sh"
+
+APPROVED="$(python3 -I "$HERE/hooks/common.py" conf-approval "$ROOT")" || die "fora de um repositório git."
+[ -f "$APPROVED" ] || die "não há proposta confirmada pelo dono. Escreva .harness-run/harness.conf e rode exatamente: .harness/conf-apply"
+
+cp "$APPROVED" "$ROOT/harness.conf.$$.tmp" && mv "$ROOT/harness.conf.$$.tmp" "$ROOT/harness.conf" || die "não consegui gravar o harness.conf."
+rm -f "$APPROVED"
+echo "harness.conf gravado."
+
+"$HERE/worktree-env" || exit $?
+echo "Portas gravadas no .env. Faça o commit do harness.conf."

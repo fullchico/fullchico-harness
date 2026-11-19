@@ -1,5 +1,20 @@
 # Despachar os implementadores
 
+## Antes da primeira rodada
+
+**O `harness.conf`.** Sem `PROJECT` nele não há portas, nem ambiente, nem worktree de
+implementador. Se estiver vazio (projeto novo), proponha você: escreva o conteúdo em
+`.harness-run/harness.conf`, no formato do arquivo atual, com o que a spec decidiu, e rode
+exatamente `.harness/conf-apply`. O dono vê o conteúdo inteiro e confirma no aviso; o comando
+grava o arquivo e as portas no `.env`. Faça o commit do `harness.conf`.
+
+**O ambiente.** Se os testes da entrega precisam de banco ou de outro serviço, suba antes:
+`.harness/up`, depois `.harness/prepare`. Ticket que depende do ambiente não é concluído com
+teste contra um substituto em memória: sem ambiente de verdade ele fica `claimed`.
+
+**O plano.** Diga ao dono, em uma tabela, as ondas que o grafo dá: quais tickets rodam juntos
+em cada uma. É como ele sabe de antemão o que vai em paralelo.
+
 ## A fronteira
 
 ```bash
@@ -19,7 +34,8 @@ podem ser feitos agora, em paralelo.
    ferramenta de subagente com:
    - o agente: um agente do projeto em `.claude/agents/` cuja descrição cobre a área do
      ticket, se houver; senão `harness:implementador`;
-   - `isolation` como `worktree`, para cada um trabalhar na própria cópia;
+   - `isolation` como `worktree`, para cada um trabalhar na própria cópia, mesmo quando a
+     rodada tem um ticket só;
    - o modelo: `sonnet`;
    - o pedido, só com ponteiros:
 
