@@ -88,3 +88,34 @@ primeira rodada do teste em worktree foi feita num projeto dentro dele e deu res
 
 Não verificado: sessão interativa (só o modo sem interface), `git push` para um remoto de
 rede, e Docker.
+
+## Ambiente e rede no sandbox (2026-11-19)
+
+Projeto de rascunho fora do diretório temporário, com um contêiner `redis:7-alpine` publicado
+em `127.0.0.1:26379`, Docker 28.3.2, sessões `claude -p`. Conferido pelo estado real
+(`docker ps`, arquivos) e pela entrada que o hook de Bash recebeu.
+
+| # | Pergunta | Resultado |
+|---|---|---|
+| 1 | `docker compose up` solto, dentro do sandbox | bloqueado: o sandbox nega o acesso ao socket do Docker |
+| 2 | `.harness/up` na lista de comandos excluídos | sobe o contêiner, que fica saudável |
+| 2b | O hook `PreToolUse` de Bash roda para o comando excluído | sim, recebeu `.harness/up` antes da execução |
+| 3 | De dentro do sandbox, conectar em `127.0.0.1:26379` com `allowLocalBinding` | funciona (`+PONG`) |
+| 4 | `git ls-remote https://github.com/...` com o domínio liberado | funciona |
+| 5 | `npm view` | falha por padrão: o cache em `~/.npm` fica fora da pasta gravável |
+| 5b | `npm view` com `filesystem.allowWrite: ["~/.npm"]` | funciona |
+| 6 | Site fora da lista de domínios | negado (403 no proxy do sandbox) |
+| 7 | `.harness/up` com regra nativa `permissions.ask`, sem interface | negado; nenhum contêiner sobe |
+| 8 | De um worktree: `cwd` do hook e `$CLAUDE_PROJECT_DIR` | os dois são a raiz do worktree |
+
+Consequências:
+
+- O desenho do ambiente vale como planejado: `up` fora do sandbox com pergunta ao dono,
+  `prepare` e `dev` dentro do sandbox falando com `localhost`.
+- O resumo do compose pode ir na pergunta, porque o hook roda antes do comando excluído.
+- As configurações geradas precisam liberar escrita nos caches dos gerenciadores de pacote,
+  senão instalar dependência falha.
+- A pendência do plano 1 sobre worktree está resolvida: os hooks agem no worktree certo.
+
+Não verificado: sessão interativa (a pergunta aparecendo ao dono e sendo aprovada), `pnpm
+install` de um projeto real, e `git push` para um remoto de rede.
