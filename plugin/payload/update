@@ -24,6 +24,12 @@ if ! git -c advice.detachedHead=false clone -q --depth 1 --branch "$TAG" "$REPO"
   exit 1
 fi
 
+# `clone --branch` aceita também nome de branch. Versão é tag: branch muda de lugar.
+if ! git -C "$TMP/harness" rev-parse -q --verify "refs/tags/$TAG" >/dev/null 2>&1; then
+  echo "update: $TAG não é uma tag de $REPO. A versão do harness é sempre uma tag." >&2
+  exit 1
+fi
+
 # shellcheck disable=SC2086
 python3 -I "$TMP/harness/plugin/bin/sync" "$ROOT" --version "$TAG" $FORCE
 RC=$?

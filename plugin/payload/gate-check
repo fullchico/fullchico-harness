@@ -100,7 +100,8 @@ while read -r LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
 
   if [ -n "$BASE" ]; then
     SUBJECTS="$(git log --format=%s "$BASE..$TIP")"
-    NAMES="$(git diff --name-only "$BASE" "$TIP")"
+    # Só o que a branch acrescenta ou altera: apagar uma spec não é trazer uma.
+    NAMES="$(git diff --name-only --diff-filter=AM "$BASE" "$TIP")"
   else
     SUBJECTS="$(git log --format=%s "$TIP")"
     NAMES="$(git ls-tree -r --name-only "$TIP")"

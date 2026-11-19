@@ -22,7 +22,7 @@ if [ "${#FIRST}" -gt 80 ]; then
   exit 1
 fi
 BODY="$(grep -v '^#' "$FILE" || true)"
-if grep -Eiq '^co-authored-by:.*(claude|anthropic|openai|gpt|codex|copilot|gemini)|generated with|🤖' <<EOT
+if grep -Eiq '^co-authored-by:.*(claude|anthropic|openai|gpt|codex|copilot|gemini)|^[^[:alnum:]]*generated with|🤖' <<EOT
 $BODY
 EOT
 then

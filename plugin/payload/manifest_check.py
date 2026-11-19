@@ -31,6 +31,13 @@ def drift(root: str):
                     changed.append(rel)
         except OSError:
             changed.append(rel)
+    # Arquivo a mais em .harness/ também é desvio: tudo ali roda com a confiança do harness.
+    known = set(manifest.get("files", {})) | {".harness/MANIFEST"}
+    for folder, _, names in os.walk(os.path.join(root, ".harness")):
+        for name in names:
+            rel = os.path.relpath(os.path.join(folder, name), root).replace(os.sep, "/")
+            if rel not in known:
+                changed.append(rel)
     for rel, expected in sorted(manifest.get("regions", {}).items()):
         try:
             with open(os.path.join(root, rel), encoding="utf-8") as f:

@@ -57,6 +57,8 @@ dev_pid() {  # PID do app em segundo plano, se ainda estiver vivo
   local pid
   [ -f "$ROOT/.harness-run/dev.pid" ] || return 1
   pid="$(cat "$ROOT/.harness-run/dev.pid")"
+  # Só número positivo: `kill -1` alcançaria todos os processos do usuário.
+  case "$pid" in ""|0|*[!0-9]*) return 1 ;; esac
   [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null || return 1
   echo "$pid"
 }

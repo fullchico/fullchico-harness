@@ -65,7 +65,11 @@ def main():
     for protected in common.git_dirs(cwd) + [os.path.realpath(common.state_root())]:
         if target == protected or target.startswith(protected + os.sep):
             common.deny(DENY_GIT)
-    if not root or target != os.path.realpath(os.path.join(root, "AGENTS.md")):
+    agents = os.path.realpath(os.path.join(root, "AGENTS.md")) if root else None
+    # Num disco que não distingue maiúsculas, `agents.md` é o mesmo arquivo.
+    same = bool(agents) and (target == agents or (os.path.exists(target) and os.path.exists(agents)
+                                                  and os.path.samefile(target, agents)))
+    if not same:
         return
     after = None
     try:

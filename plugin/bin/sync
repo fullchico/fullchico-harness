@@ -157,7 +157,13 @@ def planned_files(root: str, version: str) -> dict:
                           .replace("__VERSION__", version))
     fragment = os.path.join(root, "harness.d", "settings.json")
     if os.path.exists(fragment):
-        settings = merge(settings, json.loads(read(fragment).decode("utf-8")))
+        try:
+            extra = json.loads(read(fragment).decode("utf-8"))
+        except ValueError as exc:
+            raise SystemExit(f"sync: harness.d/settings.json não é JSON válido: {exc}")
+        if not isinstance(extra, dict):
+            raise SystemExit("sync: harness.d/settings.json precisa ser um objeto JSON.")
+        settings = merge(settings, extra)
     close_git_host(settings, root)
     text = json.dumps(settings, indent=2, ensure_ascii=False) + "\n"
     plan[os.path.join(".claude", "settings.json")] = (text.encode("utf-8"), False)
