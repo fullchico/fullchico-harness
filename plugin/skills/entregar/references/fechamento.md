@@ -22,8 +22,15 @@ que falta conferir depende do conjunto funcionando:
 .harness/dev --background
 ```
 
-O `.harness/up` pergunta ao dono antes de rodar. Confira o comportamento pelas portas do
-`.env`. Ao terminar, `.harness/down`.
+Rode cada um sozinho, sem encadear. Confira o comportamento pelas portas do `.env`. Ao
+terminar, `.harness/down`.
+
+O app roda dentro do sandbox. Um servidor de desenvolvimento que vigia arquivos pode não
+subir ali (o `next dev` é um caso). Não é defeito do código: pare o `.harness/dev`, gere o
+build de produção e suba os processos compilados nas mesmas portas do `.env`. Diga no relato
+que a validação foi feita sobre o build.
+
+Antes de revisar, rode `.harness/agents-clean`: nenhum worktree de agente integrado deve sobrar.
 
 ## 3. Revisão
 

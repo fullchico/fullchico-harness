@@ -75,6 +75,7 @@ o servidor de git e só acessa os sites liberados. Para você, no terminal, nada
 | `.harness/down` | para o ambiente, mantém os dados | você ou o agente |
 | `.harness/destroy` | remove o ambiente da feature | você ou o agente, com a sua permissão |
 | `.harness/conf-apply` | grava o `harness.conf` que o agente propôs | o agente |
+| `.harness/agents-clean` | remove os worktrees de agente já integrados | o agente |
 | `.harness/fetch` | atualiza as referências do remoto | o agente |
 | `.harness/push` | envia a branch, depois do portão | o agente |
 | `.harness/pr` | abre ou consulta o pull request | o agente |
@@ -158,6 +159,8 @@ interativa com um projeto de verdade. É a lista para a primeira validação:
 Limites conhecidos, que não são falha de teste:
 
 - Sem o sandbox ligado, os portões protegem contra descuido, não contra um agente que insiste.
+- Um servidor de desenvolvimento que vigia arquivos pode não subir dentro do sandbox (visto com
+  o `next dev`). A validação é feita então sobre o build de produção.
 - No Linux o sandbox não alcança `localhost`; `prepare` e `dev` precisariam de outra saída.
 - Subagentes em paralelo na mesma feature compartilham o banco.
 - Não há suporte ao Codex ainda.

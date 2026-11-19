@@ -57,8 +57,8 @@ leitura: GLOSSARY.md
    estar em commit: o implementador trabalha numa cópia que só tem o que foi commitado.
 
 4. Quando cada um voltar, ele diz em que branch ficaram os commits. Junte essa branch na da
-   feature com `git merge --no-ff`, e depois apague o worktree e a branch dele com
-   `git worktree remove` e `git branch -d`.
+   feature com `git merge --no-ff`, e depois rode `.harness/agents-clean`, que apaga os
+   worktrees de agente já integrados e as branches deles.
    Conflito pequeno você resolve; conflito que muda o sentido do que foi feito volta para
    o implementador, numa rodada de correção.
 5. Confira que o ticket ficou `Status: done`. Rode `.harness/validate --profile push`.

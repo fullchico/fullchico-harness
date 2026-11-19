@@ -41,6 +41,9 @@ sempre dele. O que o modo autônomo não muda: os portões, as revisões e o san
 
 - Confira que a sessão está num worktree de feature, numa branch que não é a padrão. Se
   estiver na branch padrão, pare e peça ao dono para abrir o worktree da feature.
+- Confira que há remoto: `git remote get-url origin`. Sem ele não existe push nem pull
+  request. Avise o dono já agora, numa linha, e siga: a entrega vai até as aprovações, e o
+  envio fica esperando o remoto. Não deixe para descobrir no fim.
 - Rode `.harness/fetch`. Se a branch padrão do remoto andou, traga-a para dentro da feature
   com `git merge origin/<branch padrão>`, antes de qualquer outra coisa.
 - Leia `GLOSSARY.md` e os ADRs em `docs/adr/`, se existirem.

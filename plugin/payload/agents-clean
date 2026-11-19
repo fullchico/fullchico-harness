@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Remove os worktrees de agente cujo trabalho já foi integrado na branch atual, e as
+# branches deles. O que ainda não foi integrado, ou está em uso, fica e é listado.
+# Uso: .harness/agents-clean
+set -uo pipefail
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || { echo "agents-clean: fora de um repositório git." >&2; exit 2; }
+cd "$ROOT" || exit 1
+
+PATH_="" HEAD_="" BRANCH="" LOCKED=""
+finish() {
+  [ -n "$PATH_" ] || return 0
+  case "$PATH_" in
+    */.claude/worktrees/*)
+      if [ -n "$LOCKED" ]; then
+        echo "fica (em uso): $PATH_"
+      elif [ -n "$HEAD_" ] && git merge-base --is-ancestor "$HEAD_" HEAD 2>/dev/null; then
+        if git worktree remove --force "$PATH_" 2>/dev/null; then
+          [ -n "$BRANCH" ] && git branch -q -D "$BRANCH" 2>/dev/null
+          echo "removido: $PATH_"
+        else
+          echo "não consegui remover: $PATH_" >&2
+        fi
+      else
+        echo "fica (não integrado em $(git branch --show-current)): $PATH_"
+      fi ;;
+  esac
+  PATH_="" HEAD_="" BRANCH="" LOCKED=""
+}
+
+while IFS= read -r LINE; do
+  case "$LINE" in
+    "worktree "*) finish; PATH_="${LINE#worktree }" ;;
+    "HEAD "*) HEAD_="${LINE#HEAD }" ;;
+    "branch refs/heads/"*) BRANCH="${LINE#branch refs/heads/}" ;;
+    locked*) LOCKED=1 ;;
+  esac
+done <<EOT
+$(git worktree list --porcelain)
+EOT
+finish
+git worktree prune
+exit 0

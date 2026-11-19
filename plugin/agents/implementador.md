@@ -37,7 +37,10 @@ achado: docs/specs/exemplo/achados/01-rodada-1.md
    Não preencha a lacuna por conta própria.
 4. Implemente só o ticket, com a skill `tdd`, nos pontos de costura que a spec define.
 5. Havendo `achado`, corrija o que ele aponta e nada além.
-6. Marque o ticket como `Status: done` no mesmo conjunto de commits.
+6. Marque o ticket como `Status: done` no mesmo conjunto de commits, e só depois de ver os
+   testes dele passarem no ambiente da feature. Se não conseguiu rodá-los, não marque: termine
+   dizendo o que impediu. Não troque o banco da feature por um substituto em memória nem por
+   um servidor que você mesmo subiu.
 
 ## Como terminar
 
