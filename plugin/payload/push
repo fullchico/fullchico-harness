@@ -19,6 +19,8 @@ case "$#:${1:-}" in
 esac
 
 cd "$ROOT" || exit 1
+# Worktree de agente já integrado não sobra para depois da entrega.
+"$HERE/agents-clean" >/dev/null 2>&1 || true
 BRANCH="$(git symbolic-ref --short -q HEAD)" || die "o push é sempre de uma branch; este checkout não está em nenhuma."
 URL="$(git remote get-url origin 2>/dev/null)" || die "este repositório não tem o remoto origin."
 SHA="$(git rev-parse HEAD)"

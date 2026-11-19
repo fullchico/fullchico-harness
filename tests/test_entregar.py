@@ -57,6 +57,7 @@ class TestEntregar(unittest.TestCase):
         repo = make_repo()
         (repo / "docs/specs/x").mkdir(parents=True)
         (repo / "docs/specs/x/spec.md").write_text("x")
+        (repo / "harness.conf").write_text("PROJECT=p\n")
         commit_all(repo, "docs: add spec")
         ask = lambda prompt: run_hook("dispatch_guard.py", {"tool_name": "Agent", "cwd": str(repo), "tool_input": {
             "subagent_type": "harness:orquestrador", "prompt": prompt}})[0]
@@ -90,6 +91,7 @@ class TestEntregar(unittest.TestCase):
                      "docs/specs/exemplo/achados/01-rodada-1.md", "GLOSSARY.md", "docs/adr/0001-exemplo.md"):
             (repo / path).parent.mkdir(parents=True, exist_ok=True)
             (repo / path).write_text("x")
+        (repo / "harness.conf").write_text("PROJECT=p\n")
         base = git(repo, "rev-parse", "HEAD")
         git(repo, "checkout", "-q", "-b", "feat/exemplo")
         sha = commit_all(repo, "docs: add spec")
@@ -98,8 +100,10 @@ class TestEntregar(unittest.TestCase):
             for agent, body in re.findall(r"```pedido (\S+)\n(.*?)```", text, flags=re.S):
                 found += 1
                 prompt = body.replace("HASH_DO_COMMIT", sha).replace("BASE", base)
-                rc, _, err = run_hook("dispatch_guard.py", {"tool_name": "Agent", "cwd": str(repo), "tool_input": {
-                    "subagent_type": agent, "prompt": prompt}})
+                payload = {"tool_name": "Agent", "cwd": str(repo), "tool_input": {"subagent_type": agent, "prompt": prompt}}
+                if agent == "harness:implementador":
+                    payload["agent_type"] = "harness:orquestrador"
+                rc, _, err = run_hook("dispatch_guard.py", payload)
                 self.assertEqual(rc, 0, f"{name} ({agent}): {err}")
         self.assertGreaterEqual(found, 6)
 

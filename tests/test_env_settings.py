@@ -95,9 +95,11 @@ class TestAskWithSummary(unittest.TestCase):
         self.assertIn("apaga", reason.lower())
 
     def test_other_forms_get_no_special_treatment(self):
-        for c in ("bash .harness/up", ".harness/up --force", "cd x && .harness/up",
-                  ".harness/validate --profile push", ".harness/prepare", "git status"):
+        for c in (".harness/validate --profile push", ".harness/prepare", "git status"):
             self.assertEqual(self.ask(c), (0, None), c)
+        # Fora da forma exata o script cairia no sandbox: agora é negado, com o motivo.
+        for c in ("bash .harness/up", ".harness/up --force", "cd x && .harness/up"):
+            self.assertEqual(self.ask(c)[0], 2, c)
 
     def test_hook_skip_flags_still_denied(self):
         self.assertEqual(self.ask("git push --no-verify")[0], 2)

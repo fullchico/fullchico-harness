@@ -127,6 +127,36 @@ def bound(diff: str, commit: str, root: str):
     return None
 
 
+ONLY_ORCHESTRATOR = ("Quem despacha implementador é o `harness:orquestrador`. A sessão do dono desenha "
+                     "(entrevista e spec) e entrega a execução a ele, só com o caminho da spec: o modelo "
+                     "caro não fatia, não despacha e não integra.")
+
+
+def chain(agent, caller):
+    """Quem pode despachar quem. É o que mantém o modelo caro no desenho e o barato na execução."""
+    if agent == "harness:implementador" and caller != "harness:orquestrador":
+        return ONLY_ORCHESTRATOR
+    if agent == "harness:orquestrador" and caller:
+        return "O `harness:orquestrador` é despachado pela sessão do dono, não por um subagente."
+    return None
+
+
+def ready_for_execution(prompt, root):
+    """O orquestrador não tem a quem perguntar: o que ele precisa tem de estar na spec, em commit."""
+    fields = dict(m.groups() for m in map(_LINE.match, (l.strip() for l in prompt.splitlines())) if m)
+    spec = fields["spec"]
+    if not _committed(root, spec):
+        return (f"A spec ({spec}) precisa estar em commit, igual ao que está no disco: o orquestrador "
+                "trabalha só com o que foi commitado.")
+    if not common.read_conf(os.path.join(root, "harness.conf")).get("PROJECT"):
+        with open(os.path.join(root, spec), encoding="utf-8", errors="replace") as f:
+            if "harness.conf" not in f.read():
+                return ("Este projeto ainda não tem `harness.conf` preenchido, e a spec não diz o conteúdo dele. "
+                        "Acrescente à spec uma seção `harness.conf` com as chaves (PROJECT, SERVICES, COMPOSE_FILE, "
+                        "INSTALL_CMD, AFTER_UP, DEV_CMD, VALIDATE_PUSH, VALIDATE_MERGE, ENV_*) e faça o commit.")
+    return None
+
+
 def main():
     try:
         payload = json.load(sys.stdin)
@@ -140,7 +170,9 @@ def main():
     cwd = payload.get("cwd")
     root = common.repo_root(cwd) if isinstance(cwd, str) else None
     agent = tool_input.get("subagent_type")
-    reason = check(agent, tool_input.get("prompt"), root)
+    reason = chain(agent, payload.get("agent_type")) or check(agent, tool_input.get("prompt"), root)
+    if not reason and agent == "harness:orquestrador":
+        reason = ready_for_execution(tool_input.get("prompt"), root)
     if reason:
         common.deny(reason)
     record_request(agent, tool_input.get("prompt"), root)

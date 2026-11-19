@@ -74,6 +74,7 @@ MISSING = {
                  'echo "  O repositório usa o harness; traga a branch para um commit que o tenha." >&2\n'
                  "exit 1"),
     "commit-msg": "exit 0",
+    "pre-commit": "exit 0",
 }
 
 

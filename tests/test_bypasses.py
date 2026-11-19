@@ -38,7 +38,7 @@ class TestServiceGuardBypasses(unittest.TestCase):
 
     def test_allowed_commands(self):
         for c in [".harness/validate --profile push", "./.harness/validate --profile merge",
-                  ".harness/up", ".harness/down && .harness/destroy", ".harness/dev --background",
+                  ".harness/up", ".harness/down", ".harness/dev --background",
                   "git status", "git add -A && git commit -m 'feat: add booking'",
                   "git push origin feat/x", "cat plugin/templates/harness.conf",
                   "python3 -m unittest tests.test_gate_stamp"]:

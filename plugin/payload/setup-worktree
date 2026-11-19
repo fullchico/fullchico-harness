@@ -16,6 +16,11 @@ if [ ! -f .env ] && [ -n "$SOURCE" ] && [ -f "$SOURCE/.env" ] && [ "$(cd "$SOURC
   cp "$SOURCE/.env" .env
 fi
 
+if [ -z "$(conf_get PROJECT)" ]; then
+  echo "setup-worktree: o harness.conf ainda não tem PROJECT; portas e dependências ficam para quando ele for preenchido."
+  "$HERE/learn" remember >/dev/null 2>&1 || true
+  exit 0
+fi
 "$HERE/worktree-env" || exit $?
 
 # Guarda o caminho deste worktree: é por ele que as sessões são achadas depois que ele for removido.

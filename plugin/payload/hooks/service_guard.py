@@ -12,6 +12,7 @@ Qualquer erro do próprio hook vira negação, nunca liberação.
 """
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -25,10 +26,22 @@ DENY_SKIP = ("Pular os hooks de git (--no-verify, core.hooksPath) não é permit
 SKIP = ("--no-verif", "hookspath")
 
 
+# Os scripts que saem do sandbox. Só a forma exata é excluída dele: encadeados ou embrulhados,
+# rodariam dentro do sandbox e falhariam sem dizer o motivo (Docker e remoto inalcançáveis).
+_OUTSIDE = "up|down|destroy|conf-apply|push|fetch|pr"
+_CALLED = re.compile(rf"(?:^|[;&|(\n]|\b(?:bash|sh|zsh|exec|env|source)\s)\s*(?:[\w./-]*/)?\.harness/(?:{_OUTSIDE})(?=\s|$|[;&|)<>])")
+_EXACT = re.compile(r"^(?:\./)?\.harness/(?:(?:up|down|destroy|conf-apply|fetch|push)|push --force|pr(?: [^\n;&|`$<>]*)?)$")
+DENY_ALONE = ("Os scripts do harness que saem do sandbox rodam sozinho, um por chamada, na forma exata "
+              "(`.harness/up`, `.harness/conf-apply`, `.harness/push`, `.harness/fetch`, `.harness/pr ...`): "
+              "sem `&&`, `;`, `|`, redirecionamento nem `bash` na frente. Rode os outros comandos numa chamada separada.")
+
+
 def classify(command: str, cwd=None):
     lowered = command.lower()
     if any(mark in lowered for mark in SKIP):
         return DENY_SKIP
+    if _CALLED.search(command) and not _EXACT.match(command.strip()):
+        return DENY_ALONE
     return None
 
 

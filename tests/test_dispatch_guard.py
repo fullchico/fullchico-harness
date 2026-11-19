@@ -13,8 +13,10 @@ class TestDispatchGuard(unittest.TestCase):
         self.sha = commit_all(self.repo, "docs: add spec")
 
     def hook(self, agent, prompt, tool="Agent"):
-        return run_hook("dispatch_guard.py", {"tool_name": tool, "cwd": str(self.repo),
-                        "tool_input": {"subagent_type": agent, "prompt": prompt}})[0]
+        payload = {"tool_name": tool, "cwd": str(self.repo), "tool_input": {"subagent_type": agent, "prompt": prompt}}
+        if agent == "harness:implementador":
+            payload["agent_type"] = "harness:orquestrador"
+        return run_hook("dispatch_guard.py", payload)[0]
 
     def test_fixed_format_passes(self):
         ok = f"diff: main...HEAD\ncommit: {self.sha}\nspec: docs/specs/x/spec.md\nleitura: GLOSSARY.md"
