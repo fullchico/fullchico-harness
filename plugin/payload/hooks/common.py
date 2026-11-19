@@ -164,6 +164,21 @@ def read_conf(path: str) -> dict:
     return conf
 
 
+def file_digest(rel: str, data: bytes) -> str:
+    """Impressão digital de um arquivo gerenciado.
+
+    Arquivo JSON é comparado pelo conteúdo, não pelos bytes: o `claude plugin install`
+    regrava o settings.json com as chaves em outra ordem, e isso não é alteração.
+    """
+    import hashlib
+    if rel.endswith(".json"):
+        try:
+            data = json.dumps(json.loads(data.decode("utf-8")), sort_keys=True, ensure_ascii=False).encode("utf-8")
+        except ValueError:
+            pass
+    return hashlib.sha256(data).hexdigest()
+
+
 def conf_approval_path(root):
     """Onde fica a proposta de harness.conf que o dono acabou de ver, para este worktree."""
     import hashlib

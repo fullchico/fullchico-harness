@@ -73,3 +73,35 @@ class TestInstall(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSettingsRewrittenByTheCli(unittest.TestCase):
+    """`claude plugin install` regrava o settings.json com as chaves em outra ordem."""
+
+    def setUp(self):
+        import json
+        from tests.helpers import sync
+        self.json, self.sync = json, sync
+        self.repo = make_repo()
+        self.assertEqual(sync(self.repo).returncode, 0)
+        self.path = self.repo / ".claude/settings.json"
+        self.check = ["python3", "-I", str(self.repo / ".harness/manifest_check.py"), str(self.repo)]
+
+    def rewrite(self, change=None):
+        data = self.json.loads(self.path.read_text())
+        if change:
+            change(data)
+        self.path.write_text(self.json.dumps(dict(reversed(list(data.items()))), indent=4))
+
+    def test_same_content_in_another_order_is_not_drift(self):
+        self.rewrite()
+        self.assertEqual(subprocess.run(self.check, capture_output=True).returncode, 0)
+        r = self.sync(self.repo)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_changed_content_is_still_drift(self):
+        self.rewrite(lambda d: d["sandbox"].update(enabled=False))
+        r = subprocess.run(self.check, capture_output=True, text=True)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(".claude/settings.json", r.stdout)
+        self.assertEqual(self.sync(self.repo).returncode, 1)

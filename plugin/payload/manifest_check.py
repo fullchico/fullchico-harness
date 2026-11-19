@@ -13,6 +13,7 @@ sys.dont_write_bytecode = True  # não deixa __pycache__ dentro de .harness/ do 
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "hooks"))
+import common  # noqa: E402
 from managed_guard import region  # noqa: E402
 
 
@@ -27,8 +28,10 @@ def drift(root: str):
     for rel, expected in sorted(manifest.get("files", {}).items()):
         try:
             with open(os.path.join(root, rel), "rb") as f:
-                if sha256(f.read()) != expected:
-                    changed.append(rel)
+                data = f.read()
+            # Manifesto antigo guardava os bytes; os dois valem.
+            if expected not in (common.file_digest(rel, data), sha256(data)):
+                changed.append(rel)
         except OSError:
             changed.append(rel)
     # Arquivo a mais em .harness/ também é desvio: tudo ali roda com a confiança do harness.

@@ -209,8 +209,10 @@ def conflicts(root: str, plan: dict, manifest: dict, current_agents) -> list:
         path = os.path.join(root, rel)
         if not os.path.exists(path):
             continue
-        actual = sha256(read(path))
-        if actual != sha256(content) and actual != known.get(rel):
+        data = read(path)
+        actual = common.file_digest(rel, data)
+        # Manifesto antigo guardava os bytes; os dois valem.
+        if actual != common.file_digest(rel, content) and known.get(rel) not in (actual, sha256(data)):
             found.append(rel)
     expected_region = manifest.get("regions", {}).get("AGENTS.md")
     if expected_region and current_agents is not None:
@@ -257,7 +259,7 @@ def main() -> int:
         stale = os.path.join(root, rel)
         if rel in plan or not os.path.exists(stale):
             continue
-        if sha256(read(stale)) == known:
+        if known in (common.file_digest(rel, read(stale)), sha256(read(stale))):
             os.remove(stale)
         else:
             sys.stderr.write(f"sync: {rel.replace(os.sep, '/')} não é mais gerado pelo harness, mas foi "
@@ -280,7 +282,7 @@ def main() -> int:
 
     record = {
         "version": args.version,
-        "files": {rel: sha256(content) for rel, (content, _) in sorted(plan.items())},
+        "files": {rel: common.file_digest(rel, content) for rel, (content, _) in sorted(plan.items())},
         "regions": {"AGENTS.md": sha256(managed.encode("utf-8"))},
     }
     with open(os.path.join(root, ".harness", "MANIFEST"), "w", encoding="utf-8") as f:
