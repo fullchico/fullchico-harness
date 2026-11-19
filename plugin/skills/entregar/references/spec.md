@@ -23,6 +23,12 @@ um ponto de costura que já existe e o mais alto possível. Diga o que é um bom
 (comportamento observável, não detalhe interno) e aponte testes parecidos que já existem.
 Esta seção é obrigatória: é ela que permite implementar e validar sem subir ambiente.
 
+**Ambiente e execução.** Quem executa a spec não tem a quem perguntar, então diga aqui:
+os serviços de que os testes dependem (banco, fila) e como cada implementador isola o seu
+quando vários rodam ao mesmo tempo no mesmo ambiente (um banco de teste por ticket, por
+exemplo); e, se o projeto ainda não tem `harness.conf` preenchido, uma subseção `harness.conf`
+com o conteúdo do arquivo. Sem ela o orquestrador não é despachado.
+
 **Fora de escopo.** O que não entra, dito com todas as letras.
 
 ## O que não entra na spec
