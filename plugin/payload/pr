@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Abre ou consulta o pull request da branch atual.
+# Uso: .harness/pr create "<título>" <arquivo com o corpo>
+#      .harness/pr view
+#
+# Roda fora do sandbox, porque fala com a API do servidor de git. Só abre PR de uma
+# branch que já está no remoto no commit atual, ou seja, que passou por .harness/push.
+set -uo pipefail
+. "$(dirname "$0")/env-common.sh"
+for VAR in $(env | sed -n 's/^\(GIT_[A-Za-z0-9_]*\)=.*/\1/p'); do unset "$VAR"; done
+
+usage() { echo 'uso: pr create "<título>" <arquivo do corpo> | pr view' >&2; exit 2; }
+
+cd "$ROOT" || exit 1
+case "${1:-}:$#" in
+  view:1|create:3) ;;
+  *) usage ;;
+esac
+command -v gh >/dev/null 2>&1 || die "gh não encontrado no PATH."
+BRANCH="$(git symbolic-ref --short -q HEAD)" || die "este checkout não está em nenhuma branch."
+
+if [ "$1" = "view" ]; then
+  exec gh pr view "$BRANCH"
+fi
+
+TITLE="$2"
+BODY="$(python3 - "$ROOT" "$3" <<'PY'
+import os, sys
+root, path = os.path.realpath(sys.argv[1]), os.path.realpath(sys.argv[2])
+print(path if os.path.isfile(path) and path.startswith(root + os.sep) else "")
+PY
+)"
+[ -n "$BODY" ] || die "o arquivo do corpo precisa existir dentro do projeto."
+
+REMOTE_SHA="$(git ls-remote origin "refs/heads/$BRANCH" 2>/dev/null | cut -f1)"
+[ "$REMOTE_SHA" = "$(git rev-parse HEAD)" ] || die "a branch $BRANCH não está no remoto neste commit. Envie antes com .harness/push."
+
+exec gh pr create --head "$BRANCH" --title "$TITLE" --body-file "$BODY"

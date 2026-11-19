@@ -101,14 +101,24 @@
       ".harness/down",
       "./.harness/down",
       ".harness/destroy",
-      "./.harness/destroy"
+      "./.harness/destroy",
+      ".harness/push",
+      "./.harness/push",
+      ".harness/push --force",
+      "./.harness/push --force",
+      ".harness/fetch",
+      "./.harness/fetch",
+      ".harness/pr *",
+      "./.harness/pr *"
     ],
     "network": {
       "allowLocalBinding": true,
       "allowedDomains": [
-        "github.com",
-        "*.github.com",
         "registry.npmjs.org"
+      ],
+      "deniedDomains": [
+        "github.com",
+        "*.github.com"
       ]
     }
   },

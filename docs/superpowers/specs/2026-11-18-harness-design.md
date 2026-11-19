@@ -215,9 +215,31 @@ fora da lista de leitura dos agentes.
 | segurança | `seguranca` | o commit no topo da branch enviada |
 | revisão de código | `revisor` | o mesmo commit |
 
-Commit local é livre. Nada sai da máquina sem os dois vereditos. O portão é um hook de git
-(`pre-push`): vale para Claude, Codex e o dono no terminal, e cobre o que chegou por merge.
-Entrou commit novo, o hash muda e a validação é refeita.
+Commit local é livre. Nada sai da máquina sem os dois vereditos. Entrou commit novo, o hash
+muda e a validação é refeita.
+
+**O agente só chega ao remoto por `.harness/push`. [dono]** escolheu fechar a rede; o
+mecanismo é **[autor]**. Um hook de git não segura um agente: a revisão do plano 2 enviou
+código sem revisão com `git push --no-veri`, `git send-pack`, um clone novo sem os hooks e
+`GIT_DIR`. Vigiar o texto do comando já tinha falhado duas vezes. Então:
+
+- as configurações geradas **negam, dentro do sandbox, a rede para o servidor de git**
+  (`github.com`, `*.github.com` e o servidor do remoto `origin`, quando for outro). Nenhuma
+  forma de `git push` funciona de lá, não importa como seja escrita;
+- `.harness/push` roda fora do sandbox, confere os dois vereditos e a trava de spec
+  (`gate-check`) e só então envia a branch atual. Não executa código do projeto e ignora
+  variáveis de ambiente do git;
+- `.harness/fetch` atualiza as referências do remoto, e `.harness/pr` abre ou consulta o
+  pull request, só de uma branch que já está no remoto no commit atual;
+- o hook `pre-push` continua existindo para o push feito à mão pelo dono, que passa pelo
+  mesmo `gate-check`.
+
+Verificado em sessão real: de dentro do sandbox, `git` e a API do GitHub são barrados; os
+scripts do harness saem do sandbox e alcançam o remoto; e, de um worktree, o `.git/config` e
+os hooks do checkout principal continuam protegidos contra escrita.
+
+Custo aceito: o agente não usa `git fetch`, `git pull` nem `gh` diretamente, e dependência
+instalada direto do servidor de git não baixa de dentro do sandbox.
 
 O `revisor` revisa direto o diff contra a spec, em dois eixos (padrões e aderência), sem
 relatório intermediário do elefante. Também confere: **[autor]**
@@ -284,7 +306,8 @@ A aprovação registra o subagente e a transcrição, para auditoria.
 | `managed-guard` | antes de Edit/Write | nega alterar a região gerenciada do `AGENTS.md`, e escrever no diretório do git ou no estado do harness |
 | `rtk hook claude` | antes de Bash | compressão de saída, do próprio rtk |
 | `git-hooks/commit-msg` | git | formato do commit, sem assinatura de IA |
-| `git-hooks/pre-push` | git | consulta o remoto; dois vereditos, trava de spec, grafo, manifesto, `validate --profile push` |
+| `gate-check` | chamado por `push` e pelo `pre-push` | consulta o remoto; dois vereditos e trava de spec |
+| `git-hooks/pre-push` | git, no push feito à mão | `gate-check` e depois `validate --profile push` |
 
 Hooks de agente usam o diretório atual que vem na chamada, não a pasta onde a sessão
 começou, para agir no worktree certo. Exceção dentro de hook vira negação, nunca liberação.
@@ -475,6 +498,9 @@ shell para a infra; os scripts são invólucros bash.
 | `down` | para o app em segundo plano e os contêineres; mantém dados | fora do sandbox, com pergunta |
 | `destroy` | remove contêineres, volumes e imagens da feature; recusa no checkout principal | fora do sandbox, com pergunta |
 | `validate` | manifesto e o perfil `push` ou `merge` do projeto | dentro do sandbox |
+| `push` | portão e envio da branch atual; `--force` depois de reescrever commits | fora do sandbox |
+| `fetch` | atualiza as referências do remoto | fora do sandbox |
+| `pr` | `create "<título>" <arquivo>` e `view` | fora do sandbox |
 | `approve` | carimbo manual do dono | terminal do dono |
 | `update` | seção 12 | terminal do dono |
 
@@ -503,8 +529,8 @@ pergunta, e a checagem do compose; o mecanismo é **[autor]**, verificado em ses
   processo ou de rede da máquina, capacidades extras ou dispositivos. A checagem lê a
   configuração final que o próprio Docker devolve.
 - `prepare` e `dev` são código do projeto e rodam dentro do sandbox, falando com `localhost`.
-- As configurações geradas liberam `localhost`, os domínios `github.com` e
-  `registry.npmjs.org`, e escrita nos caches de npm, pnpm, yarn e bun. O projeto acrescenta
+- As configurações geradas liberam `localhost`, o domínio `registry.npmjs.org` e escrita nos
+  caches de npm, pnpm, yarn e bun, e negam o servidor de git (seção 6.1). O projeto acrescenta
   os seus em `harness.d/settings.json`.
 - `git` por SSH não funciona dentro do sandbox no macOS: os remotos precisam ser HTTPS.
 

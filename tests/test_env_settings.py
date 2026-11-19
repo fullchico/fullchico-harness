@@ -21,15 +21,20 @@ class TestEnvSettings(unittest.TestCase):
         self.s = settings(self.repo)
 
     def test_only_exact_env_commands_leave_the_sandbox_and_all_of_them_ask(self):
-        self.assertEqual(sorted(self.s["sandbox"]["excludedCommands"]), sorted(FORMS))
+        excluded = self.s["sandbox"]["excludedCommands"]
         for form in FORMS:
+            self.assertIn(form, excluded)
             self.assertIn(f"Bash({form})", self.s["permissions"]["ask"])
+        # nada além dos scripts do harness sai do sandbox, e nenhum deles com argumento livre,
+        # exceto o pr, que repassa título e arquivo como argumentos, sem interpretá-los
+        self.assertTrue(all(c.lstrip("./").startswith("harness/") for c in excluded), excluded)
+        self.assertEqual({c for c in excluded if "*" in c}, {".harness/pr *", "./.harness/pr *"})
 
     def test_network(self):
         net = self.s["sandbox"]["network"]
         self.assertIs(net["allowLocalBinding"], True)
-        for domain in ("github.com", "registry.npmjs.org"):
-            self.assertIn(domain, net["allowedDomains"])
+        self.assertIn("registry.npmjs.org", net["allowedDomains"])
+        self.assertIn("github.com", net["deniedDomains"])
 
     def test_package_manager_caches_are_writable(self):
         for path in ("~/.npm", "~/Library/pnpm", "~/.local/share/pnpm", "~/.yarn", "~/.bun/install/cache"):
@@ -48,7 +53,7 @@ class TestEnvSettings(unittest.TestCase):
         self.assertEqual(sync(self.repo).returncode, 0)
         s = settings(self.repo)
         self.assertIn("api.exemplo.com", s["sandbox"]["network"]["allowedDomains"])
-        self.assertIn("github.com", s["sandbox"]["network"]["allowedDomains"])
+        self.assertIn("registry.npmjs.org", s["sandbox"]["network"]["allowedDomains"])
         self.assertIs(s["sandbox"]["network"]["allowLocalBinding"], True)
         self.assertIn("Bash(.harness/up)", s["permissions"]["ask"])
         self.assertIn(".harness/up", s["sandbox"]["excludedCommands"])

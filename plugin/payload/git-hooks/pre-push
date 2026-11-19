@@ -1,127 +1,13 @@
 #!/usr/bin/env bash
-# Portão de push: dois vereditos sobre o commit do topo, trava de spec e checagens.
-# Vale para qualquer um que faça push: agente ou dono.
-#
-# O que a branch acrescenta é medido contra o remoto de verdade, consultado agora,
-# e não contra as referências locais, que qualquer comando consegue mover.
+# Hook de git para o push feito à mão, no terminal. O agente não chega ao remoto por
+# aqui: dentro do sandbox a rede para o servidor de git é negada, e o caminho dele é
+# .harness/push. Este hook existe para o dono passar pelo mesmo portão.
 set -uo pipefail
 
-REMOTE_URL="${2:-${1:-}}"
 ROOT="$(git rev-parse --show-toplevel)"
 H="$ROOT/.harness"
-STATE="$(python3 "$H/hooks/common.py" state-dir)" || { echo "push negado: não achei o estado do harness." >&2; exit 1; }
-ZERO=0000000000000000000000000000000000000000
-SPEC_GLOB='docs/specs/*/spec.md'
-[ -f "$H/map.env" ] && . "$H/map.env"
 
-if ! LS="$(git ls-remote --symref "$REMOTE_URL" HEAD 'refs/heads/*' 2>/dev/null)"; then
-  echo "push negado: não consegui consultar o remoto ($REMOTE_URL) para medir o que a branch acrescenta." >&2
-  exit 1
-fi
-# Commit para o qual o HEAD do remoto aponta (vazio em remoto recém-criado) e os topos das branches de lá.
-REMOTE_HEAD="$(awk '$2 == "HEAD" && $1 != "ref:" { sha = $1 } END { print sha }' <<EOT
-$LS
-EOT
-)"
-REMOTE_TIPS="$(awk '$2 ~ /^refs\/heads\// { print $1 }' <<EOT
-$LS
-EOT
-)"
-
-approved() {  # portão, sha, base
-  local file="$STATE/approvals/$1/$2.json"
-  [ -f "$file" ] || return 1
-  python3 - "$file" "$1" "$2" "$3" <<'PY'
-import json, sys
-try:
-    with open(sys.argv[1], encoding="utf-8") as f:
-        d = json.load(f)
-except (OSError, ValueError):
-    sys.exit(1)
-ok = d.get("status") == "PASS" and d.get("gate") == sys.argv[2] and d.get("sha") == sys.argv[3]
-# A aprovação de um revisor vale para o intervalo que ele leu: a base tem de ser a
-# mesma que o remoto informa. O carimbo do dono vale para o commit.
-ok = ok and (d.get("by") == "owner" or (d.get("base") and d.get("base") == sys.argv[4]))
-sys.exit(0 if ok else 1)
-PY
-}
-
-on_remote() {  # o commit já faz parte de alguma branch do remoto?
-  local tip
-  while IFS= read -r tip; do
-    [ -n "$tip" ] || continue
-    git merge-base --is-ancestor "$1" "$tip" 2>/dev/null && return 0
-  done <<EOT
-$REMOTE_TIPS
-EOT
-  return 1
-}
-
-FAIL=0
-while read -r LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
-  [ -n "${LOCAL_SHA:-}" ] || continue
-  [ "$LOCAL_SHA" = "$ZERO" ] && continue
-  # Tag anotada aponta para um objeto de tag: o que se revisa é o commit dela.
-  TIP="$(git rev-parse -q --verify "$LOCAL_SHA^{commit}" 2>/dev/null)" || continue
-
-  # Tag passa sem revisão só quando o commit já está numa branch do remoto (release
-  # de algo mesclado). Tag sobre commit novo é um push de código como outro qualquer.
-  case "$LOCAL_REF" in
-    refs/tags/*) on_remote "$TIP" && continue ;;
-  esac
-
-  BASE=""
-  if [ -n "$REMOTE_HEAD" ]; then
-    if ! git cat-file -e "$REMOTE_HEAD^{commit}" 2>/dev/null; then
-      echo "push negado: a branch padrão do remoto tem commits que este clone ainda não baixou. Rode git fetch." >&2
-      FAIL=1
-      continue
-    fi
-    if ! BASE="$(git merge-base "$TIP" "$REMOTE_HEAD" 2>/dev/null)" || [ -z "$BASE" ]; then
-      echo "push negado: esta branch não tem histórico em comum com a branch padrão do remoto." >&2
-      FAIL=1
-      continue
-    fi
-  fi
-
-  for GATE in seguranca revisao; do
-    if ! approved "$GATE" "$TIP" "$BASE"; then
-      echo "push negado: falta a aprovação de $GATE para o commit $TIP." >&2
-      echo "  Ela nasce do veredito do revisor sobre a branch inteira, desde a branch padrão do remoto;" >&2
-      echo "  commit novo, ou revisão de só uma parte, pede revisão nova." >&2
-      FAIL=1
-    fi
-  done
-
-  if [ -n "$BASE" ]; then
-    SUBJECTS="$(git log --format=%s "$BASE..$TIP")"
-    NAMES="$(git diff --name-only "$BASE" "$TIP")"
-  else
-    SUBJECTS="$(git log --format=%s "$TIP")"
-    NAMES="$(git ls-tree -r --name-only "$TIP")"
-  fi
-  # Sem pipe para o grep -q: com pipefail, o grep sair cedo derruba o comando
-  # anterior e a trava deixaria de valer de forma intermitente.
-  if grep -Eq '^feat(\(.+\))?!?:' <<EOT
-$SUBJECTS
-EOT
-  then
-    FOUND=0
-    while IFS= read -r NAME; do
-      # shellcheck disable=SC2254
-      case "$NAME" in $SPEC_GLOB) FOUND=1 ;; esac
-    done <<EOT
-$NAMES
-EOT
-    if [ "$FOUND" -eq 0 ]; then
-      echo "push negado: a branch tem commit feat e nenhuma spec em $SPEC_GLOB." >&2
-      echo "  Toda feat entra com a spec da mudança no mesmo conjunto de commits." >&2
-      FAIL=1
-    fi
-  fi
-done
-
-[ "$FAIL" -eq 0 ] || exit 1
+"$H/gate-check" "${2:-${1:-}}" || exit 1
 "$H/validate" --profile push </dev/null || {
   echo "push negado: .harness/validate --profile push falhou." >&2
   exit 1

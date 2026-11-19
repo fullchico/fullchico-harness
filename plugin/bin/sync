@@ -13,6 +13,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -90,6 +91,31 @@ def install_hook_dispatchers(root: str) -> None:
     subprocess.run(["git", "config", "core.hooksPath", target], cwd=root, check=True)
 
 
+def remote_host(root: str):
+    """Servidor do remoto origin, ou None para remoto local ou ausente."""
+    url = subprocess.run(["git", "remote", "get-url", "origin"], cwd=root, capture_output=True, text=True).stdout.strip()
+    m = re.match(r"^[a-z+]+://(?:[^@/]+@)?([^/:]+)", url) or re.match(r"^(?:[^@/]+@)?([^/:]+\.[^/:]+):", url)
+    return m.group(1).lower() if m else None
+
+
+def close_git_host(settings: dict, root: str) -> None:
+    """Dentro do sandbox, o servidor de git não é alcançável.
+
+    O portão de push é um script do harness que roda fora do sandbox. Se o agente
+    alcançasse o servidor por conta própria, qualquer comando do git que não roda
+    hooks enviaria código sem revisão. Um fragmento do projeto não reabre isso.
+    """
+    network = settings["sandbox"]["network"]
+    denied = network["deniedDomains"]
+    host = remote_host(root)
+    for domain in ([host, "*." + host] if host else []):
+        if domain not in denied:
+            denied.append(domain)
+    bare = {d[2:] if d.startswith("*.") else d for d in denied}
+    network["allowedDomains"] = [d for d in network.get("allowedDomains", [])
+                                 if d not in denied and not any(d == b or d.endswith("." + b) for b in bare)]
+
+
 def planned_files(root: str, version: str) -> dict:
     """Caminho relativo -> (conteúdo, executável) de tudo que é inteiramente gerenciado."""
     plan = {}
@@ -112,6 +138,7 @@ def planned_files(root: str, version: str) -> dict:
     fragment = os.path.join(root, "harness.d", "settings.json")
     if os.path.exists(fragment):
         settings = merge(settings, json.loads(read(fragment).decode("utf-8")))
+    close_git_host(settings, root)
     text = json.dumps(settings, indent=2, ensure_ascii=False) + "\n"
     plan[os.path.join(".claude", "settings.json")] = (text.encode("utf-8"), False)
 

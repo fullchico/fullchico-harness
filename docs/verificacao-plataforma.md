@@ -119,3 +119,24 @@ Consequências:
 
 Não verificado: sessão interativa (a pergunta aparecendo ao dono e sendo aprovada), `pnpm
 install` de um projeto real, e `git push` para um remoto de rede.
+
+## Rede fechada para o servidor de git (2026-11-19)
+
+Motivo: a revisão do plano 2 enviou código sem revisão por quatro caminhos do git que não
+rodam o hook de `pre-push`. A saída foi negar a rede para o servidor de git dentro do
+sandbox e fazer de `.harness/push` o único caminho. Sessão `claude -p` a partir de um
+worktree, com `network.deniedDomains: ["github.com", "*.github.com"]` e os scripts do harness
+na lista de excluídos.
+
+| Tentativa, de dentro do sandbox | Resultado |
+|---|---|
+| `git ls-remote https://github.com/...` | negado |
+| `curl https://api.github.com` | negado |
+| `.harness/push` (excluído), que por dentro fala com o GitHub | roda fora do sandbox e alcança o remoto |
+| `.harness/push origin 'titulo com espaco'` com a entrada `.harness/push *` | os argumentos chegam inteiros |
+| `git config --local core.fsmonitor ...`, a partir do worktree | negado: não grava o `.git/config` do principal |
+| `git remote add ...`, a partir do worktree | negado |
+| Gravar `.git/config` e `.git/hooks/pre-push` do principal por Python, a partir do worktree | negado |
+
+Não verificado: `git push` real para o GitHub por `.harness/push`, com as suas credenciais, e
+`.harness/pr` com o `gh` de verdade.

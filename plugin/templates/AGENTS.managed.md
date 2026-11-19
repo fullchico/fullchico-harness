@@ -46,8 +46,12 @@ Nada sai da máquina sem dois vereditos sobre o commit do topo da branch:
 - Branch com commit `feat` precisa trazer a spec em `docs/specs/<slug>/spec.md`.
 - Nenhum agente carimba aprovação. Ela nasce do veredito do revisor. O carimbo
   manual, `.harness/approve`, é do dono.
-- Agentes nunca usam `--no-verify` nem trocam a pasta de hooks do git. Push
-  negado se corrige pela causa.
+- O remoto só é alcançado pelos scripts do harness: `.harness/push` (envia a
+  branch atual, depois do portão), `.harness/fetch` (atualiza as referências) e
+  `.harness/pr create "<título>" <arquivo>` ou `.harness/pr view`. `git push`,
+  `git fetch` e `gh` diretos não funcionam: a rede para o servidor de git é
+  negada dentro do sandbox.
+- Push negado se corrige pela causa. Agentes nunca usam `--no-verify`.
 - O Bash roda em sandbox: escrita em `.harness/`, `harness.conf` e no estado dos
   portões é negada pelo sistema. Não é erro a contornar.
 
