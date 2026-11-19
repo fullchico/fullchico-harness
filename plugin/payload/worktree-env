@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+# Deriva o ambiente da feature deste worktree e grava no .env só as chaves de infra.
+#
+#   feature  = o worktree aberto a partir da branch padrão (Orca, Conductor ou à mão)
+#   contexto = HARNESS_ENV, senão o nome da pasta da feature
+#   projeto  = <PROJECT>-<contexto>
+#   portas   = um bloco de dez; o serviço na posição i de SERVICES usa base + i
+#
+# Um worktree de agente (dentro de .claude/worktrees/ de uma feature) pertence ao
+# ambiente da feature: mesmas portas, mesmo projeto.
+#
+# Uso: .harness/worktree-env [--print]   (--print só mostra, sem gravar)
+set -euo pipefail
+
+HERE="$(cd "$(dirname "$0")" && pwd -P)"
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || ROOT="$(cd "$HERE/.." && pwd -P)"
+
+exec python3 - "$HERE/hooks" "$ROOT" "${1:-}" <<'PY'
+import json
+import os
+import re
+import socket
+import sys
+import zlib
+
+sys.dont_write_bytecode = True
+sys.path.insert(0, sys.argv[1])
+import common  # noqa: E402
+
+root, mode = sys.argv[2], sys.argv[3]
+MARK = "/.claude/worktrees/"
+
+
+def fail(message):
+    sys.stderr.write(f"[worktree-env] {message} O .env não foi alterado.\n")
+    sys.exit(1)
+
+
+def busy(port):
+    """Tem alguém escutando nessa porta?"""
+    with socket.socket() as probe:
+        probe.settimeout(0.3)
+        if probe.connect_ex(("127.0.0.1", port)) == 0:
+            return True
+    with socket.socket() as probe:
+        try:
+            probe.bind(("127.0.0.1", port))
+        except OSError:
+            return True
+    return False
+
+
+conf = common.read_conf(os.path.join(root, "harness.conf"))
+project = conf.get("PROJECT", "").strip()
+services = conf.get("SERVICES", "").split()
+if not project:
+    fail("Falta PROJECT no harness.conf.")
+if not services:
+    fail("Falta SERVICES no harness.conf.")
+if len(services) > 10:
+    fail(f"SERVICES tem {len(services)} serviços; o bloco de portas comporta 10.")
+
+feature = root.split(MARK)[0] if MARK in root else root
+explicit = os.environ.get("HARNESS_ENV", "").strip()
+context = re.sub(r"[^a-z0-9]+", "-", (explicit or os.path.basename(feature)).lower()).strip("-")
+if not context:
+    fail("Não consegui derivar o contexto do ambiente a partir do nome da pasta.")
+
+conductor = os.environ.get("CONDUCTOR_PORT", "").strip()
+if conductor:
+    if not re.fullmatch(r"[0-9]{1,5}", conductor) or not 1 <= int(conductor) <= 65535:
+        fail("CONDUCTOR_PORT inválida; esperado um número entre 1 e 65535.")
+    base, step, limit = int(conductor), 1, min(int(conductor) + 10 - len(services), 65535 - len(services))
+else:
+    key = f"{feature}:{context}" if explicit else feature
+    base, step, limit = 20000 + zlib.crc32(key.encode("utf-8")) % 2000 * 10, 10, 65535 - len(services)
+
+# Ambiente já de pé para esta feature: as portas são as que o `up` registrou.
+registered = None
+state = common.state_dir(root)
+if state:
+    try:
+        with open(os.path.join(state, "envs", context + ".json"), encoding="utf-8") as f:
+            registered = int(json.load(f)["base"])
+    except (OSError, ValueError, KeyError, TypeError):
+        registered = None
+
+if registered is not None:
+    base = registered
+else:
+    start = base
+    while base <= limit:
+        taken = next((base + i for i in range(len(services)) if busy(base + i)), None)
+        if taken is None:
+            break
+        sys.stderr.write(f"[worktree-env] bloco iniciado em {base} tem a porta {taken} ocupada; "
+                         "tentando o próximo.\n")
+        base += step
+    else:
+        fail(f"Nenhum bloco de {len(services)} portas livre a partir de {start}.")
+
+values = {"HARNESS_ENV_CONTEXT": context, "COMPOSE_PROJECT_NAME": f"{project}-{context}"}
+for index, service in enumerate(services):
+    values[re.sub(r"[^A-Z0-9]+", "_", service.upper()) + "_PORT"] = str(base + index)
+pairs = dict(values)
+for key, template in conf.items():
+    if key.startswith("ENV_") and len(key) > 4:
+        pairs[key[4:]] = re.sub(r"\$\{([A-Z0-9_]+)\}", lambda m: values.get(m.group(1), m.group(0)), template)
+
+lines = [f"{key}={value}" for key, value in pairs.items()]
+if mode == "--print":
+    print("\n".join(lines))
+    sys.exit(0)
+
+env_file = os.path.join(root, ".env")
+current = ""
+for candidate in (env_file, os.path.join(root, ".env.example")):
+    if os.path.exists(candidate):
+        with open(candidate, encoding="utf-8") as f:
+            current = f.read()
+        break
+kept = [line for line in current.splitlines() if line.split("=", 1)[0] not in pairs]
+tmp = env_file + ".harness-tmp"
+with open(tmp, "w", encoding="utf-8") as f:
+    f.write("\n".join(kept + lines) + "\n")
+os.replace(tmp, env_file)
+print(f"[worktree-env] {pairs['COMPOSE_PROJECT_NAME']} · portas {base}-{base + len(services) - 1}")
+PY
