@@ -70,6 +70,7 @@
     "deny": [
       "Edit(/.harness/**)",
       "Edit(/.claude/settings.json)",
+      "Edit(/.claude/settings.local.json)",
       "Edit(/CLAUDE.md)",
       "Edit(/docs/agents/**)",
       "Edit(/harness.conf)",

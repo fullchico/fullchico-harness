@@ -24,34 +24,38 @@ sys.exit(0 if d.get("status") == "PASS" and d.get("gate") == sys.argv[2] and d.g
 PY
 }
 
-default_branch() {
-  local ref
-  for ref in refs/remotes/origin/HEAD refs/remotes/origin/main refs/heads/main; do
-    if git rev-parse -q --verify "$ref" >/dev/null 2>&1; then echo "$ref"; return 0; fi
-  done
-  return 1
-}
-
 FAIL=0
 while read -r LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
-  case "$LOCAL_REF" in refs/tags/*) continue ;; esac
+  [ -n "${LOCAL_SHA:-}" ] || continue
   [ "$LOCAL_SHA" = "$ZERO" ] && continue
-  [ -n "$LOCAL_SHA" ] || continue
+  # Tag anotada aponta para um objeto de tag: o que se revisa é o commit dela.
+  TIP="$(git rev-parse -q --verify "$LOCAL_SHA^{commit}" 2>/dev/null)" || continue
+
+  # Tag passa sem revisão só quando o commit já está no remoto (release de algo
+  # mesclado). Tag sobre commit novo é um push de código como outro qualquer.
+  case "$LOCAL_REF" in
+    refs/tags/*)
+      ON_REMOTE="$(git for-each-ref --count=1 --contains "$TIP" refs/remotes)"
+      [ -n "$ON_REMOTE" ] && continue
+      ;;
+  esac
 
   for GATE in seguranca revisao; do
-    if ! approved "$GATE" "$LOCAL_SHA"; then
-      echo "push negado: falta a aprovação de $GATE para o commit $LOCAL_SHA." >&2
+    if ! approved "$GATE" "$TIP"; then
+      echo "push negado: falta a aprovação de $GATE para o commit $TIP." >&2
       echo "  Ela nasce do veredito do revisor sobre esse commit; commit novo pede revisão nova." >&2
       FAIL=1
     fi
   done
 
-  RANGE="$LOCAL_SHA"
-  BASE=""
-  if DEFAULT="$(default_branch)"; then
-    BASE="$(git merge-base "$LOCAL_SHA" "$DEFAULT" 2>/dev/null || true)"
-    [ -n "$BASE" ] && RANGE="$BASE..$LOCAL_SHA"
+  if ! BASE="$(python3 "$H/hooks/common.py" branch-base "$TIP")"; then
+    echo "push negado: não encontrei a branch padrão para saber o que esta branch acrescenta." >&2
+    echo "  Defina DEFAULT_BRANCH=<nome> no harness.conf (hoje procuro origin/HEAD, main e master)." >&2
+    FAIL=1
+    continue
   fi
+  RANGE="$BASE..$TIP"
+
   # Sem pipe para o grep -q: com pipefail, o grep sair cedo derruba o git log e a
   # trava deixaria de valer de forma intermitente.
   SUBJECTS="$(git log --format=%s "$RANGE")"
@@ -59,11 +63,7 @@ while read -r LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
 $SUBJECTS
 EOT
   then
-    if [ -n "$BASE" ]; then
-      NAMES="$(git diff --name-only "$BASE" "$LOCAL_SHA")"
-    else
-      NAMES="$(git ls-tree -r --name-only "$LOCAL_SHA")"
-    fi
+    NAMES="$(git diff --name-only "$BASE" "$TIP")"
     FOUND=0
     while IFS= read -r NAME; do
       # shellcheck disable=SC2254

@@ -44,6 +44,53 @@ def merge(base, extra):
     return base
 
 
+def write_atomic(path: str, content: bytes, executable: bool) -> None:
+    """Grava num arquivo novo e troca de uma vez.
+
+    O `update` em execução é um desses arquivos: escrever por cima dele faria o
+    shell continuar lendo, do meio, um conteúdo que mudou.
+    """
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".harness-tmp"
+    with open(tmp, "wb") as f:
+        f.write(content)
+    os.chmod(tmp, 0o755 if executable else 0o644)
+    os.replace(tmp, path)
+
+
+DISPATCHER = """#!/bin/sh
+# Despachante do harness. O hook de verdade mora em .harness/git-hooks do checkout em uso.
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || ROOT=""
+HOOK="$ROOT/.harness/git-hooks/{name}"
+if [ -n "$ROOT" ] && [ -x "$HOOK" ]; then
+  exec "$HOOK" "$@"
+fi
+{missing}
+"""
+MISSING = {
+    "pre-push": ('echo "push negado: este checkout não tem .harness/git-hooks/pre-push." >&2\n'
+                 'echo "  O repositório usa o harness; traga a branch para um commit que o tenha." >&2\n'
+                 "exit 1"),
+    "commit-msg": "exit 0",
+}
+
+
+def install_hook_dispatchers(root: str) -> None:
+    """Aponta o git para hooks num caminho absoluto, dentro do diretório git comum.
+
+    Um core.hooksPath relativo vale para todos os worktrees, e num checkout sem
+    .harness/ o git simplesmente não roda hook nenhum, em silêncio. O despachante
+    existe sempre e nega o push quando o hook de verdade não está lá.
+    """
+    common_dir = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                                cwd=root, capture_output=True, text=True, check=True).stdout.strip()
+    target = os.path.join(common_dir, "harness", "git-hooks")
+    for name, missing in MISSING.items():
+        script = DISPATCHER.format(name=name, missing=missing)
+        write_atomic(os.path.join(target, name), script.encode("utf-8"), True)
+    subprocess.run(["git", "config", "core.hooksPath", target], cwd=root, check=True)
+
+
 def planned_files(root: str, version: str) -> dict:
     """Caminho relativo -> (conteúdo, executável) de tudo que é inteiramente gerenciado."""
     plan = {}
@@ -155,11 +202,7 @@ def main() -> int:
                 os.remove(stale)
 
     for rel, (content, executable) in plan.items():
-        path = os.path.join(root, rel)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "wb") as f:
-            f.write(content)
-        os.chmod(path, 0o755 if executable else 0o644)
+        write_atomic(os.path.join(root, rel), content, executable)
 
     managed = managed_region()
     with open(agents_path, "w", encoding="utf-8") as f:
@@ -170,7 +213,7 @@ def main() -> int:
         with open(conf, "wb") as f:
             f.write(read(os.path.join(TEMPLATES, "harness.conf")))
 
-    subprocess.run(["git", "config", "core.hooksPath", ".harness/git-hooks"], cwd=root, check=True)
+    install_hook_dispatchers(root)
 
     record = {
         "version": args.version,

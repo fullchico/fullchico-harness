@@ -109,3 +109,15 @@ def clone_self_with_tags(name: str, tags: dict) -> pathlib.Path:
         git(up, "commit", "-q", "--allow-empty", "-m", f"chore: release {tag}")
         git(up, "tag", tag)
     return up
+
+
+def owner_approve(repo, gate, resumo="ok"):
+    """Roda .harness/approve como o dono: com um terminal de verdade na entrada."""
+    import pty
+    master, slave = pty.openpty()
+    try:
+        return subprocess.run([str(pathlib.Path(repo) / ".harness/approve"), gate, resumo], cwd=str(repo),
+                              stdin=slave, capture_output=True, text=True)
+    finally:
+        os.close(master)
+        os.close(slave)

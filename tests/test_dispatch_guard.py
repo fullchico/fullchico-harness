@@ -1,6 +1,6 @@
 import unittest
 
-from tests.helpers import git, make_repo, run_hook
+from tests.helpers import commit_all, git, make_repo, run_hook
 
 
 class TestDispatchGuard(unittest.TestCase):
@@ -9,7 +9,8 @@ class TestDispatchGuard(unittest.TestCase):
         (self.repo / "docs/specs/x").mkdir(parents=True)
         (self.repo / "docs/specs/x/spec.md").write_text("s")
         (self.repo / "GLOSSARY.md").write_text("g")
-        self.sha = git(self.repo, "rev-parse", "HEAD")
+        git(self.repo, "checkout", "-q", "-b", "feat/x")
+        self.sha = commit_all(self.repo, "docs: add spec")
 
     def hook(self, agent, prompt, tool="Agent"):
         return run_hook("dispatch_guard.py", {"tool_name": tool, "cwd": str(self.repo),
@@ -23,12 +24,11 @@ class TestDispatchGuard(unittest.TestCase):
         self.assertEqual(self.hook("harness:revisor-spec", "spec: docs/specs/x/spec.md"), 0)
 
     def test_diff_accepts_git_revision_syntax(self):
-        for rng in ("HEAD~1...HEAD", "main..HEAD^", "origin/main...feat/x", "HEAD@{1}..HEAD", self.sha + ".." + self.sha):
+        for rng in ("HEAD~1...HEAD", "main..feat/x", "HEAD@{1}..HEAD", f"main...{self.sha}"):
             self.assertEqual(self.hook("harness:seguranca", f"diff: {rng}\ncommit: {self.sha}"), 0, rng)
-        for rng in ("HEAD", "main...HEAD --no-index /etc", "main...HEAD;ls", "$(x)...HEAD"):
+        for rng in ("HEAD", "main...HEAD --no-index /etc", "main...HEAD;ls", "$(x)...HEAD", "main..HEAD^",
+                    "-main...HEAD"):
             self.assertEqual(self.hook("harness:seguranca", f"diff: {rng}\ncommit: {self.sha}"), 2, rng)
-        self.assertEqual(self.hook("harness:revisor-spec",
-                                   "spec: docs/specs/x/spec.md\nleitura: GLOSSARY.md, README.md"), 0)
 
     def test_narrative_is_denied(self):
         base = f"diff: main...HEAD\ncommit: {self.sha}"

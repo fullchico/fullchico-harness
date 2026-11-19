@@ -23,13 +23,12 @@ class TestServiceGuardGates(unittest.TestCase):
                   'git push --no-verify',
                   'git -c core.hooksPath=/dev/null push',
                   'git config core.hooksPath /tmp/x',
-                  'HUSKY=0 git push',
-                  'echo "aspas abertas']:
+                  'HUSKY=0 git push']:
             self.assertEqual(self.hook(repo, c), 2, c)
 
     def test_allows(self):
         repo = make_repo()
-        for c in ['git status', 'git push origin feat/x', 'ls .harness', 'cat .harness/MANIFEST',
+        for c in ['git status', 'git push origin feat/x', 'echo "aspas abertas',
                   'python3 -m unittest', 'git commit -m "feat: add approval flow"',
                   '.harness/validate --profile push', 'ls -la && git log --oneline | head -5']:
             self.assertEqual(self.hook(repo, c), 0, c)

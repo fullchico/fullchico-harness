@@ -67,6 +67,30 @@ def check(agent: str, prompt, root):
         return f"{FORMAT} `commit` precisa ser o hash completo."
     if "diff" in seen and not _DIFF.match(seen["diff"]):
         return f"{FORMAT} `diff` precisa ser um intervalo, como main...HEAD."
+    if "commit" in seen and "diff" in seen:
+        return bound(seen["diff"], seen["commit"], root)
+    return None
+
+
+def bound(diff: str, commit: str, root: str):
+    """O revisor vê a branch inteira, e é o commit do topo que ele aprova.
+
+    Sem isso, um diff vazio ou parcial renderia uma aprovação que o push lê
+    como sendo de tudo o que a branch acrescenta.
+    """
+    if commit != common.head_sha(root):
+        return "`commit` precisa ser o commit atual (HEAD): é ele que a aprovação assina."
+    left, right = re.split(r"\.\.\.?", diff, maxsplit=1)
+    resolve = lambda rev: common._git(root, "rev-parse", "-q", "--verify", rev + "^{commit}")
+    base = common.branch_base(root, commit)
+    if not base or base == commit:
+        return ("Não há o que revisar: a branch não tem commits além da branch padrão, ou a "
+                "branch padrão não foi encontrada (defina DEFAULT_BRANCH no harness.conf).")
+    if resolve(right) != commit:
+        return "`diff` precisa terminar no commit atual (HEAD)."
+    if common._git(root, "merge-base", resolve(left) or "", commit) != base:
+        return ("`diff` precisa cobrir a branch inteira, a partir da branch padrão "
+                f"(por exemplo {base[:12]}...HEAD).")
     return None
 
 

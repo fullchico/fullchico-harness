@@ -43,6 +43,16 @@ def parse_verdict(message):
     return {key: values[0] for key, values in found.items()}
 
 
+def _is_message(entry) -> bool:
+    """Entrada de usuário que é texto, e não resultado de ferramenta."""
+    content = (entry.get("message") or {}).get("content")
+    if isinstance(content, str):
+        return bool(content.strip())
+    if isinstance(content, list):
+        return any(isinstance(b, dict) and b.get("type") == "text" for b in content)
+    return False
+
+
 def final_message(payload):
     """Resposta final do subagente.
 
@@ -53,11 +63,9 @@ def final_message(payload):
     valer como resposta.
     """
     message = payload.get("last_assistant_message")
-    if isinstance(message, str) and message.strip():
-        return message
     path = payload.get("agent_transcript_path")
-    if not isinstance(path, str):
-        return None
+    if not isinstance(path, str) or not os.path.exists(os.path.expanduser(path)):
+        return message if isinstance(message, str) and message.strip() else None
     last = None
     try:
         with open(os.path.expanduser(path), encoding="utf-8") as f:
@@ -66,8 +74,14 @@ def final_message(payload):
                     entry = json.loads(line)
                 except ValueError:
                     continue
-                if isinstance(entry, dict) and entry.get("type") == "assistant" and entry.get("isSidechain"):
+                if not isinstance(entry, dict) or not entry.get("isSidechain"):
+                    continue
+                if entry.get("type") == "assistant":
                     last = entry
+                elif entry.get("type") == "user" and last is not None and _is_message(entry):
+                    # Alguém falou com o revisor depois que ele começou: o veredito
+                    # deixa de ser só sobre os documentos, então não vale como aprovação.
+                    return None
     except OSError:
         return None
     content = ((last or {}).get("message") or {}).get("content")

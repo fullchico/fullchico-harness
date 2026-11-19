@@ -38,7 +38,11 @@ class TestSync(unittest.TestCase):
                   ".claude/settings.json", "CLAUDE.md", "AGENTS.md", "harness.conf",
                   "docs/agents/issue-tracker.md", "docs/agents/domain.md"]:
             self.assertTrue((self.repo / p).exists(), p)
-        self.assertEqual(git(self.repo, "config", "core.hooksPath"), ".harness/git-hooks")
+        hooks = pathlib.Path(git(self.repo, "config", "core.hooksPath"))
+        self.assertEqual(hooks, self.repo / ".git/harness/git-hooks")
+        for name in ("pre-push", "commit-msg"):
+            self.assertTrue(os.access(hooks / name, os.X_OK), name)
+        self.assertFalse(list(self.repo.rglob("*.harness-tmp")))
         self.assertFalse(list((self.repo / ".harness").rglob("__pycache__")))
 
     def test_map_env_comes_from_map_json(self):

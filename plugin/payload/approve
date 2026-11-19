@@ -9,6 +9,9 @@ RESUMO="${2:-}"
 
 usage() { echo 'uso: approve <seguranca|revisao> "<resumo>"' >&2; exit 1; }
 
+# Sem terminal na entrada, quem está chamando não é o dono digitando.
+[ -t 0 ] || { echo "approve: só roda num terminal, pelo dono. Agentes não carimbam aprovação." >&2; exit 1; }
+
 case "$GATE" in seguranca|revisao) ;; *) usage ;; esac
 [ -n "${RESUMO//[[:space:]]/}" ] || usage
 

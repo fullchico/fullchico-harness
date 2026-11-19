@@ -1,7 +1,8 @@
 import subprocess
 import unittest
 
-from tests.helpers import ROOT, clone_repo, commit_all, commit_file, git, make_repo, sync, write_tmp
+from tests.helpers import (ROOT, clone_repo, commit_all, commit_file, git, make_repo, owner_approve, sync,
+                           write_tmp)
 
 COMMIT_MSG = str(ROOT / "plugin/payload/git-hooks/commit-msg")
 
@@ -51,8 +52,7 @@ class TestPrePush(unittest.TestCase):
 
     def approve_both(self):
         for g in ("seguranca", "revisao"):
-            subprocess.run([str(self.repo / ".harness/approve"), g, "ok"], cwd=self.repo,
-                           check=True, capture_output=True)
+            self.assertEqual(owner_approve(self.repo, g).returncode, 0)
 
     def test_push_without_approvals_is_denied(self):
         commit_file(self.repo, "a.txt", "fix: a")
@@ -63,8 +63,7 @@ class TestPrePush(unittest.TestCase):
 
     def test_one_approval_is_not_enough(self):
         commit_file(self.repo, "a.txt", "fix: a")
-        subprocess.run([str(self.repo / ".harness/approve"), "seguranca", "ok"], cwd=self.repo,
-                       check=True, capture_output=True)
+        owner_approve(self.repo, "seguranca")
         r = self.push()
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("revisao", r.stderr)
@@ -143,10 +142,6 @@ class TestPrePush(unittest.TestCase):
         self.approve_both()
         self.assertEqual(self.push().returncode, 0)
 
-    def test_tag_push_is_ignored(self):
-        git(self.repo, "tag", "v0")
-        self.assertEqual(self.push("v0").returncode, 0)
-
     def test_branch_delete_is_ignored(self):
         commit_file(self.repo, "a.txt", "fix: a")
         self.approve_both()
@@ -158,7 +153,7 @@ class TestPrePush(unittest.TestCase):
         wt = self.repo.parent / "wt two"
         git(self.repo, "worktree", "add", "-q", "--detach", str(wt))
         for g in ("seguranca", "revisao"):
-            subprocess.run([str(wt / ".harness/approve"), g, "ok"], cwd=wt, check=True, capture_output=True)
+            self.assertEqual(owner_approve(wt, g).returncode, 0)
         self.assertEqual(self.push().returncode, 0)
 
 
