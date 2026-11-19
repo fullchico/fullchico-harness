@@ -16,13 +16,13 @@ case "$GATE" in seguranca|revisao) ;; *) usage ;; esac
 [ -n "${RESUMO//[[:space:]]/}" ] || usage
 
 HERE="$(cd "$(dirname "$0")" && pwd -P)"
-STATE="$(python3 "$HERE/hooks/common.py" state-dir 2>/dev/null)" || {
+STATE="$(python3 -I "$HERE/hooks/common.py" state-dir 2>/dev/null)" || {
   echo "erro: fora de um repositório git" >&2; exit 1; }
 SHA="$(git rev-parse HEAD 2>/dev/null)" || { echo "erro: repositório sem commit" >&2; exit 1; }
 
 DIR="$STATE/approvals/$GATE"
 mkdir -p "$DIR"
-python3 - "$DIR/$SHA.json" "$GATE" "$SHA" "$RESUMO" <<'PY'
+python3 -I - "$DIR/$SHA.json" "$GATE" "$SHA" "$RESUMO" <<'PY'
 import datetime, json, sys
 path, gate, sha, resumo = sys.argv[1:5]
 record = {"gate": gate, "sha": sha, "base": None, "status": "PASS", "resumo": resumo, "by": "owner",

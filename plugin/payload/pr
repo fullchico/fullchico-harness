@@ -24,7 +24,7 @@ if [ "$1" = "view" ]; then
 fi
 
 TITLE="$2"
-BODY="$(python3 - "$ROOT" "$3" <<'PY'
+BODY="$(python3 -I - "$ROOT" "$3" <<'PY'
 import os, sys
 root, path = os.path.realpath(sys.argv[1]), os.path.realpath(sys.argv[2])
 print(path if os.path.isfile(path) and path.startswith(root + os.sep) else "")

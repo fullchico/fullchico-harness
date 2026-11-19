@@ -1,5 +1,9 @@
 # Trecho comum dos scripts de ambiente. Lido com `.`, não executado.
 # Define HERE, ROOT e as funções abaixo. Não grava nada em .harness/.
+#
+# Todo Python chamado pelos scripts do harness usa `python3 -I` (modo isolado). Vários
+# deles rodam fora do sandbox com a raiz do projeto como pasta atual, e sem o -I um
+# json.py plantado ali pelo agente seria importado no lugar do módulo de verdade.
 
 HERE="$(cd "$(dirname "$0")" && pwd -P)"
 ROOT="$(cd "$HERE/.." && pwd -P)"
@@ -7,7 +11,7 @@ ROOT="$(cd "$HERE/.." && pwd -P)"
 die() { echo "$(basename "$0"): $*" >&2; exit 1; }
 
 conf_get() {  # chave do harness.conf, vazio se não houver
-  python3 - "$HERE/hooks" "$ROOT/harness.conf" "$1" <<'PY'
+  python3 -I - "$HERE/hooks" "$ROOT/harness.conf" "$1" <<'PY'
 import sys
 sys.dont_write_bytecode = True
 sys.path.insert(0, sys.argv[1])
@@ -45,7 +49,7 @@ compose() {  # docker compose do projeto desta feature
 
 env_record() {  # arquivo que registra o dono do ambiente desta feature
   local state
-  state="$(cd "$ROOT" && python3 "$HERE/hooks/common.py" state-dir)" || die "não achei o estado do harness."
+  state="$(cd "$ROOT" && python3 -I "$HERE/hooks/common.py" state-dir)" || die "não achei o estado do harness."
   echo "$state/envs/$(env_get HARNESS_ENV_CONTEXT).json"
 }
 

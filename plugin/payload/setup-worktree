@@ -20,7 +20,7 @@ fi
 
 # Plugin declarado no projeto não se instala sozinho numa máquina nova.
 if [ -z "${HARNESS_SKIP_PLUGIN:-}" ] && command -v claude >/dev/null 2>&1 && [ -f .claude/settings.json ]; then
-  python3 - <<'PY' | while IFS= read -r plugin; do claude plugin install "$plugin" --scope project >/dev/null 2>&1 || echo "setup-worktree: não instalei o plugin $plugin; rode à mão." >&2; done
+  python3 -I - <<'PY' | while IFS= read -r plugin; do claude plugin install "$plugin" --scope project >/dev/null 2>&1 || echo "setup-worktree: não instalei o plugin $plugin; rode à mão." >&2; done
 import json
 for name, enabled in json.load(open(".claude/settings.json")).get("enabledPlugins", {}).items():
     if enabled:

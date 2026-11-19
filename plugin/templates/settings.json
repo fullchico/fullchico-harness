@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/service_guard.py\"",
+            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/service_guard.py\"",
             "timeout": 30,
             "statusMessage": "Conferindo guard de comandos..."
           },
@@ -42,7 +42,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/dispatch_guard.py\"",
+            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/dispatch_guard.py\"",
             "timeout": 30,
             "statusMessage": "Conferindo pedido ao revisor..."
           }
@@ -53,7 +53,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/managed_guard.py\"",
+            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/managed_guard.py\"",
             "timeout": 30,
             "statusMessage": "Conferindo arquivos gerenciados..."
           }
@@ -66,7 +66,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/gate_stamp.py\"",
+            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/gate_stamp.py\"",
             "timeout": 30
           }
         ]

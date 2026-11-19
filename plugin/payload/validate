@@ -13,14 +13,14 @@ esac
 HERE="$(cd "$(dirname "$0")" && pwd -P)"
 ROOT="$(cd "$HERE/.." && pwd -P)"
 
-DRIFT="$(python3 "$HERE/manifest_check.py" "$ROOT")" || {
+DRIFT="$(python3 -I "$HERE/manifest_check.py" "$ROOT")" || {
   echo "validate: arquivos gerenciados pelo harness foram alterados fora do update:" >&2
   echo "$DRIFT" | sed 's/^/  /' >&2
   echo "  Desfaça a alteração, ou rode .harness/update para regravá-los." >&2
   exit 1
 }
 
-CMD="$(python3 - "$HERE/hooks" "$ROOT/harness.conf" "$KEY" <<'PY'
+CMD="$(python3 -I - "$HERE/hooks" "$ROOT/harness.conf" "$KEY" <<'PY'
 import sys
 sys.dont_write_bytecode = True
 sys.path.insert(0, sys.argv[1])

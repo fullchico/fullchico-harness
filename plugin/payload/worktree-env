@@ -15,7 +15,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd -P)"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || ROOT="$(cd "$HERE/.." && pwd -P)"
 
-exec python3 - "$HERE/hooks" "$ROOT" "${1:-}" <<'PY'
+exec python3 -I - "$HERE/hooks" "$ROOT" "${1:-}" <<'PY'
 import json
 import os
 import re

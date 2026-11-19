@@ -176,7 +176,10 @@ class TestRemoteSettings(unittest.TestCase):
     def test_the_project_remote_host_is_denied_too(self):
         for url, host in (("https://gitlab.com/time/app.git", "gitlab.com"),
                           ("git@git.empresa.com.br:time/app.git", "git.empresa.com.br"),
-                          ("ssh://git@codigo.exemplo.org:2222/time/app.git", "codigo.exemplo.org")):
+                          ("ssh://git@codigo.exemplo.org:2222/time/app.git", "codigo.exemplo.org"),
+                          ("HTTPS://Git.Exemplo.COM/time/app.git", "git.exemplo.com"),
+                          ("git@gh:time/app.git", "gh"),
+                          ("https://usuario:senha@git.interno./time/app.git", "git.interno")):
             repo = make_repo()
             git(repo, "remote", "add", "origin", url)
             sync(repo)

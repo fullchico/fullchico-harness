@@ -13,7 +13,7 @@ need_compose
 
 RECORD="$(env_record)"
 if [ -f "$RECORD" ]; then
-  OWNER="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("worktree",""))' "$RECORD" 2>/dev/null || true)"
+  OWNER="$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1])).get("worktree",""))' "$RECORD" 2>/dev/null || true)"
   if [ -n "$OWNER" ] && [ "$OWNER" != "$ROOT" ] && [ -n "$(compose ps -q 2>/dev/null)" ]; then
     echo "O ambiente desta feature já está de pé, levantado a partir de $OWNER. Nada foi recriado."
     exit 0
@@ -21,18 +21,18 @@ if [ -f "$RECORD" ]; then
 fi
 
 CONFIG="$(compose config --format json)" || die "o Docker não conseguiu ler o compose ($COMPOSE_FILE)."
-python3 "$HERE/compose_check.py" "$ROOT" <<EOT || exit 1
+python3 -I "$HERE/compose_check.py" "$ROOT" <<EOT || exit 1
 $CONFIG
 EOT
 
 echo "Ambiente $(env_get COMPOSE_PROJECT_NAME):"
-python3 "$HERE/compose_check.py" "$ROOT" --summary <<EOT
+python3 -I "$HERE/compose_check.py" "$ROOT" --summary <<EOT
 $CONFIG
 EOT
 
 BASE="$(sed -n 's/^[A-Z0-9_]*_PORT=//p' "$ROOT/.env" | sort -n | sed -n 1p)"
 mkdir -p "$(dirname "$RECORD")"
-python3 - "$RECORD" "$ROOT" "$BASE" <<'PY'
+python3 -I - "$RECORD" "$ROOT" "$BASE" <<'PY'
 import json, sys
 with open(sys.argv[1], "w", encoding="utf-8") as f:
     json.dump({"worktree": sys.argv[2], "base": int(sys.argv[3])}, f)

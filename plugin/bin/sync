@@ -94,8 +94,11 @@ def install_hook_dispatchers(root: str) -> None:
 def remote_host(root: str):
     """Servidor do remoto origin, ou None para remoto local ou ausente."""
     url = subprocess.run(["git", "remote", "get-url", "origin"], cwd=root, capture_output=True, text=True).stdout.strip()
-    m = re.match(r"^[a-z+]+://(?:[^@/]+@)?([^/:]+)", url) or re.match(r"^(?:[^@/]+@)?([^/:]+\.[^/:]+):", url)
-    return m.group(1).lower() if m else None
+    url = url.lower()
+    if not url or url.startswith(("/", ".", "~", "file:")):
+        return None
+    m = re.match(r"^[a-z0-9+.-]+://(?:[^@/]+@)?(\[[0-9a-f:]+\]|[^/:]+)", url) or re.match(r"^(?:[^@/]+@)?([^/:]+):", url)
+    return m.group(1).strip("[]").rstrip(".") if m else None
 
 
 def close_git_host(settings: dict, root: str) -> None:

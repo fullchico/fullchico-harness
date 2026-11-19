@@ -14,7 +14,7 @@ set -uo pipefail
 
 REMOTE_URL="${1:-}"
 H="$(cd "$(dirname "$0")" && pwd -P)"
-STATE="$(python3 "$H/hooks/common.py" state-dir)" || { echo "push negado: não achei o estado do harness." >&2; exit 1; }
+STATE="$(python3 -I "$H/hooks/common.py" state-dir)" || { echo "push negado: não achei o estado do harness." >&2; exit 1; }
 ZERO=0000000000000000000000000000000000000000
 SPEC_GLOB='docs/specs/*/spec.md'
 [ -f "$H/map.env" ] && . "$H/map.env"
@@ -28,7 +28,7 @@ REMOTE_HEAD="$(awk '$2 == "HEAD" && $1 != "ref:" { sha = $1 } END { print sha }'
 $LS
 EOT
 )"
-REMOTE_TIPS="$(awk '$2 ~ /^refs\/heads\// { print $1 }' <<EOT
+REMOTE_TIPS="$(awk '$1 != "ref:" && $2 ~ /^refs\/heads\// { print $1 }' <<EOT
 $LS
 EOT
 )"
@@ -36,7 +36,7 @@ EOT
 approved() {  # portão, sha, base
   local file="$STATE/approvals/$1/$2.json"
   [ -f "$file" ] || return 1
-  python3 - "$file" "$1" "$2" "$3" <<'PY'
+  python3 -I - "$file" "$1" "$2" "$3" <<'PY'
 import json, sys
 try:
     with open(sys.argv[1], encoding="utf-8") as f:
