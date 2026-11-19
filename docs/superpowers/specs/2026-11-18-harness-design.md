@@ -235,16 +235,43 @@ intervalo. `fix`, `docs`, `chore`, `refactor` e `test` passam sem spec.
 
 ### 6.3 Bloqueio técnico da autoaprovação **[dono]** pediu; mecanismo **[autor]**
 
+**A barreira é o sandbox do Bash, imposto pelo sistema operacional.** Duas revisões
+adversariais mostraram que inspecionar o texto do comando não segura: um script de oito
+linhas que monta o caminho em tempo de execução gravava as duas aprovações. Com o sandbox, a
+escrita é negada para qualquer processo que o agente dispare, seja Python, heredoc ou shell.
+Testado em sessão real, no checkout principal e num worktree.
+
 1. O revisor termina com `VEREDITO: APPROVED|REJECTED`, `RESUMO:` e o hash do commit revisado.
 2. Um hook de fim de subagente (`gate-stamp`) grava a aprovação só se o subagente for
    `seguranca` ou `revisor`, o veredito for `APPROVED`, houver resumo e o hash for o topo
-   atual.
-3. O estado fica em `$(git rev-parse --git-common-dir)/harness/`, um arquivo por hash, comum
-   a todos os worktrees e fora da árvore de trabalho.
-4. O guard de Bash e as regras de edição negam a qualquer agente tocar nesse diretório.
-5. `.harness/approve` é o carimbo manual do dono, negado a agentes.
+   atual. Hooks rodam fora do sandbox, então conseguem gravar.
+3. O estado fica em `~/.claude/harness/<id do repositório>/`, um diretório por repositório,
+   igual para todos os worktrees. O sandbox protege `~/.claude` por padrão em toda sessão.
+   Não fica dentro do `.git`: de um worktree, a sessão consegue gravar no `.git` do checkout
+   principal. O caminho é resolvido pelo sistema, não pela variável `HOME`.
+4. As configurações geradas ligam o sandbox, impedem desligá-lo numa chamada
+   (`allowUnsandboxedCommands: false`) e negam escrita em `.harness`, `harness.conf`,
+   `harness.d`, `CLAUDE.md` e `docs/agents`. `.git/config`, `.git/hooks` e os `settings` do
+   Claude já são protegidos pelo sandbox por padrão.
+5. `.harness/approve` é o carimbo manual do dono. Exige terminal na entrada, e de dentro do
+   sandbox não consegue gravar.
+6. A aprovação de um revisor guarda a base do intervalo que ele leu. O push só a aceita se
+   for a mesma base que o remoto informa.
 
-Limite conhecido: o agente usa o mesmo shell do dono; é barreira de hook, não criptografia.
+O `pre-push` não confia em referência local: consulta o remoto na hora para saber a branch
+padrão e o que já está lá. `git update-ref` não libera tag nem esvazia a trava de spec.
+
+Limites conhecidos:
+
+- **Sem sandbox, não há barreira.** Numa sessão com o sandbox desligado, ou num agente que
+  não o tenha, os portões protegem contra descuido, não contra um agente que insiste.
+- O sandbox não funciona no Windows nativo, e o Docker não roda dentro dele: os comandos de
+  ambiente do harness entram na lista de excluídos (plano de ambiente).
+- A trava contra desligar o sandbox foi respeitada estando só no arquivo do projeto, em modo
+  sem interface. Em sessão interativa ainda não foi conferido; se não valer, a chave vai para
+  as configurações do usuário.
+- Os testes do harness gravam em `~/.claude/harness/` e não rodam de dentro do sandbox.
+
 A aprovação registra o subagente e a transcrição, para auditoria.
 
 ### 6.4 Hooks
@@ -252,12 +279,12 @@ A aprovação registra o subagente e a transcrição, para auditoria.
 | Hook | Evento | Comportamento |
 |---|---|---|
 | `gate-stamp` | fim de subagente | grava aprovação (6.3) |
-| `dispatch-guard` | antes da ferramenta de subagente | confere o pedido de formato fixo (5.1) |
-| `service-guard` | antes de Bash | nega serviço por comando solto, porta atribuída à mão e toque no estado dos portões; libera `.harness/up`, `dev`, `down`, `destroy` |
-| `managed-guard` | antes de Edit/Write | nega alterar a região gerenciada do `AGENTS.md` |
+| `dispatch-guard` | antes da ferramenta de subagente | confere o pedido de formato fixo (5.1), exige que cubra a branch inteira e registra a base |
+| `service-guard` | antes de Bash | nega os argumentos que pulam os hooks de git (`--no-verify`, `core.hooksPath`); no plano de ambiente, também serviço por comando solto e porta atribuída à mão |
+| `managed-guard` | antes de Edit/Write | nega alterar a região gerenciada do `AGENTS.md`, e escrever no diretório do git ou no estado do harness |
 | `rtk hook claude` | antes de Bash | compressão de saída, do próprio rtk |
 | `git-hooks/commit-msg` | git | formato do commit, sem assinatura de IA |
-| `git-hooks/pre-push` | git | dois vereditos, trava de spec, grafo, manifesto, `validate --profile push` |
+| `git-hooks/pre-push` | git | consulta o remoto; dois vereditos, trava de spec, grafo, manifesto, `validate --profile push` |
 
 Hooks de agente usam o diretório atual que vem na chamada, não a pasta onde a sessão
 começou, para agir no worktree certo. Exceção dentro de hook vira negação, nunca liberação.
@@ -399,9 +426,10 @@ removê-lo.
 `.claude/settings.local.json` entra na mesma classe **[autor]**, a confirmar com o dono: por ele
 um agente desligaria todos os hooks. Achado da revisão final do plano 1.
 
-Proteção em três camadas: negação nativa por caminho (`permissions.deny` com `Edit(...)`);
-`managed-guard` para a região marcada do `AGENTS.md`; e o manifesto, conferido no push, que
-pega alteração por shell e edição manual.
+Proteção em quatro camadas: o sandbox do Bash, que nega a escrita por qualquer comando;
+negação nativa por caminho (`permissions.deny` com `Edit(...)`) para as ferramentas de
+edição; `managed-guard` para a região marcada do `AGENTS.md`; e o manifesto, conferido no
+push, que pega edição manual do dono.
 
 ### 10.3 AGENTS.md
 
@@ -488,6 +516,9 @@ Conferidos na documentação do Claude Code:
 - `permissions.deny` com `Edit(/caminho)` nega Edit e Write.
 - Memória por projeto em `~/.claude/projects/<projeto>/memory/`, compartilhada entre worktrees.
 - Subagente não dispara subagente.
+- O sandbox do Bash nega escrita em caminhos dentro do projeto para qualquer processo filho,
+  protege `~/.claude`, `.git/config` e `.git/hooks` por padrão, vale para subagentes, e os
+  hooks rodam fora dele. O diretório temporário do usuário é gravável dentro do sandbox.
 
 Testado em 2026-11-19, com `mattpocock-skills` 1.3.1 instalado por projeto:
 

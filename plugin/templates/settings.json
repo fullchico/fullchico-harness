@@ -66,6 +66,14 @@
       }
     ]
   },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "filesystem": {
+      "denyWrite": [".harness", "harness.conf", "harness.d", "CLAUDE.md", "docs/agents"]
+    }
+  },
   "permissions": {
     "deny": [
       "Edit(/.harness/**)",

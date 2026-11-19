@@ -14,7 +14,14 @@ def hook(repo, script, payload):
 
 
 def reviewer_stops(repo, agent, verdict="APPROVED"):
+    """O elefante pede a revisão no formato fixo e o revisor termina com o veredito."""
+    import common
     sha = git(repo, "rev-parse", "HEAD")
+    base = common.branch_base(str(repo), sha)
+    asked = hook(repo, "dispatch_guard.py", {"tool_name": "Agent", "cwd": str(repo), "tool_input": {
+        "subagent_type": agent, "prompt": f"diff: {base}...HEAD\ncommit: {sha}"}})
+    if agent.startswith("harness:"):
+        assert asked == 0, asked
     return hook(repo, "gate_stamp.py", {
         "hook_event_name": "SubagentStop", "agent_type": agent, "cwd": str(repo),
         "agent_transcript_path": "/t.jsonl",
@@ -45,7 +52,9 @@ class TestEndToEnd(unittest.TestCase):
         self.assertNotEqual(push().returncode, 0)
 
         # o agente não consegue carimbar nem pular o hook
-        self.assertEqual(bash('.harness/approve revisao "ok"'), 2)
+        stamp = subprocess.run([str(repo / ".harness/approve"), "revisao", "ok"], cwd=repo,
+                               stdin=subprocess.DEVNULL, capture_output=True)
+        self.assertEqual(stamp.returncode, 1)
         self.assertEqual(bash("git push --no-verify origin feat/booking"), 2)
         self.assertEqual(bash("git push origin feat/booking"), 0)
 

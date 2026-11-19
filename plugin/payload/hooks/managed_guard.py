@@ -19,8 +19,8 @@ END = "<!-- harness:end -->"
 DENY = ("A região entre os marcadores harness:begin e harness:end do AGENTS.md é gerenciada. "
         "Ela muda no repositório do harness e chega por .harness/update. "
         "Edite só o que está fora dos marcadores.")
-DENY_GIT = ("Agentes não escrevem dentro do diretório do git: é onde ficam a configuração dos "
-            "hooks e o estado dos portões de push.")
+DENY_GIT = ("Agentes não escrevem no diretório do git nem no estado do harness: é onde ficam a "
+            "configuração dos hooks e as aprovações dos portões de push.")
 
 
 def region(text: str):
@@ -60,14 +60,12 @@ def main():
     file_path = tool_input.get("file_path")
     if not isinstance(file_path, str) or not isinstance(cwd, str):
         common.deny("managed-guard: caminho ausente na entrada do hook; edição negada.")
-    root = common.repo_root(cwd)
-    if not root:
-        return
     target = os.path.realpath(os.path.join(cwd, file_path))
-    for git_dir in common.git_dirs(cwd):
-        if target == git_dir or target.startswith(git_dir + os.sep):
+    root = common.repo_root(cwd)
+    for protected in common.git_dirs(cwd) + [os.path.realpath(common.state_root())]:
+        if target == protected or target.startswith(protected + os.sep):
             common.deny(DENY_GIT)
-    if target != os.path.realpath(os.path.join(root, "AGENTS.md")):
+    if not root or target != os.path.realpath(os.path.join(root, "AGENTS.md")):
         return
     after = None
     try:

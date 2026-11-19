@@ -30,10 +30,19 @@ def git(repo, *args) -> str:
     return r.stdout.rstrip("\n")
 
 
+def _forget_state(repo) -> None:
+    """O estado do harness de um repositório de teste fica em ~/.claude/harness; apaga ao sair."""
+    import common
+    state = common.state_dir(str(repo))
+    if state:
+        atexit.register(shutil.rmtree, state, True)
+
+
 def make_repo(name="proj dir") -> pathlib.Path:
     repo = _tmpdir() / name
     repo.mkdir()
     git(repo, "init", "-q", "-b", "main")
+    _forget_state(repo)
     git(repo, "config", "user.name", "Teste")
     git(repo, "config", "user.email", "teste@example.com")
     (repo / "README.md").write_text("# projeto\n")
@@ -74,6 +83,7 @@ def clone_repo(origin, name="work dir") -> pathlib.Path:
     subprocess.run(["git", "clone", "-q", str(origin), str(repo)], check=True, capture_output=True)
     git(repo, "config", "user.name", "Teste")
     git(repo, "config", "user.email", "teste@example.com")
+    _forget_state(repo)
     return repo
 
 

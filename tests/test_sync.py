@@ -39,7 +39,8 @@ class TestSync(unittest.TestCase):
                   "docs/agents/issue-tracker.md", "docs/agents/domain.md"]:
             self.assertTrue((self.repo / p).exists(), p)
         hooks = pathlib.Path(git(self.repo, "config", "core.hooksPath"))
-        self.assertEqual(hooks, self.repo / ".git/harness/git-hooks")
+        import common
+        self.assertEqual(str(hooks), os.path.join(common.state_dir(str(self.repo)), "git-hooks"))
         for name in ("pre-push", "commit-msg"):
             self.assertTrue(os.access(hooks / name, os.X_OK), name)
         self.assertFalse(list(self.repo.rglob("*.harness-tmp")))

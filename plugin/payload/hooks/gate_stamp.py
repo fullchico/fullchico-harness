@@ -117,10 +117,17 @@ def main():
         if os.path.exists(path):
             os.remove(path)
         return
+    base = None
+    try:
+        with open(common.request_path(state, gate, verdict["commit"]), encoding="utf-8") as f:
+            base = json.load(f).get("base")
+    except (OSError, ValueError):
+        pass
     os.makedirs(os.path.dirname(path), exist_ok=True)
     record = {
         "gate": gate,
         "sha": verdict["commit"],
+        "base": base,
         "status": "PASS",
         "resumo": verdict["resumo"],
         "by": "hook",

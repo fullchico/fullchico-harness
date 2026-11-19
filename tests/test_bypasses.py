@@ -17,18 +17,16 @@ def bash(repo, command):
 
 
 class TestServiceGuardBypasses(unittest.TestCase):
+    """O que não é escrita em arquivo continua com o guard de texto. A escrita em
+    .harness/, harness.conf e no estado dos portões é barrada pelo sandbox do Bash,
+    verificado em sessão real (docs/verificacao-plataforma.md)."""
+
     def setUp(self):
         self.repo = make_repo()
 
     def test_wrappers_do_not_hide_the_command(self):
-        for c in ["bash -c 'git push --no-verify'",
-                  'bash -c ".harness/approve seguranca ok && .harness/approve revisao ok"',
-                  "sh -c '.harness/approve revisao ok'",
-                  'eval ".harness/approve revisao ok"',
-                  "pushd .harness && ./approve revisao ok",
-                  "H=.harness; $H/approve revisao ok",
-                  "cd .harness/hooks && python3 -m gate_stamp < p.json",
-                  "git push --no-verif origin x"]:
+        for c in ["bash -c 'git push --no-verify'", "sh -c 'git push --no-verify origin x'",
+                  'eval "git push --no-verify"', "git push --no-verif origin x"]:
             self.assertEqual(bash(self.repo, c), 2, c)
 
     def test_hooks_path_in_any_case(self):
@@ -36,25 +34,6 @@ class TestServiceGuardBypasses(unittest.TestCase):
                   "git -c core.hookspath=/dev/null push",
                   "git config --unset core.HooksPath",
                   "sed -i '' '/hooksPath/d' .git/config"]:
-            self.assertEqual(bash(self.repo, c), 2, c)
-
-    def test_state_dir_by_relative_path(self):
-        for c in ["cd .git && mkdir -p harness/approvals/seguranca && cp a.json harness/approvals/seguranca/x.json",
-                  "ls .git/harness",
-                  "echo x >> .git/config"]:
-            self.assertEqual(bash(self.repo, c), 2, c)
-
-    def test_harness_dir_and_conf_are_not_writable_from_bash(self):
-        for c in [": > .harness/hooks/service_guard.py",
-                  "printf '#!/bin/sh\\nexit 0\\n' > .harness/git-hooks/pre-push",
-                  "git checkout .harness",
-                  "echo 'VALIDATE_PUSH=true' >> harness.conf",
-                  "echo x >>harness.conf",
-                  f"echo x >> '{self.repo}/harness.conf'",
-                  "mkdir harness.d && echo '{}' > harness.d/settings.json",
-                  "HARNESS_REPO=/tmp/fork .harness/update v9 --force",
-                  "echo '{\"disableAllHooks\": true}' > .claude/settings.local.json",
-                  "cat .harness/MANIFEST", "ls .harness"]:
             self.assertEqual(bash(self.repo, c), 2, c)
 
     def test_allowed_commands(self):
@@ -74,7 +53,7 @@ class TestEditBypasses(unittest.TestCase):
     def test_write_into_git_dir_is_denied(self):
         repo = make_repo()
         sha = git(repo, "rev-parse", "HEAD")
-        self.assertEqual(self.write(repo, repo / ".git/harness/approvals/seguranca" / (sha + ".json")), 2)
+        self.assertEqual(self.write(repo, common.approval_path(common.state_dir(str(repo)), "seguranca", sha)), 2)
         self.assertEqual(self.write(repo, repo / ".git/config"), 2)
         self.assertEqual(self.write(repo, ".git/hooks/pre-push"), 2)
 
@@ -82,7 +61,8 @@ class TestEditBypasses(unittest.TestCase):
         repo = make_repo()
         wt = repo.parent / "wt two"
         git(repo, "worktree", "add", "-q", "--detach", str(wt))
-        self.assertEqual(self.write(wt, repo / ".git/harness/approvals/revisao/x.json", cwd=wt), 2)
+        self.assertEqual(self.write(wt, repo / ".git/packed-refs", cwd=wt), 2)
+        self.assertEqual(self.write(wt, common.approval_path(common.state_dir(str(wt)), "revisao", "x"), cwd=wt), 2)
 
     def test_settings_local_is_denied_natively(self):
         repo = make_repo()
@@ -169,21 +149,13 @@ class TestDefaultBranch(unittest.TestCase):
         r = subprocess.run(["git", "push", "-q", "origin", "fix/typo"], cwd=repo, capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
 
-    def test_unknown_default_branch_is_denied_with_guidance(self):
+    def test_any_default_branch_name_works_because_the_remote_tells(self):
         repo = self.repo_with_default("trunk")
         commit_file(repo, "a.txt", "fix: typo")
         for g in ("seguranca", "revisao"):
             owner_approve(repo, g)
-        push = lambda: subprocess.run(["git", "push", "-q", "origin", "fix/typo"], cwd=repo,
-                                      capture_output=True, text=True)
-        r = push()
-        self.assertNotEqual(r.returncode, 0)
-        self.assertIn("DEFAULT_BRANCH", r.stderr)
-        (repo / "harness.conf").write_text("DEFAULT_BRANCH=trunk\n")
-        commit_all(repo, "chore: set default branch")
-        for g in ("seguranca", "revisao"):
-            owner_approve(repo, g)
-        self.assertEqual(push().returncode, 0, push().stderr)
+        r = subprocess.run(["git", "push", "-q", "origin", "fix/typo"], cwd=repo, capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
 
 
 class TestDispatchBinding(unittest.TestCase):

@@ -11,7 +11,6 @@ class TestCommon(unittest.TestCase):
         wt = repo.parent / "wt two"
         git(repo, "worktree", "add", "-q", str(wt), "-b", "other")
         self.assertEqual(common.state_dir(str(repo)), common.state_dir(str(wt)))
-        self.assertTrue(common.state_dir(str(repo)).endswith("/.git/harness"))
 
     def test_repo_root_and_head_follow_the_worktree(self):
         repo = make_repo()

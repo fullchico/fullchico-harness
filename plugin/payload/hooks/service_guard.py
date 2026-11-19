@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
-"""PreToolUse (Bash): o que um agente não pode tocar pela linha de comando.
+"""PreToolUse (Bash): pular os hooks de git não é permitido a agentes.
 
-Neste arquivo: o estado dos portões de push, os arquivos do harness no projeto e
-os atalhos que pulam os hooks de git. As regras de serviço e de porta entram
-aqui no plano de ambiente.
+A barreira de escrita é o sandbox do Bash, imposto pelo sistema operacional: é
+ele que impede gravar em .harness/, harness.conf e no estado dos portões, por
+qualquer comando, script ou heredoc. Este guard cuida só do que não é escrita:
+os argumentos que fazem o git ignorar os hooks.
 
-A checagem é sobre o texto inteiro do comando, sem tentar entender o shell:
-`bash -c`, `eval`, variável ou `cd` antes não escondem nada. O preço é negar
-também quem só cita esses nomes; para ler esses arquivos existe a ferramenta de
-leitura. Qualquer erro do próprio hook vira negação, nunca liberação.
+A checagem é sobre o texto inteiro do comando, então `bash -c` e `eval` não
+escondem nada. As regras de serviço e de porta entram aqui no plano de ambiente.
+Qualquer erro do próprio hook vira negação, nunca liberação.
 """
 import json
 import os
-import re
 import sys
 
 sys.dont_write_bytecode = True  # não deixa __pycache__ dentro de .harness/ do projeto
@@ -20,42 +19,15 @@ sys.dont_write_bytecode = True  # não deixa __pycache__ dentro de .harness/ do 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common  # noqa: E402
 
-DENY_STATE = ("O estado dos portões de push e a configuração do git não são alterados por agente. "
-              "A aprovação nasce do veredito do revisor; o carimbo manual (.harness/approve) é do "
-              "dono, no terminal.")
-DENY_SKIP = ("Pular os hooks de git (--no-verify, core.hooksPath, HUSKY=) não é permitido a "
-             "agentes. Se o push foi negado, corrija o motivo; a exceção é do dono.")
-DENY_HARNESS = ("Os arquivos do harness (.harness/, harness.conf, harness.d/, "
-                ".claude/settings*.json) não são tocados por agente pela linha de comando. "
-                "Para ler, use a ferramenta de leitura. Para rodar, só os comandos do harness: "
-                ".harness/validate, up, dev, down, destroy, memory. Mudança de padrão é no "
-                "repositório do harness; harness.conf é do dono.")
-
-SKIP = ("--no-verif", "hookspath", "husky=")
-STATE = ("harness/approvals", ".git/harness", ".git/config", ".git/hooks")
-# Executáveis do harness que o agente pode chamar; o resto de .harness/ é negado.
-ALLOWED = re.compile(r"(?<![\w./-])(?:\./)?\.harness/(?:validate|up|dev|down|destroy|memory)(?![\w./-])")
-# harness.conf e harness.d na raiz do projeto (não um arquivo de mesmo nome em outra pasta).
-ROOT_CONF = re.compile(r"(?<![\w/-])(?:\./)?harness\.(?:conf|d)(?![\w-])")
-SETTINGS = re.compile(r"\.claude/settings[\w.]*\.json")
+DENY_SKIP = ("Pular os hooks de git (--no-verify, core.hooksPath) não é permitido a agentes. "
+             "Se o push foi negado, corrija o motivo; a exceção é do dono.")
+SKIP = ("--no-verif", "hookspath")
 
 
 def classify(command: str, cwd=None):
     lowered = command.lower()
     if any(mark in lowered for mark in SKIP):
         return DENY_SKIP
-    if any(mark in lowered for mark in STATE):
-        return DENY_STATE
-    for path in (common.git_dirs(cwd) if cwd else []):
-        if path in command:
-            return DENY_STATE
-    if ".harness" in ALLOWED.sub("", command):
-        return DENY_HARNESS
-    if ROOT_CONF.search(command) or SETTINGS.search(command):
-        return DENY_HARNESS
-    root = common.repo_root(cwd) if cwd else None
-    if root and any(os.path.join(root, name) in command for name in ("harness.conf", "harness.d")):
-        return DENY_HARNESS
     return None
 
 

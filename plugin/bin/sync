@@ -20,6 +20,7 @@ PLUGIN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAYLOAD = os.path.join(PLUGIN, "payload")
 TEMPLATES = os.path.join(PLUGIN, "templates")
 sys.path.insert(0, os.path.join(PAYLOAD, "hooks"))
+import common  # noqa: E402
 from managed_guard import BEGIN, END, region  # noqa: E402
 
 
@@ -76,15 +77,13 @@ MISSING = {
 
 
 def install_hook_dispatchers(root: str) -> None:
-    """Aponta o git para hooks num caminho absoluto, dentro do diretório git comum.
+    """Aponta o git para hooks num caminho absoluto, no estado do harness em ~/.claude.
 
     Um core.hooksPath relativo vale para todos os worktrees, e num checkout sem
     .harness/ o git simplesmente não roda hook nenhum, em silêncio. O despachante
     existe sempre e nega o push quando o hook de verdade não está lá.
     """
-    common_dir = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
-                                cwd=root, capture_output=True, text=True, check=True).stdout.strip()
-    target = os.path.join(common_dir, "harness", "git-hooks")
+    target = os.path.join(common.state_dir(root), "git-hooks")
     for name, missing in MISSING.items():
         script = DISPATCHER.format(name=name, missing=missing)
         write_atomic(os.path.join(target, name), script.encode("utf-8"), True)

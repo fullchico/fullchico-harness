@@ -48,6 +48,8 @@ Nada sai da máquina sem dois vereditos sobre o commit do topo da branch:
   manual, `.harness/approve`, é do dono.
 - Agentes nunca usam `--no-verify` nem trocam a pasta de hooks do git. Push
   negado se corrige pela causa.
+- O Bash roda em sandbox: escrita em `.harness/`, `harness.conf` e no estado dos
+  portões é negada pelo sistema. Não é erro a contornar.
 
 Todo revisor termina a resposta com este bloco, cada item numa linha inteira:
 

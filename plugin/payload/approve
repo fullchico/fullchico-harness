@@ -15,16 +15,17 @@ usage() { echo 'uso: approve <seguranca|revisao> "<resumo>"' >&2; exit 1; }
 case "$GATE" in seguranca|revisao) ;; *) usage ;; esac
 [ -n "${RESUMO//[[:space:]]/}" ] || usage
 
-COMMON="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || {
+HERE="$(cd "$(dirname "$0")" && pwd -P)"
+STATE="$(python3 "$HERE/hooks/common.py" state-dir 2>/dev/null)" || {
   echo "erro: fora de um repositório git" >&2; exit 1; }
 SHA="$(git rev-parse HEAD 2>/dev/null)" || { echo "erro: repositório sem commit" >&2; exit 1; }
 
-DIR="$COMMON/harness/approvals/$GATE"
+DIR="$STATE/approvals/$GATE"
 mkdir -p "$DIR"
 python3 - "$DIR/$SHA.json" "$GATE" "$SHA" "$RESUMO" <<'PY'
 import datetime, json, sys
 path, gate, sha, resumo = sys.argv[1:5]
-record = {"gate": gate, "sha": sha, "status": "PASS", "resumo": resumo, "by": "owner",
+record = {"gate": gate, "sha": sha, "base": None, "status": "PASS", "resumo": resumo, "by": "owner",
           "agent_type": None, "transcript": None,
           "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
 with open(path, "w", encoding="utf-8") as f:

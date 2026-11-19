@@ -52,6 +52,10 @@ Para cada entrada de `enabledPlugins` em `.claude/settings.json`:
 claude plugin install <plugin>@<marketplace> --scope project
 ```
 
+As configurações geradas ligam o sandbox do Bash. A partir da próxima sessão o agente
+não grava mais em `.harness/` nem em `harness.conf`; por isso a atualização
+(`.harness/update <tag>`) é rodada pelo dono, no terminal.
+
 ## 5. Fechar
 
 Liste o que foi criado, lembre o dono de commitar os arquivos gerados e de rodar

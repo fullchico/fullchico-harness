@@ -106,9 +106,35 @@ def main():
     tool_input = payload.get("tool_input") or {}
     cwd = payload.get("cwd")
     root = common.repo_root(cwd) if isinstance(cwd, str) else None
-    reason = check(tool_input.get("subagent_type"), tool_input.get("prompt"), root)
+    agent = tool_input.get("subagent_type")
+    reason = check(agent, tool_input.get("prompt"), root)
     if reason:
         common.deny(reason)
+    record_request(agent, tool_input.get("prompt"), root)
+
+
+GATE = {"harness:seguranca": "seguranca", "harness:revisor": "revisao"}
+
+
+def record_request(agent, prompt, root):
+    """Guarda a base do intervalo que o revisor vai ler.
+
+    O push compara essa base com a que o remoto de verdade informa. Assim, mexer
+    nas referências locais para mostrar ao revisor só parte da branch não rende
+    uma aprovação da branch inteira.
+    """
+    gate = GATE.get(agent)
+    if not gate or not isinstance(prompt, str):
+        return
+    fields = dict(m.groups() for m in map(_LINE.match, (l.strip() for l in prompt.splitlines())) if m)
+    left = re.split(r"\.\.\.?", fields["diff"], maxsplit=1)[0]
+    commit = fields["commit"]
+    left_sha = common._git(root, "rev-parse", "-q", "--verify", left + "^{commit}")
+    base = common._git(root, "merge-base", left_sha, commit)
+    path = common.request_path(common.state_dir(root), gate, commit)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"gate": gate, "commit": commit, "base": base, "diff": fields["diff"]}, f)
 
 
 if __name__ == "__main__":
