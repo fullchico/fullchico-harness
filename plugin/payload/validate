@@ -20,6 +20,12 @@ DRIFT="$(python3 -I "$HERE/manifest_check.py" "$ROOT")" || {
   exit 1
 }
 
+# O grafo de tickets de cada spec precisa estar íntegro antes de alguém trabalhar nele.
+for SPEC in "$ROOT"/docs/specs/*/; do
+  [ -d "${SPEC}issues" ] || continue
+  python3 -I "$HERE/tickets_check.py" "${SPEC%/}" >/dev/null || exit 1
+done
+
 CMD="$(python3 -I - "$HERE/hooks" "$ROOT/harness.conf" "$KEY" <<'PY'
 import sys
 sys.dont_write_bytecode = True
