@@ -36,26 +36,26 @@ com sandbox disponível. O remoto do projeto precisa ser HTTPS. Recomendado: `rt
 
 ## Instalar num projeto
 
-```bash
-claude plugin marketplace add FullChico/fullchico-harness
-```
-
-Depois, dentro do projeto:
+Com este repositório clonado na máquina, um comando:
 
 ```bash
-claude plugin install harness@fullchico --scope project
+/caminho/do/fullchico-harness/install /caminho/do/projeto
 ```
 
-E numa sessão do Claude Code, no projeto:
+Ele grava `.harness/`, `.claude/settings.json`, `AGENTS.md`, `CLAUDE.md`, `docs/agents/` e
+`orca.yaml`, registra os marketplaces, e instala no escopo do projeto o plugin do harness e os
+de terceiros (`mattpocock-skills`, `ponytail`). Se o `harness.conf` já estiver preenchido,
+também grava as portas no `.env` e instala as dependências. Pode ser rodado de novo. Arquivo
+gerenciado alterado à mão trava a instalação; `--force` substitui.
+
+Num projeto novo falta um passo, numa sessão do Claude Code aberta nele:
 
 ```
 /harness:setup
 ```
 
-O setup grava `.harness/`, `.claude/settings.json`, `AGENTS.md`, `CLAUDE.md`, `docs/agents/`
-e `orca.yaml`, e propõe o `harness.conf`. Se algum desses arquivos já existir com outro
-conteúdo, ele mostra e pergunta antes de substituir. Faça o commit do que foi gerado e
-reinicie a sessão.
+Ele propõe o `harness.conf` a partir do que encontra no projeto. Faça o commit do que foi
+gerado e reinicie a sessão.
 
 O que é só do projeto (hooks, permissões, servidores MCP, sites liberados) vai em
 `harness.d/settings.json`, que é somado na geração.

@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Adota o harness num projeto, num comando só.
+# Uso: <pasta do harness>/install [pasta do projeto] [--force]
+#
+# Grava os arquivos gerenciados, registra os marketplaces, instala os plugins no
+# escopo do projeto e prepara o worktree. Pode ser rodado de novo sem dano.
+# Variável: HARNESS_SKIP_PLUGIN=1 não chama o `claude`.
+set -uo pipefail
+
+HARNESS="$(cd "$(dirname "$0")" && pwd -P)"
+PROJECT="." FORCE=""
+for ARG in "$@"; do
+  case "$ARG" in
+    --force) FORCE="--force" ;;
+    -*) echo "uso: install [pasta do projeto] [--force]" >&2; exit 2 ;;
+    *) PROJECT="$ARG" ;;
+  esac
+done
+
+ROOT="$(git -C "$PROJECT" rev-parse --show-toplevel 2>/dev/null)" || {
+  echo "install: $PROJECT não é um repositório git." >&2; exit 2; }
+command -v python3 >/dev/null 2>&1 || { echo "install: falta o python3." >&2; exit 2; }
+
+VERSION="v$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' \
+  "$HARNESS/plugin/.claude-plugin/plugin.json")" || exit 1
+
+# shellcheck disable=SC2086
+python3 -I "$HARNESS/plugin/bin/sync" "$ROOT" --version "$VERSION" $FORCE || exit $?
+
+if [ -z "${HARNESS_SKIP_PLUGIN:-}" ] && command -v claude >/dev/null 2>&1; then
+  warn() { echo "install: não consegui $1; rode à mão: $2" >&2; }
+  # O do harness vem desta pasta: vale antes de o repositório estar publicado.
+  claude plugin marketplace add "$HARNESS" >/dev/null 2>&1 || warn "registrar o marketplace do harness" "claude plugin marketplace add $HARNESS"
+  python3 -I - "$ROOT/.claude/settings.json" <<'PY' | while IFS= read -r REPO; do
+import json, sys
+for name, entry in json.load(open(sys.argv[1])).get("extraKnownMarketplaces", {}).items():
+    source = entry.get("source", {})
+    if name != "fullchico" and source.get("source") == "github" and source.get("repo"):
+        print(source["repo"])
+PY
+    claude plugin marketplace add "$REPO" >/dev/null 2>&1 || warn "registrar o marketplace $REPO" "claude plugin marketplace add $REPO"
+  done
+  # Instalar é por projeto: o comando roda de dentro dele.
+  python3 -I - "$ROOT/.claude/settings.json" <<'PY' | while IFS= read -r PLUGIN; do
+import json, sys
+for name, enabled in json.load(open(sys.argv[1])).get("enabledPlugins", {}).items():
+    if enabled:
+        print(name)
+PY
+    (cd "$ROOT" && claude plugin install "$PLUGIN" --scope project >/dev/null 2>&1) || warn "instalar $PLUGIN" "claude plugin install $PLUGIN --scope project"
+  done
+else
+  echo "install: sem o comando claude; os plugins ficam para depois." >&2
+fi
+
+# Com o harness.conf já preenchido, deixa o worktree pronto: portas no .env e dependências.
+NEXT="Falta, numa sessão do Claude Code aberta no projeto: /harness:setup, que propõe o harness.conf."
+if grep -Eq '^PROJECT="?[^"[:space:]]' "$ROOT/harness.conf" 2>/dev/null; then
+  HARNESS_SKIP_PLUGIN=1 "$ROOT/.harness/setup-worktree" || exit $?
+  NEXT="O harness.conf já estava preenchido: portas gravadas no .env e dependências instaladas."
+fi
+
+cat <<EOT
+
+Harness $VERSION instalado em $ROOT.
+$NEXT
+Depois faça o commit do que foi gerado.
+EOT
