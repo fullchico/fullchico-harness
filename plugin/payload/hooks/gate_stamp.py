@@ -56,16 +56,19 @@ def _is_message(entry) -> bool:
 def final_message(payload):
     """Resposta final do subagente.
 
-    A documentação descreve `last_assistant_message`, mas a plataforma observada não
-    o envia. O texto então vem da transcrição do subagente: a última entrada do
-    assistente, em blocos de texto ou na chamada de devolução `SubagentHandback`.
-    Só essa última entrada conta, para um veredito citado no meio do trabalho não
-    valer como resposta.
+    A plataforma manda o texto em `last_assistant_message`. Em versões anteriores o campo
+    não vinha, e o texto era lido da transcrição do subagente; as duas formas valem. Na
+    hora em que o hook roda, a transcrição pode ainda não ter a resposta final: por isso o
+    campo, quando existe, é a fonte do texto.
+
+    A transcrição serve sempre para uma conferência: se alguém falou com o revisor depois
+    que ele começou, o veredito deixa de ser só sobre os documentos e não vale.
     """
     message = payload.get("last_assistant_message")
+    message = message if isinstance(message, str) and message.strip() else None
     path = payload.get("agent_transcript_path")
     if not isinstance(path, str) or not os.path.exists(os.path.expanduser(path)):
-        return message if isinstance(message, str) and message.strip() else None
+        return message
     last = None
     try:
         with open(os.path.expanduser(path), encoding="utf-8") as f:
@@ -79,11 +82,13 @@ def final_message(payload):
                 if entry.get("type") == "assistant":
                     last = entry
                 elif entry.get("type") == "user" and last is not None and _is_message(entry):
-                    # Alguém falou com o revisor depois que ele começou: o veredito
-                    # deixa de ser só sobre os documentos, então não vale como aprovação.
                     return None
     except OSError:
         return None
+    if message:
+        return message
+    # Sem o campo: só a última entrada do assistente conta, para um veredito citado no
+    # meio do trabalho não valer como resposta.
     content = ((last or {}).get("message") or {}).get("content")
     if isinstance(content, str):
         return content

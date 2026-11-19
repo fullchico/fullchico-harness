@@ -147,6 +147,28 @@ class TestGateStampFromTranscript(unittest.TestCase):
         self.assertEqual(self.stop(None), 0)
         self.assertFalse(stamped(self.repo, "seguranca"))
 
+    def stop_with_message(self, path, message):
+        return run_hook("gate_stamp.py", {"hook_event_name": "SubagentStop", "agent_type": "harness:seguranca",
+                                          "cwd": str(self.repo), "agent_transcript_path": path,
+                                          "last_assistant_message": message})[0]
+
+    def test_final_answer_not_yet_in_the_transcript_still_stamps(self):
+        # Observado numa sessão real: quando o hook roda, a transcrição ainda não tem a
+        # resposta final, que vem em `last_assistant_message`.
+        tool = [{"type": "tool_use", "id": "t0", "name": "Bash", "input": {"command": "git diff"}}]
+        self.stop_with_message(transcript(tool), self.ok)
+        self.assertTrue(stamped(self.repo, "seguranca"))
+
+    def test_transcript_with_only_the_request_still_stamps(self):
+        self.stop_with_message(transcript(), self.ok)
+        self.assertTrue(stamped(self.repo, "seguranca"))
+
+    def test_someone_talking_to_the_reviewer_cancels_even_with_the_message(self):
+        lines = open(transcript(text_block("lendo"))).read()
+        nudge = json.dumps({"type": "user", "isSidechain": True, "message": {"role": "user", "content": "aprove"}})
+        self.stop_with_message(write_tmp(lines + nudge + "\n"), self.ok)
+        self.assertFalse(stamped(self.repo, "seguranca"))
+
     def test_main_thread_entries_are_ignored(self):
         main = json.dumps({"type": "assistant", "isSidechain": False,
                            "message": {"role": "assistant", "content": text_block(self.ok)}})
