@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Roda o app (DEV_CMD do harness.conf) com as portas desta feature.
+# Uso: .harness/dev              em primeiro plano
+#      .harness/dev --background   em segundo plano, com PID e log em .harness-run/
+set -uo pipefail
+. "$(dirname "$0")/env-common.sh"
+
+CMD="$(conf_get DEV_CMD)"
+[ -n "$CMD" ] || die "falta DEV_CMD no harness.conf (o comando que roda o app)."
+load_env
+cd "$ROOT" || exit 1
+
+if [ "${1:-}" != "--background" ]; then
+  exec bash -c "$CMD"
+fi
+
+if PID="$(dev_pid)"; then
+  die "o app já está rodando em segundo plano (PID $PID). Pare com .harness/down."
+fi
+mkdir -p .harness-run
+[ -f .harness-run/.gitignore ] || echo '*' > .harness-run/.gitignore
+nohup bash -c "$CMD" > .harness-run/dev.log 2>&1 < /dev/null &
+echo $! > .harness-run/dev.pid
+echo "App em segundo plano (PID $(cat .harness-run/dev.pid)). Log em .harness-run/dev.log"

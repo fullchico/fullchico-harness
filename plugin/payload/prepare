@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Prepara o ambiente depois de a infra subir: roda AFTER_UP do harness.conf
+# (migration, seed). É código do projeto, então roda dentro do sandbox.
+set -uo pipefail
+. "$(dirname "$0")/env-common.sh"
+
+CMD="$(conf_get AFTER_UP)"
+[ -n "$CMD" ] || exit 0
+load_env
+cd "$ROOT" && bash -c "$CMD"
