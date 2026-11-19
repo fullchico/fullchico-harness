@@ -76,6 +76,7 @@ o servidor de git e só acessa os sites liberados. Para você, no terminal, nada
 | `.harness/pr` | abre ou consulta o pull request | o agente |
 | `.harness/validate` | checagens do projeto, sem custo de IA | você ou o agente |
 | `.harness/memory` | mapa do código e âncoras: `check`, `slice <caminho>`, `index` | você ou o agente |
+| `.harness/learn` | sessões passadas: `sessions`, `usage`, `digest` | você ou o agente |
 | `.harness/approve` | sua aprovação manual de um portão | só você, no terminal |
 | `.harness/update <tag>` | leva o projeto para uma versão do harness | só você, no terminal |
 
@@ -102,6 +103,14 @@ ler o código é de subagentes no modelo mais barato. `.harness/memory check` mo
 envelheceu, inclusive termos do glossário cujo código não existe mais e decisões de
 arquitetura cuja área mudou bastante.
 
+## Depois do merge
+
+`/harness:aprender` fecha o ciclo: atualiza o mapa, mostra quanto cada papel gastou em tokens
+(`.harness/learn usage`), faz a retrospectiva da entrega e, com `/harness:dream`, transforma o
+que as sessões ensinaram sobre o projeto em notas ancoradas no código. As propostas de
+melhoria ficam em `.harness-run/propostas/`; o que for do harness você traz para este
+repositório.
+
 ## Atualizar
 
 Uma mudança de padrão se faz neste repositório e sai numa tag. No projeto:
@@ -126,6 +135,9 @@ interativa com um projeto de verdade. É a lista para a primeira validação:
   de segurança rodou de ponta a ponta numa sessão real.
 - Instalar dependências (`pnpm install`) dentro do sandbox, num projeto com muitas.
 - A trava contra desligar o sandbox, numa sessão interativa.
+- `/harness:aprender` e `/harness:dream` sobre uma entrega de verdade: se a leitura das
+  transcrições reconhece o formato das suas sessões, se os números de consumo batem, e se as
+  notas que saem valem a pena.
 - `/harness:mapear` num projeto de verdade: a qualidade dos resumos, o custo da primeira
   geração, e o hook que injeta o índice no começo da sessão.
 - Um push por SSH: a rede é negada por nome de servidor, e não foi conferido se isso cobre SSH.

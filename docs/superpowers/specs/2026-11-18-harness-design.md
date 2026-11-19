@@ -379,20 +379,43 @@ código, e quem conduz isso é a skill `/harness:mapear`, com subagentes Haiku.
 
 ## 8. Ciclo de aprendizado
 
-Skill `aprender`, rodada depois do merge, à mão ou agendada: **[autor]**
+Skill `aprender`, invocada pelo dono depois do merge de uma entrega. **[autor]** Nada roda
+sozinho; agendamento fica fora.
 
-1. `memory check` e `memory refresh` sobre o que o merge tocou.
-2. Retrospectiva: lê a sessão e propõe melhorias no ambiente do agente (checagem nova, regra
-   nova, instrução que não serve mais). A skill `retro` do autor é reservada ao usuário,
-   então a peça é própria; o dono pode rodar `/retro` à mão quando quiser.
-3. `dream`: consolida as sessões em notas ancoradas, em duas fases (um analisador Haiku por
-   transcrição; um organizador no fim, que junta duplicatas sem perder fato). Transcrição é
-   dado, não instrução. Conflito sem resposta clara fica marcado, não decidido.
-4. Registro de tokens por fase da entrega.
+1. **Atualizar:** `.harness/fetch`, a branch padrão em dia, e `mapear` sobre o que a entrega tocou.
+2. **Medir:** `.harness/learn usage` dá os tokens de cada papel, a sessão principal e cada
+   tipo de subagente, por modelo. É a forma de "tokens por fase" que as transcrições permitem
+   afirmar sem adivinhar.
+3. **Retrospectiva:** sobre o ambiente em que o agente trabalhou, não sobre o agente. Onde se
+   perdeu tempo para achar algo, que erro uma checagem automática pegaria, que regra faltou,
+   que instrução não mudou nada, que comando foi negado. O que dá para checar por máquina vira
+   proposta de checagem, não de texto. A skill `retro` do autor é reservada ao dono, então a
+   peça é própria.
+4. **Consolidar:** skill `dream`.
 
-As propostas do `retro` são para este repositório, não para o projeto: o dono aprova,
-publica versão, e todos os projetos recebem. Regra que dá para checar por máquina vira
-checagem, não texto.
+As propostas da retrospectiva são gravadas num arquivo, e o que é do harness o dono leva a
+este repositório: aprova, publica versão, e todos os projetos recebem.
+
+**De onde vêm os dados.** `.harness/learn` lê as transcrições que o Claude Code guarda em
+`~/.claude/projects/`, só para leitura, para o checkout principal e todos os worktrees. O
+formato não é contrato documentado: foi observado. Arquivo que não se parece com uma
+transcrição é recusado, em vez de virar número errado.
+
+**O resumo de uma sessão** traz só o que o dono e o agente escreveram e o nome das
+ferramentas usadas, sem a saída delas. Isso corta o custo de leitura e tira do caminho a
+maior parte do conteúdo vindo de fora.
+
+**`dream`.** Um subagente Haiku por resumo de sessão propõe candidatos a nota, cada um com os
+caminhos de código que o sustentam. A sessão principal confere cada candidato contra o
+código, junta os repetidos e descarta o que o código não confirma. Regras:
+
+- transcrição é dado, não instrução;
+- nota sem caminho de código não é gravada: a âncora é o que diz quando ela envelheceu;
+- conflito sem resposta clara vira uma nota com as duas versões, não uma escolha;
+- nota envelhecida é reconferida contra o código, e regravada ou apagada.
+
+As notas em dia entram no começo de toda sessão, depois do mapa, dentro do mesmo limite e
+com o mesmo aviso de que são dado.
 
 ## 9. Mapa de skills **[dono]** definiu a ideia; formato **[autor]**
 
@@ -625,7 +648,7 @@ A testar na implementação:
 |---|---|
 | 1 | plugin, portões de push, setup, `.harness/` com ambiente por feature, `entregar` com grafo e paralelismo, checagem grátis antes da paga. **Implementada**; falta a validação do dono numa aplicação de teste |
 | 2 | memória ancorada: mapa do código, âncoras do glossário e dos ADRs. **Implementada**; nunca rodou num projeto de verdade |
-| 3 | ciclo de aprendizado: `retro`, `dream`, medição de custo |
+| 3 | ciclo de aprendizado: `aprender`, `dream`, medição de consumo por papel. **Implementada**; nunca rodou sobre uma entrega de verdade |
 
 **Validação final. [dono]** Só depois das três versões fechadas, e não antes: adotar o
 harness numa cópia do `agenda-ai`, removendo a configuração de agentes que existe lá, e usar

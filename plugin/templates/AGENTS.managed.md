@@ -84,6 +84,8 @@ worktree da feature e usam o ambiente dela.
 O mapa do código fica fora dos arquivos versionados, ancorado no commit em que cada
 resumo foi escrito. `.harness/memory check` diz, sem custo, o que envelheceu;
 `.harness/memory slice <caminho>` mostra o resumo de uma área; `/harness:mapear` atualiza.
+Depois do merge de uma entrega, `/harness:aprender` mede o consumo, faz a retrospectiva e
+consolida em notas o que as sessões ensinaram.
 Spec já mesclada é histórico. A verdade é o código, os testes e o histórico do git.
 
 ## Arquivos

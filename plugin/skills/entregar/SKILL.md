@@ -70,3 +70,5 @@ do motivo.
 
 Diga ao dono: o link do pull request, o que entrou, o que ficou de fora, quantas rodadas
 de correção houve, e qualquer coisa que os subagentes relataram fora do escopo.
+
+Depois do merge, o dono fecha o ciclo com `/harness:aprender`.
