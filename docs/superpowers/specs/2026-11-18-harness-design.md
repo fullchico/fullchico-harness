@@ -79,7 +79,7 @@ em `.claude/settings.json` e em `.harness/MANIFEST`. **[autor]**
 .claude-plugin/marketplace.json
 plugin/
   .claude-plugin/plugin.json
-  agents/        orquestrador, revisor-spec, seguranca, revisor
+  agents/        implementador, revisor-spec, seguranca, revisor
   skills/        setup, update, entregar (com referências de spec, tickets e despacho),
                  aprender, dream
   map.json       mapa de skills de terceiros
@@ -102,8 +102,9 @@ payload ou nos templates.
 Modelo de papéis tirado do Elephant-Goldfish, usado como princípio, sem instalar o plugin
 dele. **[dono]**
 
-- **Elefante:** o agente raiz da sessão (`orquestrador`). Carrega o contexto, desenha com o
-  dono, dispara e monta tudo. **[dono]**
+- **Elefante:** a sessão principal, seguindo a skill `entregar`. Carrega o contexto, desenha
+  com o dono, dispara e monta tudo. **[dono]** Não há agente `orquestrador` separado: a skill
+  já é a orquestração, e definir o agente da sessão por plugin não foi confirmado. **[autor]**
 - **Goldfish:** todo subagente, de contexto novo, sem a conversa. Implementadores e
   revisores. Entregam o trabalho; não validam o próprio resultado. **[dono]**
 - **Dono:** aprova a spec e faz o merge.
@@ -140,7 +141,7 @@ Depois o dono faz o merge.
 | 3. Revisar a spec | `revisor-spec` | harness | goldfish | achados; **o dono resolve e aprova** |
 | 4. Fatiar | referência de tickets do `entregar` | harness | elefante | um arquivo por ticket, com o que o bloqueia |
 | 5. Validar o grafo | script, grátis | harness | — | sem ciclo, sem referência quebrada |
-| 6. Implementar | despacho do `entregar`; `tdd` | harness; autor | implementadores, em paralelo, um worktree cada | código e testes em commits de contexto |
+| 6. Implementar | despacho do `entregar`; `tdd` | harness; autor | implementadores, em paralelo, cada um num worktree de agente dentro da feature | código e testes em commits de contexto |
 | 7. Integrar | despacho do `entregar` | harness | elefante | tudo na branch de integração |
 | 8. Checar | `.harness/validate`, grátis | harness | — | lint, tipos, testes, segredo, manifesto |
 | 9. Revisar | `seguranca` e `revisor` | harness | goldfish, em paralelo | dois vereditos |
@@ -148,6 +149,18 @@ Depois o dono faz o merge.
 
 Toda `feat` passa por todos os passos, inclusive o fatiamento: o grafo é o padrão. Bug entra
 por `diagnosing-bugs`, do autor, no lugar dos passos 1 a 5.
+
+**Como os implementadores trabalham em paralelo. [autor]** A feature é um worktree, e nela o
+elefante dispara cada implementador num worktree de agente do Claude Code, que é uma cópia
+própria dentro da feature. Assim dois subagentes não editam a mesma árvore. Cada um entrega
+por commit na própria branch, e o elefante junta na branch da feature, na ordem do grafo.
+O ambiente é o da feature (seção 11). O implementador é um agente do projeto, quando houver
+um para a área, ou o `implementador` genérico do harness.
+
+O achado de uma rodada de correção é gravado em `docs/specs/<slug>/achados/` e versionado,
+porque um arquivo fora do git não aparece no worktree do implementador. O corpo do pull
+request é gravado em `.harness-run/`, fora do git, porque um commit depois da revisão
+invalidaria a aprovação.
 
 **Por que a orquestração é própria.** Testado em 2026-11-19: o plugin do autor reserva ao
 usuário exatamente as skills que orquestram (`grill-with-docs`, `to-spec`, `to-tickets`,
@@ -559,11 +572,10 @@ Nunca toca nos arquivos do projeto nem nos livres.
 
 ## 13. Codex
 
-`AGENTS.md` é a camada comum. O resto é gerado de uma fonte só: skills do harness em
-`.agents/skills/`, agentes em `.codex/agents/*.toml`, `service-guard` em `.codex/hooks.json`.
-Os portões de push são git, então valem igual. Arquivo gerenciado no Codex só tem a camada
-do manifesto. Sem evento de fim de subagente no Codex, o push dele depende do
-`.harness/approve` do dono.
+Adiado. **[autor]** A barreira do harness é o sandbox do Claude Code. Gerar a configuração do
+Codex sem a barreira equivalente passaria uma segurança que não existe. `AGENTS.md` continua
+sendo a camada comum, lida pelos dois. O suporte ao Codex vira um plano próprio, que começa
+por conferir o sandbox dele.
 
 ## 14. Fatos da plataforma
 
@@ -602,7 +614,7 @@ A testar na implementação:
 
 | Versão | Conteúdo |
 |---|---|
-| 1 | plugin, portões de push, setup, `.harness/` com ambiente por worktree, `entregar` com grafo e paralelismo, checagem grátis antes da paga |
+| 1 | plugin, portões de push, setup, `.harness/` com ambiente por feature, `entregar` com grafo e paralelismo, checagem grátis antes da paga. **Implementada**; falta a validação do dono numa aplicação de teste |
 | 2 | memória ancorada: mapa do código, âncoras do glossário e dos ADRs |
 | 3 | ciclo de aprendizado: `retro`, `dream`, medição de custo |
 

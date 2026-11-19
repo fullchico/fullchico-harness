@@ -1,0 +1,130 @@
+# FullChico Harness
+
+Ambiente de desenvolvimento com agentes, para o Claude Code. Um plugin que padroniza, em
+todo projeto que o adota, o fluxo de uma mudança, os guardrails e o ambiente de
+desenvolvimento por feature.
+
+O desenho completo, com as decisões e os motivos, está em
+[`docs/superpowers/specs/2026-11-18-harness-design.md`](docs/superpowers/specs/2026-11-18-harness-design.md).
+O que foi conferido em sessões reais, e o que ainda não foi, está em
+[`docs/verificacao-plataforma.md`](docs/verificacao-plataforma.md).
+
+## O que ele faz
+
+- **Conduz uma mudança da entrevista ao pull request,** com `/harness:entregar`: entrevista,
+  spec, revisão da spec, tickets em grafo, implementação em paralelo por subagentes,
+  checagem, revisão de segurança e de código, envio.
+- **Não deixa código sem revisão chegar ao remoto.** O shell do agente roda no sandbox do
+  Claude Code, sem rede para o servidor de git. O único caminho é `.harness/push`, que
+  exige duas aprovações sobre o commit e, para uma `feat`, a spec da mudança.
+- **Nenhum agente aprova o próprio trabalho.** A aprovação nasce do veredito de um revisor
+  de contexto novo, gravada por um hook, num lugar onde o agente não escreve.
+- **Dá a cada feature o próprio ambiente Docker,** com portas e projeto isolados, levantado
+  com a sua permissão.
+- **Mantém a configuração igual entre projetos.** O que o harness instala não é editado no
+  projeto: muda aqui e chega por atualização.
+
+## Pré-requisitos
+
+macOS ou Linux, `git`, `python3` 3.9 ou mais novo, Docker com Compose v2, e o Claude Code
+com sandbox disponível. O remoto do projeto precisa ser HTTPS. Recomendado: `rtk`.
+
+## Instalar num projeto
+
+```bash
+claude plugin marketplace add FullChico/fullchico-harness
+```
+
+Depois, dentro do projeto, numa sessão do Claude Code:
+
+```
+/harness:setup
+```
+
+O setup grava `.harness/`, `.claude/settings.json`, `AGENTS.md`, `CLAUDE.md`, `docs/agents/`
+e `orca.yaml`, e propõe o `harness.conf`. Se algum desses arquivos já existir com outro
+conteúdo, ele mostra e pergunta antes de substituir. Faça o commit do que foi gerado e
+reinicie a sessão.
+
+O que é só do projeto (hooks, permissões, servidores MCP, sites liberados) vai em
+`harness.d/settings.json`, que é somado na geração.
+
+## O que muda no dia a dia
+
+**O shell do agente passa a rodar em sandbox.** Ele grava só dentro do projeto, não alcança
+o servidor de git e só acessa os sites liberados. Para você, no terminal, nada muda.
+
+**Os comandos do harness:**
+
+| Comando | Para quê | Quem roda |
+|---|---|---|
+| `.harness/up` | sobe a infra da feature | você ou o agente, com a sua permissão |
+| `.harness/prepare` | migration e seed | você ou o agente |
+| `.harness/dev` | o app | você ou o agente |
+| `.harness/down` | para o ambiente, mantém os dados | você ou o agente, com a sua permissão |
+| `.harness/destroy` | remove o ambiente da feature | você ou o agente, com a sua permissão |
+| `.harness/fetch` | atualiza as referências do remoto | o agente |
+| `.harness/push` | envia a branch, depois do portão | o agente |
+| `.harness/pr` | abre ou consulta o pull request | o agente |
+| `.harness/validate` | checagens do projeto, sem custo de IA | você ou o agente |
+| `.harness/approve` | sua aprovação manual de um portão | só você, no terminal |
+| `.harness/update <tag>` | leva o projeto para uma versão do harness | só você, no terminal |
+
+**Você é chamado em poucos momentos:** para aprovar a spec, para autorizar o ambiente a
+subir, parar ou ser removido, e para fazer o merge.
+
+## Uma primeira entrega
+
+1. Abra um worktree para a feature, pelo Orca ou com `git worktree add`. O
+   `.harness/setup-worktree` grava as portas dela no `.env` e instala as dependências.
+2. Na sessão do Claude Code, dentro do worktree: `/harness:entregar`.
+3. Responda a entrevista. Leia os achados do revisor da spec e aprove a spec.
+4. Acompanhe: os tickets são criados, os implementadores trabalham em paralelo, a
+   checagem roda, os dois revisores dão o veredito, a branch é enviada e o pull request é aberto.
+5. Faça o merge, preservando os commits.
+
+## Atualizar
+
+Uma mudança de padrão se faz neste repositório e sai numa tag. No projeto:
+
+```bash
+.harness/update v0.2.0
+```
+
+Arquivo gerenciado que foi alterado à mão trava a atualização, que lista o que encontrou.
+
+## O que ainda não foi verificado
+
+Tudo abaixo passou em testes automáticos ou em sessões sem interface, mas não numa sessão
+interativa com um projeto de verdade. É a lista para a primeira validação:
+
+- A pergunta de permissão de `.harness/up`, `down` e `destroy` aparecendo e sendo aprovada.
+- `.harness/push` enviando para o GitHub com as suas credenciais, e `.harness/pr` com o `gh`.
+- `/harness:setup` e `/harness:entregar` de ponta a ponta. A orquestração é conduzida por
+  um modelo e não tem teste automático: os testes cobrem as peças e a coerência entre o que
+  a skill manda fazer e o que os guards aceitam.
+- O carimbo automático a partir do veredito dos revisores, com os dois revisores. Só o
+  de segurança rodou de ponta a ponta numa sessão real.
+- Instalar dependências (`pnpm install`) dentro do sandbox, num projeto com muitas.
+- A trava contra desligar o sandbox, numa sessão interativa.
+- Um push por SSH: a rede é negada por nome de servidor, e não foi conferido se isso cobre SSH.
+
+Limites conhecidos, que não são falha de teste:
+
+- Sem o sandbox ligado, os portões protegem contra descuido, não contra um agente que insiste.
+- No Linux o sandbox não alcança `localhost`; `prepare` e `dev` precisariam de outra saída.
+- Subagentes em paralelo na mesma feature compartilham o banco.
+- Não há suporte ao Codex ainda.
+- Quatro revisões adversariais acharam falhas reais, todas corrigidas. Isso mostra que
+  revisar funciona, e não que não reste nenhuma.
+
+## Desenvolver o harness
+
+```bash
+python3 -m unittest discover -s tests
+```
+
+Os testes gravam em `~/.claude/harness/` e apagam ao sair, então não rodam de dentro de
+uma sessão com o sandbox ligado. Alguns usam Docker de verdade e são pulados sem ele.
+
+Licença MIT.
