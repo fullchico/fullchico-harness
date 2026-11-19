@@ -88,6 +88,10 @@ class TestEndToEnd(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn(".harness/git-hooks/commit-msg", r.stderr)
 
+        # rodar hooks e checagens não deixa lixo no projeto
+        self.assertEqual(list((repo / ".harness").rglob("__pycache__")), [])
+        self.assertNotIn("__pycache__", git(repo, "status", "--short"))
+
 
 if __name__ == "__main__":
     unittest.main()

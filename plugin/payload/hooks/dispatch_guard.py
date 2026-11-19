@@ -10,6 +10,8 @@ import os
 import re
 import sys
 
+sys.dont_write_bytecode = True  # não deixa __pycache__ dentro de .harness/ do projeto
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common  # noqa: E402
 

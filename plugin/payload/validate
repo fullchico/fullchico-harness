@@ -22,6 +22,7 @@ DRIFT="$(python3 "$HERE/manifest_check.py" "$ROOT")" || {
 
 CMD="$(python3 - "$HERE/hooks" "$ROOT/harness.conf" "$KEY" <<'PY'
 import sys
+sys.dont_write_bytecode = True
 sys.path.insert(0, sys.argv[1])
 import common
 print(common.read_conf(sys.argv[2]).get(sys.argv[3], ""))

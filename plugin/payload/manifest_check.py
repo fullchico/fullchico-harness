@@ -9,6 +9,8 @@ import json
 import os
 import sys
 
+sys.dont_write_bytecode = True  # não deixa __pycache__ dentro de .harness/ do projeto
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "hooks"))
 from managed_guard import region  # noqa: E402
