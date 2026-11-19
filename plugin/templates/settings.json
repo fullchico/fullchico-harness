@@ -71,6 +71,17 @@
           }
         ]
       }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/subagent_context.py\"",
+            "timeout": 15
+          }
+        ]
+      }
     ]
   },
   "sandbox": {
