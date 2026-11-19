@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Leva o projeto para uma versão do harness.
+# Uso: .harness/update <tag> [--force]
+#
+# Baixa a tag do repositório do harness e executa o sincronizador DAQUELA versão,
+# para que plugin, .harness/ e arquivos gerados saiam todos com a mesma tag.
+# Variáveis: HARNESS_REPO (origem), HARNESS_SKIP_PLUGIN=1 (não chama `claude plugin`).
+set -uo pipefail
+
+TAG="${1:-}"
+case "$TAG" in ""|-*) echo "uso: update <tag> [--force]" >&2; exit 2 ;; esac
+FORCE=""
+[ "${2:-}" = "--force" ] && FORCE="--force"
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || { echo "update: fora de um repositório git" >&2; exit 2; }
+REPO="${HARNESS_REPO:-https://github.com/FullChico/fullchico-harness.git}"
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+if ! git -c advice.detachedHead=false clone -q --depth 1 --branch "$TAG" "$REPO" "$TMP/harness" 2>"$TMP/clone.err"; then
+  echo "update: não foi possível baixar a tag $TAG de $REPO" >&2
+  sed 's/^/  /' "$TMP/clone.err" >&2
+  exit 1
+fi
+
+# shellcheck disable=SC2086
+python3 "$TMP/harness/plugin/bin/sync" "$ROOT" --version "$TAG" $FORCE
+RC=$?
+[ "$RC" -eq 0 ] || exit "$RC"
+
+if [ -z "${HARNESS_SKIP_PLUGIN:-}" ] && command -v claude >/dev/null 2>&1; then
+  claude plugin marketplace update fullchico || echo "update: não consegui atualizar o marketplace; rode à mão." >&2
+  claude plugin update harness@fullchico || echo "update: não consegui atualizar o plugin; rode à mão." >&2
+fi
+
+echo "Arquivos alterados:"
+git -C "$ROOT" status --short
+echo "Se houver uma sessão do Claude Code aberta neste projeto, rode /reload-plugins."

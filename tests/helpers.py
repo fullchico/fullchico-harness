@@ -89,3 +89,23 @@ def commit_file(repo, path: str, subject: str) -> str:
     with open(target, "a", encoding="utf-8") as f:
         f.write(subject + "\n")
     return commit_all(repo, subject)
+
+
+def clone_self_with_tags(name: str, tags: dict) -> pathlib.Path:
+    """Cópia deste repositório como "upstream" local, com uma tag por entrada.
+
+    `tags` mapeia tag -> None ou (caminho relativo, texto a acrescentar antes da tag).
+    """
+    up = _tmpdir() / name
+    shutil.copytree(ROOT, up, ignore=shutil.ignore_patterns(".git", ".superpowers", "__pycache__", "*.pyc"))
+    git(up, "init", "-q", "-b", "main")
+    git(up, "config", "user.name", "Teste")
+    git(up, "config", "user.email", "teste@example.com")
+    for tag, change in tags.items():
+        if change:
+            with open(up / change[0], "a", encoding="utf-8") as f:
+                f.write(change[1])
+        git(up, "add", "-A")
+        git(up, "commit", "-q", "--allow-empty", "-m", f"chore: release {tag}")
+        git(up, "tag", tag)
+    return up
