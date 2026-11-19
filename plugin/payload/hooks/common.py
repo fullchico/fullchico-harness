@@ -63,6 +63,16 @@ def state_dir(cwd):
     return os.path.join(state_root(), repo_id)
 
 
+def memory_dir(cwd):
+    """Onde fica a memória derivada do repositório: o mapa do código e as âncoras.
+
+    Dentro do diretório git comum: local, fora dos arquivos versionados, igual para
+    todos os worktrees, e gravável pelo agente (ao contrário de ~/.claude).
+    """
+    common_dir = _git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    return os.path.join(common_dir, "harness-memory") if common_dir else None
+
+
 def request_path(state: str, gate: str, sha: str) -> str:
     return os.path.join(state, "requests", gate, sha + ".json")
 
