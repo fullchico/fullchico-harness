@@ -478,10 +478,18 @@ Shell puro. **[dono]**
 `worktree-env` aproveita o script e os testes do movacrm: base por `CONDUCTOR_PORT` quando
 existir, senão `20000 + hash(caminho) % 2000 * 10`, com busca do próximo bloco livre.
 
-**Quem sobe ambiente:** qualquer um, pelo mesmo caminho. É seguro por construção, porque
-portas e projeto Docker saem do worktree. **Quando sobe:** só quando a validação exige.
-**[dono]** O implementador valida sem ambiente, nos pontos de costura da spec; o ambiente
-sobe na integração, uma vez por spec.
+**O ambiente é por spec. [dono]** Uma spec implementada por vários subagentes em paralelo,
+cada um num worktree, usa um ambiente só; outra spec em paralelo tem outro, com outras
+portas. A spec de um worktree vem do nome da branch: `spec/<slug>` na integração e
+`ticket/<slug>/<NN>-<nome>` em cada ticket. Branch fora desse padrão tem ambiente próprio,
+pelo nome da pasta.
+
+**Quem sobe:** o orquestrador, a partir do worktree de integração, com pergunta ao dono
+(uma por spec). Implementadores só gravam as portas no próprio `.env` e usam o que está de
+pé. **Quando sobe:** só quando a validação exige. **[dono]**
+
+Limite aceito: o banco é compartilhado entre implementadores em paralelo, e tickets que
+criem migration ou testes que limpem tabelas podem interferir.
 
 Integrações de uma linha: `orca.yaml` (`setup`: `worktree-env` e `INSTALL_CMD`; `archive`:
 `destroy`; Quick Commands Start, Stop, Destroy) e `.conductor/settings.toml`.

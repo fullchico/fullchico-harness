@@ -1,8 +1,8 @@
-# Harness v1, plano 2: ambiente por worktree — Implementation Plan
+# Harness v1, plano 2: ambiente por spec — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Cada worktree de um projeto que adotou o harness sobe o próprio ambiente Docker, com portas e projeto isolados, por um caminho único que o dono aprova e que não serve de saída do sandbox.
+**Goal:** Cada spec em andamento tem um ambiente Docker próprio, com portas e projeto isolados, compartilhado por todos os worktrees dessa spec e levantado por um caminho único que o dono aprova e que não serve de saída do sandbox.
 
 **Architecture:** Scripts bash em `.harness/` (`worktree-env`, `up`, `prepare`, `dev`, `down`, `destroy`) leem o `harness.conf`. `up`, `down` e `destroy` rodam fora do sandbox do Bash, por uma lista de comandos excluídos, e sempre com pergunta ao dono por regra nativa. Antes de subir, `up` confere a configuração final do compose com `compose_check.py` e recusa o que daria ao contêiner acesso fora do projeto. Migration, seed e app rodam depois, dentro do sandbox, falando com `localhost`.
 
@@ -16,6 +16,9 @@
 
 Tomadas com o dono em 2026-11-19, depois de o sandbox virar a barreira de escrita:
 
+- **O ambiente é por spec, não por worktree. [dono]** Uma spec implementada por vários subagentes em paralelo, cada um num worktree, usa um ambiente só. Outra spec em paralelo tem outro, com outras portas. Só o orquestrador sobe o ambiente, a partir do worktree de integração; os implementadores só gravam as portas no próprio `.env` e usam o que está de pé.
+- A spec de um worktree vem do nome da branch: `spec/<slug>` (integração) e `ticket/<slug>/<NN>-<nome>` (um ticket). Branch fora desse padrão usa o nome da pasta do worktree como contexto, e tem ambiente próprio.
+- Limite aceito: banco compartilhado entre implementadores em paralelo. Tickets que criem migration ou testes que limpem tabelas podem interferir. A regra de validar sem ambiente sempre que der atenua, e não se constrói isolamento por ticket agora.
 - O agente pode pedir para subir, parar e remover o ambiente. O dono é sempre perguntado, por regra nativa `permissions.ask`, que continua perguntando nos modos automático e de permissão liberada, e vira negação no modo sem interface.
 - `up` só sobe a infra. `AFTER_UP` e `DEV_CMD` não rodam dentro dele: são código do projeto, que o agente edita, e rodá-los fora do sandbox seria uma saída. Ficam em `prepare` e `dev`, que rodam dentro do sandbox.
 - `up` recusa compose com montagem de pasta fora do projeto, contêiner privilegiado, ou espaço de processos da máquina. O socket do Docker cai na primeira regra.
@@ -27,17 +30,19 @@ Tomadas com o dono em 2026-11-19, depois de o sandbox virar a barreira de escrit
 - Nenhum script deste plano grava em `.harness/`, `harness.conf` nem no estado do harness. Arquivos de execução (PID, log) ficam em `.harness-run/`, na raiz do worktree, ignorado pelo git.
 - `up`, `down` e `destroy` não executam nenhum comando vindo do `harness.conf` além de `docker compose` com `COMPOSE_FILE`.
 - Formas exatas dos comandos, as únicas que saem do sandbox e as únicas que disparam a pergunta: `.harness/up`, `.harness/down`, `.harness/destroy`, e as mesmas com `./` na frente.
-- Bloco de portas: base `20000 + cksum(caminho do worktree) % 2000 * 10`; `CONDUCTOR_PORT`, quando definida, é a base. Serviço na posição `i` de `SERVICES` usa `base + i`. No máximo 10 serviços.
+- **Contexto do ambiente:** `HARNESS_ENV`, se definida; senão o `<slug>` da branch quando ela casa `^(spec|ticket)/([^/]+)`; senão o nome da pasta do worktree. Normalizado para minúsculas, com o que não for letra ou dígito trocado por `-`.
+- Bloco de portas: base `20000 + cksum("<raiz do repositório principal>:<contexto>") % 2000 * 10`; `CONDUCTOR_PORT`, quando definida, é a base. Serviço na posição `i` de `SERVICES` usa `base + i`. No máximo 10 serviços.
 - Variável de porta de um serviço: nome em maiúsculas com `-` trocado por `_`, mais `_PORT` (`web` → `WEB_PORT`).
-- Nome do projeto Docker: `<PROJECT>-<nome da pasta do worktree em minúsculas, com o que não for letra ou dígito trocado por ->`.
+- Nome do projeto Docker: `<PROJECT>-<contexto>`.
+- Dono do ambiente: o worktree que rodou `up`. Fica registrado em `<estado do harness>/envs/<contexto>.json` (`worktree`, `base`), que `up` consegue gravar por rodar fora do sandbox.
 - Rodar os testes: `python3 -m unittest discover -s tests -v`, fora de uma sessão com sandbox.
 
 ## Review Focus
 
-1. Dois worktrees subindo ao mesmo tempo: cada um recebe um bloco de portas e um projeto Docker diferentes, e `destroy` de um não toca no outro. Testes nas Tasks 2 e 4.
+1. Dois worktrees da mesma spec calculam o mesmo bloco e o mesmo projeto Docker; dois worktrees de specs diferentes, blocos e projetos diferentes; `destroy` de uma spec não toca na outra. `up` vindo de um segundo worktree da mesma spec não recria os contêineres. Testes nas Tasks 2, 4 e 7.
 2. Porta do bloco já ocupada por outro processo: o `worktree-env` procura o próximo bloco livre e avisa, sem alterar o `.env` se não achar. Teste na Task 2.
 3. Compose que tenta sair: montagem com caminho relativo que sobe para fora (`../..`), link simbólico dentro do projeto apontando para fora, variável expandida para a pasta do usuário, `privileged`, `pid: host`. Testes na Task 3.
-4. `destroy` no checkout principal, ou num worktree cujo `.env` ainda traz o nome de projeto do principal (o `.env` foi copiado): recusa. Teste na Task 4.
+4. `destroy` no checkout principal, ou num contexto igual ao do checkout principal: recusa. Teste na Task 4.
 5. `harness.conf` sem `SERVICES` ou sem `COMPOSE_FILE`, e Docker ausente ou parado: cada script falha com mensagem que diz o que falta, sem deixar o `.env` pela metade. Testes nas Tasks 2 e 4.
 
 ---
@@ -103,9 +108,9 @@ Se o item 3 falhar: `prepare` e `dev` não podem rodar no sandbox; parar e levar
 
 **Interfaces:**
 - Consumes: `harness.conf` (`PROJECT`, `SERVICES`, e chaves `ENV_<NOME>`), lido por `hooks/common.py read_conf`.
-- Produces: `.harness/worktree-env [--print]`. Grava no `.env` da raiz do worktree, preservando as demais linhas: `COMPOSE_PROJECT_NAME`, uma `<SERVIÇO>_PORT` por serviço, e, para cada chave `ENV_<NOME>` do conf, a linha `<NOME>=<valor>` com `${<SERVIÇO>_PORT}` e `${COMPOSE_PROJECT_NAME}` substituídos. `--print` escreve essas linhas em stdout e não toca em arquivo. Idempotente. Saída 1, sem alterar o `.env`, quando falta `PROJECT` ou `SERVICES`, há mais de 10 serviços, `CONDUCTOR_PORT` é inválida, ou não há bloco livre.
+- Produces: `.harness/worktree-env [--print]`. Grava no `.env` da raiz do worktree, preservando as demais linhas: `HARNESS_ENV_CONTEXT` (o contexto calculado), `COMPOSE_PROJECT_NAME`, uma `<SERVIÇO>_PORT` por serviço, e, para cada chave `ENV_<NOME>` do conf, a linha `<NOME>=<valor>` com `${<SERVIÇO>_PORT}` e `${COMPOSE_PROJECT_NAME}` substituídos. `--print` escreve essas linhas em stdout e não toca em arquivo. Idempotente. Saída 1, sem alterar o `.env`, quando falta `PROJECT` ou `SERVICES`, há mais de 10 serviços, `CONDUCTOR_PORT` é inválida, ou não há bloco livre.
 
-Regras: se o `.env` não existe, parte de `.env.example` quando houver. Se o projeto Docker deste worktree já tem contêineres rodando, reaproveita a base gravada no `.env`. Senão, testa as portas do bloco (processo escutando) e avança de 10 em 10 até achar um livre, avisando em stderr; com `CONDUCTOR_PORT`, só procura dentro das 10 portas reservadas, de 1 em 1.
+Regras: se o `.env` não existe, parte de `.env.example` quando houver. Se o contexto já tem ambiente registrado no estado do harness (`envs/<contexto>.json`), usa a base registrada lá, para todos os worktrees da spec falarem com as mesmas portas mesmo que o bloco inicial estivesse ocupado. Senão, testa as portas do bloco (processo escutando) e avança de 10 em 10 até achar um livre, avisando em stderr; com `CONDUCTOR_PORT`, só procura dentro das 10 portas reservadas, de 1 em 1.
 
 - [ ] **Step 1: Escrever os testes que falham**
 
@@ -131,12 +136,29 @@ class TestWorktreeEnv(unittest.TestCase):
         run(repo); first = (repo / ".env").read_text(); run(repo)
         self.assertEqual((repo / ".env").read_text(), first)
         self.assertEqual(env(repo)["SECRET"], "abc"); self.assertNotEqual(env(repo)["WEB_PORT"], "1")
-    def test_two_worktrees_get_different_blocks_and_projects(self):
+    def wt(self, repo, name, branch):
+        path = repo.parent / name; git(repo, "worktree", "add", "-q", str(path), "-b", branch); return path
+    def test_worktrees_of_the_same_spec_share_block_and_project(self):
         repo = make_repo(); conf(repo, self.CONF); commit_all(repo, "chore: conf")
-        wt = repo.parent / "wt two"; git(repo, "worktree", "add", "-q", str(wt), "-b", "o")
-        run(repo); run(wt)
-        self.assertNotEqual(env(repo)["WEB_PORT"], env(wt)["WEB_PORT"])
-        self.assertNotEqual(env(repo)["COMPOSE_PROJECT_NAME"], env(wt)["COMPOSE_PROJECT_NAME"])
+        integ = self.wt(repo, "integ", "spec/edit-photo")
+        t1 = self.wt(repo, "t1", "ticket/edit-photo/01-upload"); t2 = self.wt(repo, "t2", "ticket/edit-photo/02-crop")
+        for w in (integ, t1, t2): run(w)
+        self.assertEqual(env(integ)["WEB_PORT"], env(t1)["WEB_PORT"]); self.assertEqual(env(t1)["WEB_PORT"], env(t2)["WEB_PORT"])
+        self.assertEqual({env(w)["COMPOSE_PROJECT_NAME"] for w in (integ, t1, t2)}, {"meuapp-edit-photo"})
+        self.assertEqual(env(t2)["HARNESS_ENV_CONTEXT"], "edit-photo")
+    def test_different_specs_get_different_blocks_and_projects(self):
+        repo = make_repo(); conf(repo, self.CONF); commit_all(repo, "chore: conf")
+        a = self.wt(repo, "a", "spec/edit-photo"); b = self.wt(repo, "b", "spec/whatsapp-message")
+        run(a); run(b)
+        self.assertNotEqual(env(a)["WEB_PORT"], env(b)["WEB_PORT"])
+        self.assertNotEqual(env(a)["COMPOSE_PROJECT_NAME"], env(b)["COMPOSE_PROJECT_NAME"])
+    def test_branch_outside_the_convention_uses_the_folder_name(self):
+        repo = make_repo(); conf(repo, self.CONF); commit_all(repo, "chore: conf")
+        w = self.wt(repo, "Fix Typo", "fix/typo"); run(w)
+        self.assertEqual(env(w)["COMPOSE_PROJECT_NAME"], "meuapp-fix-typo")
+    def test_explicit_context_wins(self):
+        repo = make_repo(); conf(repo, self.CONF); run(repo, HARNESS_ENV="Demo 1")
+        self.assertEqual(env(repo)["COMPOSE_PROJECT_NAME"], "meuapp-demo-1")
     def test_busy_port_moves_to_next_block(self):
         repo = make_repo(); conf(repo, self.CONF)
         base = int(dict(l.split("=", 1) for l in run(repo, "--print").stdout.splitlines())["WEB_PORT"])
@@ -242,11 +264,11 @@ class TestComposeCheck(unittest.TestCase):
 **Interfaces:**
 - Consumes: `worktree-env` (Task 2), `compose_check.py` (Task 3), `harness.conf` (`COMPOSE_FILE`, `AFTER_UP`, `DEV_CMD`).
 - Produces:
-  - `up`: roda `worktree-env`; `docker compose --env-file .env -f <COMPOSE_FILE> config --format json`; passa pelo `compose_check.py`; imprime o resumo; `docker compose ... up -d --wait`. Qualquer etapa que falhe encerra com o código dela, sem subir nada.
+  - `up`: roda `worktree-env`. Se o contexto já tem dono registrado, outro worktree, e o projeto Docker tem contêineres rodando: imprime de quem é o ambiente e sai 0 sem recriar nada. Senão registra este worktree como dono (`envs/<contexto>.json`) e segue: `docker compose --env-file .env -f <COMPOSE_FILE> config --format json`; passa pelo `compose_check.py`; imprime o resumo; `docker compose ... up -d --wait`. Qualquer etapa que falhe encerra com o código dela, sem subir nada.
   - `prepare`: roda `AFTER_UP` com `bash -c`, na raiz, com o `.env` exportado. Sem `AFTER_UP`: sai 0.
   - `dev [--background]`: roda `DEV_CMD` do mesmo jeito. Em segundo plano grava o PID em `.harness-run/dev.pid` e a saída em `.harness-run/dev.log`, e recusa se já houver um processo vivo nesse PID. Sem `DEV_CMD`: sai 1 com mensagem.
   - `down`: encerra o processo de `.harness-run/dev.pid`, se vivo, e roda `docker compose ... stop`.
-  - `destroy`: recusa (sai 1) se o worktree é o checkout principal, ou se `COMPOSE_PROJECT_NAME` do `.env` é igual ao do `.env` do checkout principal; senão roda `down` e `docker compose ... down -v --rmi local --remove-orphans`.
+  - `destroy`: recusa (sai 1) se o worktree é o checkout principal, ou se o contexto é igual ao do checkout principal; senão roda `down`, `docker compose ... down -v --rmi local --remove-orphans`, e apaga o registro `envs/<contexto>.json`. Remove o ambiente da spec inteira, de qualquer worktree dela.
   - Todos falham com mensagem clara quando falta `COMPOSE_FILE` no conf, o arquivo não existe, ou `docker` não está no `PATH`.
   - `tests/fake_docker`: executável que anexa seus argumentos a `$FAKE_DOCKER_LOG`, e para `compose ... config --format json` imprime o conteúdo de `$FAKE_DOCKER_CONFIG`; sai com `$FAKE_DOCKER_RC` (padrão 0).
 
@@ -264,8 +286,10 @@ test_prepare_without_after_up_is_ok                # rc 0
 test_dev_background_writes_pid_and_log_and_down_stops_it   # DEV_CMD="sleep 60": pid vivo; down: pid morto; log tem "compose" e "stop"
 test_dev_refuses_second_instance                   # rc 1 enquanto o primeiro está vivo
 test_destroy_refuses_main_checkout                 # rc 1, log não tem "down -v"
-test_destroy_refuses_worktree_with_main_project_name   # .env do worktree copiado do principal: rc 1
-test_destroy_in_worktree_removes_only_its_project  # log tem "down -v --rmi local --remove-orphans" com o projeto do worktree
+test_destroy_refuses_context_equal_to_main          # worktree com HARNESS_ENV igual ao contexto do principal: rc 1
+test_second_worktree_of_same_spec_does_not_recreate  # up no integ, depois up no ticket da mesma spec: rc 0, stdout cita o worktree dono, log sem segundo "up -d"
+test_up_registers_owner_and_destroy_clears_it       # envs/<contexto>.json com worktree e base; some depois do destroy
+test_destroy_removes_only_its_spec_project         # log tem "down -v --rmi local --remove-orphans" com o projeto da spec, e só ele
 test_missing_conf_or_docker_explains               # sem COMPOSE_FILE, arquivo inexistente, PATH sem docker: rc != 0 e stderr diz o que falta
 test_scripts_write_nothing_under_harness_dir       # depois de up/prepare/dev/down: git status não mostra .harness/ alterado
 ```
@@ -347,7 +371,7 @@ class TestAskWithSummary(unittest.TestCase):
 - Produces:
   - `orca.yaml` gerado na raiz, gerenciado (entra no `MANIFEST`), com `scripts.setup` e `scripts.archive`. `setup`: copia o `.env` do checkout principal se o worktree não tiver; roda `.harness/worktree-env`; roda `INSTALL_CMD` do conf, se houver; instala os plugins declarados com `claude plugin install ... --scope project` quando `claude` existir. `archive`: roda `.harness/destroy` e ignora a falha.
   - `.conductor/settings.toml` gerado e gerenciado só quando o `harness.conf` tem `CONDUCTOR=1`: `setup`, `archive` e um `run` que chama `.harness/up && .harness/prepare && .harness/dev`.
-  - `AGENTS.managed.md` ganha a seção "Ambiente": quando subir (só quando a validação exige), os cinco comandos, que `up`, `down` e `destroy` perguntam ao dono, que as portas vêm do `.env` e não se escolhe porta à mão, e que `docker compose` solto não funciona dentro do sandbox.
+  - `AGENTS.managed.md` ganha a seção "Ambiente": um ambiente por spec, compartilhado pelos worktrees dela; só o orquestrador sobe, a partir da integração; a convenção de branches `spec/<slug>` e `ticket/<slug>/<NN>-<nome>`; quando subir (só quando a validação exige); os cinco comandos; que `up`, `down` e `destroy` perguntam ao dono, que as portas vêm do `.env` e não se escolhe porta à mão, e que `docker compose` solto não funciona dentro do sandbox.
   - `templates/harness.conf` ganha, comentada, a chave `CONDUCTOR=1`, e deixa de mencionar `MAX_PARALLEL` (plano 3).
 
 - [ ] **Step 1: Escrever os testes que falham**
@@ -376,12 +400,13 @@ test_orca_setup_script_runs                  # extrai o bloco setup, roda com ba
 
 - [ ] **Step 1: Escrever o teste de integração**
 
-Pulado com `unittest.skipUnless` quando `docker info` falha ou a imagem `redis:7-alpine` não está disponível localmente e não há rede. Num repositório com dois worktrees, `harness.conf` com `SERVICES="cache"` e um compose de um serviço `redis:7-alpine` publicado em `127.0.0.1:${CACHE_PORT}`:
+Pulado com `unittest.skipUnless` quando `docker info` falha ou a imagem `redis:7-alpine` não está disponível localmente e não há rede. Num repositório com `harness.conf` de `SERVICES="cache"`, um compose de um serviço `redis:7-alpine` publicado em `127.0.0.1:${CACHE_PORT}`, e quatro worktrees: integração e um ticket da spec A, integração da spec B, e o checkout principal:
 
-1. `up` nos dois worktrees: os dois ficam saudáveis; as portas são diferentes; uma conexão TCP em cada porta funciona.
-2. `destroy` no segundo: o contêiner dele some; o do primeiro continua respondendo.
-3. `destroy` no primeiro, que é o checkout principal: recusado.
-4. `down` no primeiro, e limpeza do projeto Docker no `tearDown`, com `docker compose down -v` direto.
+1. `up` na integração de A e na de B: os dois ambientes ficam saudáveis, em portas diferentes; uma conexão TCP em cada porta funciona.
+2. `worktree-env` no ticket de A: o `.env` dele aponta para a mesma porta de A, e a conexão funciona sem subir nada. `up` no ticket de A: não cria contêiner novo (`docker ps` continua com um contêiner para A).
+3. `destroy` em B: o contêiner de B some; o de A continua respondendo.
+4. `destroy` no checkout principal: recusado.
+5. Limpeza dos projetos Docker no `tearDown`, com `docker compose down -v` direto.
 
 - [ ] **Step 2: Rodar a suíte inteira** — `python3 -m unittest discover -s tests -v`, todos PASS ou pulados com motivo.
 
