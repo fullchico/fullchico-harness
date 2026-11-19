@@ -75,7 +75,7 @@ o servidor de git e só acessa os sites liberados. Para você, no terminal, nada
 | `.harness/push` | envia a branch, depois do portão | o agente |
 | `.harness/pr` | abre ou consulta o pull request | o agente |
 | `.harness/validate` | checagens do projeto, sem custo de IA | você ou o agente |
-| `.harness/memory` | mapa do código e âncoras: `check`, `slice <caminho>`, `index` | você ou o agente |
+| `.harness/memory` | mapa do código, âncoras e notas: `check`, `slice <caminho>`, `index`, `notes` | você ou o agente |
 | `.harness/learn` | sessões passadas: `sessions`, `usage`, `digest` | você ou o agente |
 | `.harness/approve` | sua aprovação manual de um portão | só você, no terminal |
 | `.harness/update <tag>` | leva o projeto para uma versão do harness | só você, no terminal |
@@ -148,7 +148,7 @@ Limites conhecidos, que não são falha de teste:
 - No Linux o sandbox não alcança `localhost`; `prepare` e `dev` precisariam de outra saída.
 - Subagentes em paralelo na mesma feature compartilham o banco.
 - Não há suporte ao Codex ainda.
-- Quatro revisões adversariais acharam falhas reais, todas corrigidas. Isso mostra que
+- Seis revisões adversariais acharam falhas reais, todas corrigidas. Isso mostra que
   revisar funciona, e não que não reste nenhuma.
 
 ## Desenvolver o harness

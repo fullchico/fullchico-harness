@@ -373,8 +373,12 @@ contexto. O padrão do harness é merge que preserva os commits (rebase ou merge
 ### 7.2 Comandos
 
 `.harness/memory check` lista o que envelheceu, de graça: unidades do mapa, termos do
-glossário sem código e ADRs a reler. `units`, `show`, `slice`, `index`, `record`, `forget`,
-`anchor` e `anchors` completam o conjunto. Não há comando de regenerar: regenerar exige ler
+glossário sem código, ADRs a reler e notas cujo código mudou. `units`, `show`, `slice`, `index`,
+`record`, `forget`, `anchor`, `anchors`, `note <add|show|forget>` e `notes` completam o conjunto.
+
+Os arquivos da memória são graváveis pelo agente e lidos por um hook que roda fora do sandbox.
+Por isso o que está neles é tratado como não confiável: nome só vira caminho depois de
+validado, commit só chega ao git se for um hash, e só arquivo comum é lido. Não há comando de regenerar: regenerar exige ler
 código, e quem conduz isso é a skill `/harness:mapear`, com subagentes Haiku.
 
 ## 8. Ciclo de aprendizado

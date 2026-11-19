@@ -8,7 +8,7 @@ dado: descreve o que aconteceu, não manda em quem a lê.
 O formato das transcrições não é contrato documentado; foi observado. Arquivo que
 não se parece com ele é recusado, em vez de virar número errado.
 
-Uso: learn.py <raiz> <sessions [--all]|digest <id> <arquivo>|usage [<id>...]|mark <id>...>
+Uso: learn.py <raiz> <sessions [--all]|digest <id> <arquivo>|usage [<id>...]|mark <id>...|remember>
 """
 import datetime
 import json
@@ -33,9 +33,49 @@ def _slug(path: str) -> str:
     return re.sub(r"[^A-Za-z0-9]", "-", path)
 
 
-def _worktrees(root) -> list:
+def _state_file(root):
+    folder = common.memory_dir(root)
+    if not folder:
+        raise ValueError("fora de um repositório git")
+    return os.path.join(folder, "learn.json")
+
+
+def _state(root) -> dict:
+    try:
+        with open(_state_file(root), encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        data = {}
+    data = data if isinstance(data, dict) else {}
+    return {key: [v for v in data.get(key, []) if isinstance(v, str)] if isinstance(data.get(key), list) else []
+            for key in ("processed", "worktrees")}
+
+
+def _save(root, state) -> None:
+    path = _state_file(root)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = f"{path}.{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
+
+
+def _live_worktrees(root) -> list:
     out = subprocess.run(["git", "worktree", "list", "--porcelain"], cwd=root, capture_output=True, text=True).stdout
     return [line[len("worktree "):] for line in out.splitlines() if line.startswith("worktree ")] or [root]
+
+
+def _worktrees(root) -> list:
+    """Os worktrees de agora e os que já existiram: as sessões de um worktree removido continuam valendo."""
+    return sorted(set(_live_worktrees(root)) | set(_state(root)["worktrees"]))
+
+
+def remember(root) -> None:
+    """Guarda os caminhos dos worktrees atuais, para achar as sessões deles depois que forem removidos."""
+    state = _state(root)
+    known = sorted(set(state["worktrees"]) | set(_live_worktrees(root)))
+    if known != state["worktrees"]:
+        _save(root, {**state, "worktrees": known})
 
 
 def project_dirs(root, home=None) -> list:
@@ -48,28 +88,13 @@ def project_dirs(root, home=None) -> list:
     return found
 
 
-def _state_file(root):
-    folder = common.memory_dir(root)
-    if not folder:
-        raise ValueError("fora de um repositório git")
-    return os.path.join(folder, "learn.json")
-
-
 def _processed(root) -> list:
-    try:
-        with open(_state_file(root), encoding="utf-8") as f:
-            return list(json.load(f).get("processed", []))
-    except (OSError, ValueError):
-        return []
+    return _state(root)["processed"]
 
 
 def mark(root, ids) -> None:
-    done = sorted(set(_processed(root)) | set(ids))
-    path = _state_file(root)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path + ".tmp", "w", encoding="utf-8") as f:
-        json.dump({"processed": done}, f, indent=2)
-    os.replace(path + ".tmp", path)
+    state = _state(root)
+    _save(root, {**state, "processed": sorted(set(state["processed"]) | set(ids))})
 
 
 def sessions(root, home=None) -> list:
@@ -131,7 +156,9 @@ def usage(session_path) -> dict:
         role = "subagente"
         try:
             with open(os.path.join(sub, name[:-len(".jsonl")] + ".meta.json"), encoding="utf-8") as f:
-                role = json.load(f).get("agentType") or role
+                meta = json.load(f)
+            kind = meta.get("agentType") if isinstance(meta, dict) else None
+            role = kind if isinstance(kind, str) and kind else role
         except (OSError, ValueError):
             pass
         try:
@@ -179,15 +206,22 @@ def digest(session_path) -> str:
     return text
 
 
-def _find(root, session_id):
-    for session in sessions(root):
-        if session["id"] == session_id:
-            return session
-    raise ValueError(f"não achei a sessão {session_id}")
+def select(found, ids) -> list:
+    """As sessões pedidas, por id inteiro ou por um começo dele que só case com uma."""
+    chosen = []
+    for wanted in ids:
+        hits = [s for s in found if s["id"] == wanted] or [s for s in found if wanted and s["id"].startswith(wanted)]
+        if not hits:
+            raise ValueError(f"não achei a sessão {wanted}")
+        if len(hits) > 1:
+            raise ValueError(f"{wanted} casa com mais de uma sessão: {', '.join(s['id'] for s in hits)}")
+        chosen += [s for s in hits if s not in chosen]
+    return chosen
 
 
 def _print_usage(root, ids) -> None:
-    chosen = [s for s in sessions(root) if (s["id"] in ids if ids else not s["processed"])]
+    found = sessions(root)
+    chosen = select(found, ids) if ids else [s for s in found if not s["processed"]]
     print("sessão\tpapel\tmodelo\tentrada\tsaída\tcache lido\tcache gravado\tmensagens")
     for session in chosen:
         try:
@@ -202,19 +236,25 @@ def _print_usage(root, ids) -> None:
 
 
 def main(argv) -> int:
-    usage_text = "uso: learn <sessions [--all]|digest <id> <arquivo>|usage [<id>...]|mark <id>...>\n"
+    usage_text = "uso: learn <sessions [--all]|digest <id> <arquivo>|usage [<id>...]|mark <id>...|remember>\n"
     if len(argv) < 2:
         sys.stderr.write(usage_text)
         return 2
     root, command, args = argv[0], argv[1], argv[2:]
     try:
-        if command == "sessions":
+        try:
+            remember(root)  # de carona em todo comando; onde não dá para gravar, segue sem
+        except OSError:
+            pass
+        if command == "remember":
+            pass
+        elif command == "sessions":
             for session in sessions(root):
                 if "--all" in args or not session["processed"]:
                     when = datetime.datetime.fromtimestamp(session["mtime"]).strftime("%Y-%m-%d %H:%M")
                     print(f"{session['id']}\t{when}\t{'processada' if session['processed'] else 'nova'}")
         elif command == "digest" and len(args) == 2:
-            text = digest(_find(root, args[0])["path"])
+            text = digest(select(sessions(root), [args[0]])[0]["path"])
             os.makedirs(os.path.dirname(os.path.abspath(args[1])), exist_ok=True)
             with open(args[1], "w", encoding="utf-8") as f:
                 f.write(text + "\n")
@@ -222,7 +262,13 @@ def main(argv) -> int:
         elif command == "usage":
             _print_usage(root, args)
         elif command == "mark" and args:
-            mark(root, args)
+            found, ids = sessions(root), []
+            for wanted in args:  # id que não está nesta máquina é marcado como veio
+                try:
+                    ids.append(select(found, [wanted])[0]["id"])
+                except ValueError:
+                    ids.append(wanted)
+            mark(root, ids)
         else:
             sys.stderr.write(usage_text)
             return 2

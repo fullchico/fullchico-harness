@@ -79,7 +79,7 @@ Escreva o corpo com a skill `pr`, em português, sem assinatura de IA, num arqui
 entra em commit:
 
 ```bash
-mkdir -p .harness-run && echo '*' > .harness-run/.gitignore
+mkdir -p .harness-run && { [ -f .harness-run/.gitignore ] || echo '*' > .harness-run/.gitignore; }
 ```
 
 Grave o corpo em `.harness-run/pr-body.md` e abra o pull request:

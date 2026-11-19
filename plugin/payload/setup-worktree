@@ -18,6 +18,9 @@ fi
 
 "$HERE/worktree-env" || exit $?
 
+# Guarda o caminho deste worktree: é por ele que as sessões são achadas depois que ele for removido.
+"$HERE/learn" remember >/dev/null 2>&1 || true
+
 INSTALL="$(conf_get INSTALL_CMD)"
 if [ -n "$INSTALL" ]; then
   bash -c "$INSTALL" || exit $?

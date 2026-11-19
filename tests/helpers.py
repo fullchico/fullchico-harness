@@ -60,7 +60,7 @@ def write_tmp(text: str) -> str:
 def run_hook(script: str, payload, cwd=None, raw=None):
     data = raw if raw is not None else json.dumps(payload)
     r = subprocess.run([sys.executable, str(HOOKS / script)], input=data,
-                       capture_output=True, text=True, cwd=cwd)
+                       capture_output=True, text=True, cwd=cwd, timeout=60)
     return r.returncode, r.stdout, r.stderr
 
 

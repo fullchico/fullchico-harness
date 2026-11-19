@@ -21,7 +21,8 @@ entrega mudou no mapa, e relata termos do glossário e decisões de arquitetura 
 ```
 
 A tabela mostra, para as sessões ainda não processadas, os tokens de cada papel: a sessão
-principal e cada tipo de subagente, por modelo. Leve ao relato:
+principal e cada tipo de subagente, por modelo. A primeira coluna é o começo do id da sessão,
+que os outros comandos do `learn` aceitam. Leve ao relato:
 
 - o total, e a parte de cada papel;
 - o que destoa: um papel barato gastando como um caro, muito token de entrada sem cache,

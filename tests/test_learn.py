@@ -63,6 +63,37 @@ class TestLearn(unittest.TestCase):
         pending = [s["id"] for s in learn.sessions(self.root, home=str(self.home)) if not s["processed"]]
         self.assertEqual(pending, ["s2"])
 
+    def test_sessions_of_a_removed_worktree_are_still_found(self):
+        wt = self.repo.parent / "feat b"
+        git(self.repo, "worktree", "add", "-q", str(wt), "-b", "feat/b")
+        write_session(self.home, wt, "s5", [user("oi"), assistant("olá")])
+        learn.remember(self.root)
+        learn.mark(self.root, ["outra"])  # marcar não pode apagar os worktrees lembrados
+        git(self.repo, "worktree", "remove", "--force", str(wt))
+        self.assertIn("s5", [s["id"] for s in learn.sessions(self.root, home=str(self.home))])
+
+    def test_agent_type_that_is_not_text_falls_back(self):
+        path = write_session(self.home, self.repo, "s6", [user("oi"), assistant("olá")],
+                             subagents={"a": (None, [assistant("x", mid="m2")])})
+        meta = os.path.join(path[:-6], "subagents", "agent-a.meta.json")
+        with open(meta, "w") as f:
+            json.dump({"agentType": ["lista"]}, f)
+        self.assertIn("subagente", learn.usage(path)["papéis"])
+        with open(meta, "w") as f:
+            json.dump(["não é objeto"], f)
+        self.assertIn("subagente", learn.usage(path)["papéis"])
+
+    def test_find_accepts_an_unambiguous_prefix(self):
+        write_session(self.home, self.repo, "abcdef12-1111", [user("oi"), assistant("olá")])
+        write_session(self.home, self.repo, "abcdef12-2222", [user("oi"), assistant("olá")])
+        write_session(self.home, self.repo, "ffff0000-3333", [user("oi"), assistant("olá")])
+        found = learn.sessions(self.root, home=str(self.home))
+        self.assertEqual([s["id"] for s in learn.select(found, ["ffff0000"])], ["ffff0000-3333"])
+        with self.assertRaises(ValueError):
+            learn.select(found, ["abcdef12"])
+        with self.assertRaises(ValueError):
+            learn.select(found, ["nada"])
+
     def test_project_without_sessions(self):
         self.assertEqual(learn.sessions(self.root, home=str(self.home)), [])
 

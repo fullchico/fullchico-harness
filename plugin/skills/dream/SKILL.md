@@ -26,13 +26,14 @@ Duas regras:
 .harness/memory check
 ```
 
-O primeiro lista as sessões ainda não processadas. O segundo lista as notas envelhecidas.
+O primeiro lista as sessões ainda não processadas, inclusive as de worktrees já removidos.
+Onde um comando pede `<id>`, vale o id inteiro ou um começo dele que só case com uma sessão. O segundo lista as notas envelhecidas.
 As transcrições ficam em `~/.claude/`, só para leitura: o harness nunca grava lá.
 
 ## 2. Resumir cada sessão
 
 ```bash
-mkdir -p .harness-run/dream && echo '*' > .harness-run/.gitignore
+mkdir -p .harness-run/dream && { [ -f .harness-run/.gitignore ] || echo '*' > .harness-run/.gitignore; }
 .harness/learn digest <id> .harness-run/dream/<id>.md
 ```
 
@@ -77,8 +78,9 @@ O comando recusa nota sem caminho versionado, vazia ou longa demais.
 
 ## 5. Cuidar das notas envelhecidas
 
-Para cada nota que o `check` listou: releia o código. Se o que ela diz continua verdade,
-grave de novo com o mesmo nome, o que a ancora no commit atual. Se deixou de ser, apague com
+Para cada nota que o `check` listou: `.harness/memory note show <nome>` mostra o texto e os
+caminhos que a sustentam. Releia esse código. Se o que ela diz continua verdade, grave de novo
+com o mesmo nome e os mesmos caminhos, o que a ancora no commit atual. Se deixou de ser, apague com
 `.harness/memory note forget <nome>`.
 
 ## 6. Fechar

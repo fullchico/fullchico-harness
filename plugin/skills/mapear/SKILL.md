@@ -45,7 +45,11 @@ Quem depende: o painel web e o aplicativo.
 Não é óbvio: a disponibilidade é calculada na hora, não guardada; o fuso é sempre o do estabelecimento.
 ```
 
-Antes de disparar, garanta a pasta: `mkdir -p .harness-run/map && echo '*' > .harness-run/.gitignore`.
+`<nome>` é a unidade com cada `/` trocado por `-` (e `raiz` para a unidade `.`): só serve para dar
+nome ao arquivo.
+
+Antes de disparar, garanta a pasta:
+`mkdir -p .harness-run/map && { [ -f .harness-run/.gitignore ] || echo '*' > .harness-run/.gitignore; }`.
 
 Quando cada subagente voltar, grave o resumo dele:
 
