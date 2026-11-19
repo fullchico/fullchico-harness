@@ -22,7 +22,8 @@ Três regras:
 
 ## Ciclo de uma mudança
 
-O dono roda `/harness:entregar` no worktree da feature, e o elefante conduz o ciclo.
+O dono roda `/harness:entregar` no worktree da feature. O elefante desenha (passos 1 a 3) e
+entrega a execução ao `orquestrador`, em modelo mais barato (passos 4 em diante).
 
 | Passo | O que acontece |
 |---|---|
@@ -31,7 +32,7 @@ O dono roda `/harness:entregar` no worktree da feature, e o elefante conduz o ci
 | 3. Revisar a spec | goldfish `revisor-spec`; o dono resolve os achados e aprova |
 | 4. Fatiar | um arquivo por ticket em `docs/specs/<slug>/issues/`, com o que o bloqueia |
 | 5. Implementar | goldfish em paralelo, um worktree cada, com `tdd` |
-| 6. Integrar | elefante junta tudo na branch da feature |
+| 6. Integrar | o orquestrador junta tudo na branch da feature |
 | 7. Checar | `.harness/validate`, sem custo de IA |
 | 8. Revisar | goldfish `seguranca` e `revisor`, em paralelo |
 | 9. Enviar | push e PR |

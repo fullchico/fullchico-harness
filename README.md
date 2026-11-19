@@ -14,6 +14,9 @@ O que foi conferido em sessões reais, e o que ainda não foi, está em
 - **Conduz uma mudança da entrevista ao pull request,** com `/harness:entregar`: entrevista,
   spec, revisão da spec, tickets em grafo, implementação em paralelo por subagentes,
   checagem, revisão de segurança e de código, envio.
+- **Gasta o modelo caro só onde ele paga.** A sua sessão (Opus) faz a entrevista e a spec. A
+  execução inteira é de um orquestrador em Sonnet, que recebe só a spec; os implementadores e
+  os revisores também são Sonnet, e o trabalho bruto é Haiku.
 - **Não deixa código sem revisão chegar ao remoto.** O shell do agente roda no sandbox do
   Claude Code, sem rede para o servidor de git. O único caminho é `.harness/push`, que
   exige duas aprovações sobre o commit e, para uma `feat`, a spec da mudança.

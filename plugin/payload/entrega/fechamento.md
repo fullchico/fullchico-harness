@@ -8,7 +8,7 @@ A ordem importa: primeiro o que é de graça, depois o que custa.
 .harness/validate --profile merge
 ```
 
-Falhou: é uma rodada de correção (`references/despacho.md`), com a saída da checagem como
+Falhou: é uma rodada de correção (`.harness/entrega/despacho.md`), com a saída da checagem como
 achado. Revisor só roda sobre código que passou aqui.
 
 ## 2. Ambiente, se a validação exigir

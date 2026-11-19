@@ -79,7 +79,8 @@ class TestConfApply(unittest.TestCase):
 class TestAutonomy(unittest.TestCase):
     def test_skill_teaches_the_autonomous_mode_and_the_conf_proposal(self):
         skill = (ROOT / "plugin/skills/entregar/SKILL.md").read_text()
-        refs = "".join(p.read_text() for p in (ROOT / "plugin/skills/entregar/references").glob("*.md"))
+        refs = "".join(p.read_text() for p in (ROOT / "plugin/payload/entrega").glob("*.md"))
+        refs += (ROOT / "plugin/agents/orquestrador.md").read_text()
         self.assertIn("Modo autônomo", skill)
         self.assertIn("Decisões tomadas sem o dono", skill + refs)
         self.assertIn(".harness/conf-apply", skill + refs)

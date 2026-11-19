@@ -20,6 +20,7 @@ REQUIRED = {
     "harness:revisor": ("diff", "commit"),
     "harness:revisor-spec": ("spec",),
     "harness:implementador": ("spec", "ticket"),
+    "harness:orquestrador": ("spec",),
 }
 # O que cada um pode receber. O implementador recebe a spec e o ticket, e numa rodada
 # de correção o arquivo com o achado; quem revisa recebe o que vai ler, e mais nada.
@@ -28,6 +29,8 @@ ALLOWED = {
     "harness:revisor": ("diff", "commit", "spec", "leitura"),
     "harness:revisor-spec": ("spec", "leitura"),
     "harness:implementador": ("spec", "ticket", "leitura", "achado"),
+    # Quem executa a entrega recebe a spec aprovada e nada da conversa de quem a desenhou.
+    "harness:orquestrador": ("spec", "leitura"),
 }
 _LINE = re.compile(r"^(spec|ticket|diff|commit|leitura|achado): (\S.*)$")
 _SHA = re.compile(r"^[0-9a-f]{40}$")

@@ -6,17 +6,15 @@ disable-model-invocation: true
 
 # Entregar uma mudança
 
-Você é o elefante: carrega o contexto, desenha com o dono, dispara o trabalho e monta o
-resultado. Quem implementa e quem revisa são subagentes de contexto novo. Três regras
-valem do começo ao fim:
+A entrega tem duas metades, com modelos diferentes de propósito:
 
-1. **O documento é a única interface.** Todo pedido a um subagente só aponta arquivos, no
-   formato fixo mostrado nas referências. Sem narrativa, sem opinião.
-2. **Lacuna se corrige no documento.** Se um subagente não consegue trabalhar só com a
-   spec e o ticket, corrija a spec ou o ticket, faça o commit, e peça de novo.
-3. **Você não revisa o que orquestrou.** A revisão é dos revisores.
+- **Desenho,** nesta sessão: a entrevista, o vocabulário e a spec. É onde o raciocínio mais
+  caro paga, e onde o dono participa.
+- **Execução,** num subagente `harness:orquestrador`, em modelo mais barato: tickets,
+  implementadores em paralelo, integração, checagem, revisores, envio. Ele recebe só a spec.
 
-Siga os passos em ordem. Só pare nas duas paradas marcadas.
+Você conduz o desenho e entrega a execução. Não fatie, não despache implementador e não
+integre nada você mesmo: cada passo desses feito aqui custa o contexto inteiro desta sessão.
 
 ## Modo autônomo
 
@@ -37,6 +35,9 @@ O que continua parando, mesmo assim: remover um ambiente (`.harness/destroy`), a
 decisão sem alternativa recomendável (falta um dado que só o dono tem), e o merge, que é
 sempre dele. O que o modo autônomo não muda: os portões, as revisões e o sandbox.
 
+A execução corre sempre sem o dono, com ou sem modo autônomo: o orquestrador não tem a quem
+perguntar.
+
 ## 0. Antes de começar
 
 - Confira que a sessão está num worktree de feature, numa branch que não é a padrão. Se
@@ -56,13 +57,15 @@ Com o dono, usando a skill `grilling`, até não sobrar decisão em aberto. Regi
 vocabulário e as decisões difíceis de reverter com a skill `domain-modeling`.
 
 Se o pedido é um bug, use a skill `diagnosing-bugs` no lugar da entrevista. Bug não tem
-spec nem tickets: corrija você mesmo, com teste, em commits `fix`, e vá para o passo 6. Se a
-checagem ou um revisor reprovar, é você quem corrige, e a revisão recomeça; não há
-implementador a despachar sem spec e ticket.
+spec nem tickets: corrija você mesmo, com teste, em commits `fix`, e feche seguindo
+`.harness/entrega/fechamento.md`. Se a checagem ou um revisor reprovar, é você quem corrige,
+e a revisão recomeça; não há orquestrador nem implementador a despachar sem spec.
 
 ## 2. Especificar
 
-Escreva a spec seguindo `references/spec.md` e faça o commit.
+Escreva a spec seguindo `references/spec.md` e faça o commit. Ela é tudo o que a execução vai
+ter: o que ficou só na conversa não chega ao orquestrador. Se o projeto é novo, a spec diz
+também o conteúdo do `harness.conf`.
 
 ## 3. Revisar a spec
 
@@ -71,27 +74,29 @@ Dispare o `revisor-spec` com o pedido de `references/spec.md`. Apresente os acha
 **PARADA 1, fora do modo autônomo.** O dono resolve cada achado e aprova a spec. Ajuste a spec com o que ele
 decidir, faça o commit, e só então siga.
 
-## 4. Fatiar em tickets
+## 4. Executar
 
-Siga `references/tickets.md`. O grafo precisa passar no validador antes do próximo passo.
+Com a spec aprovada e em commit, dispare o `harness:orquestrador`, em segundo plano, só com
+ponteiros:
 
-## 5. Implementar
+```pedido harness:orquestrador
+spec: docs/specs/exemplo/spec.md
+leitura: GLOSSARY.md
+```
 
-Siga `references/despacho.md`: implementadores em paralelo, cada um num worktree de
-agente, até a fronteira do grafo esvaziar.
+A linha `leitura` é opcional e só lista arquivos que existem. Diga ao dono, em uma linha, que
+a execução começou, e espere o orquestrador voltar. Enquanto ele trabalha você não faz nada:
+não acompanhe, não confira o repositório, não repita o trabalho dele.
 
-## 6. Checar, revisar e enviar
+**PARADA 2, só se acontecer.** Se o orquestrador voltar sem fechar a entrega em 3 rodadas de
+correção, relate ao dono o que travou: o achado que se repete, o que foi tentado, e a sua
+leitura do motivo. Se ele voltar por lacuna na spec, corrija a spec, faça o commit e dispare
+de novo.
 
-Siga `references/fechamento.md`.
+## 5. Relatar
 
-**PARADA 2, só se acontecer.** Se a entrega não fechar em 3 rodadas de correção, pare e
-relate ao dono o que travou: o achado que se repete, o que foi tentado, e a sua leitura
-do motivo.
-
-## 7. Relatar
-
-Diga ao dono: o link do pull request, o que entrou, o que ficou de fora, quantas rodadas
-de correção houve, e qualquer coisa que os subagentes relataram fora do escopo. No modo
-autônomo, liste também as decisões tomadas sem ele, que estão na spec.
+Diga ao dono o que o orquestrador devolveu: o link do pull request, o que entrou, o que ficou
+de fora, quantas rodadas de correção houve, as decisões tomadas sem ele (que estão na spec), e
+qualquer coisa que os subagentes relataram fora do escopo.
 
 Depois do merge, o dono fecha o ciclo com `/harness:aprender`.

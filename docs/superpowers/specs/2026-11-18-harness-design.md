@@ -195,11 +195,19 @@ cada, com `Blocked by:` e `Status:` no topo.
 
 | Papel | Modelo |
 |---|---|
-| elefante | Opus |
+| elefante: entrevista, vocabulário e spec | Opus |
 | `revisor-spec` | o mesmo do elefante |
+| `orquestrador`: tickets, despacho, integração, fechamento | Sonnet |
 | implementadores, `seguranca`, `revisor` | Sonnet |
 | trabalho bruto: mapa, verificação de memória, resumo de log, `dream` | Haiku |
 
+- **Opus só no desenho. [dono], 2026-11-19.** Na primeira entrega real o elefante em Opus fez
+  também a orquestração e custou mais que os seis implementadores juntos: cada passo braçal
+  relia a conversa inteira no modelo mais caro. Agora a sessão do dono conduz a entrevista e a
+  spec e dispara um subagente `orquestrador`, em Sonnet, que recebe só a spec e executa até o
+  pull request. Conferido em sessão real: um subagente dispara outros subagentes, com worktree
+  isolado, e os hooks de despacho e de fim de subagente valem nos dois níveis. Os roteiros da
+  execução ficam em `.harness/entrega/`, porque um subagente não enxerga os arquivos da skill.
 - A tabela é teto: sessão em Sonnet mantém Sonnet no lugar do Opus.
 - **Escalada:** ticket reprovado duas vezes sobe para Opus, só aquele ticket.
 - **O grátis antes do pago:** revisor de IA só roda sobre código que passou no

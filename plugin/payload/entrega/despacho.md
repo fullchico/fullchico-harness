@@ -20,8 +20,8 @@ forma exata sai do sandbox; encadeados, eles rodam dentro dele e falham.
 testes usam banco, a spec precisa dizer como cada um isola o seu (um banco de teste por ticket,
 por exemplo). Isso se escreve na spec, antes de despachar: o pedido só leva ponteiros.
 
-**O plano.** Diga ao dono, em uma tabela, as ondas que o grafo dá: quais tickets rodam juntos
-em cada uma. É como ele sabe de antemão o que vai em paralelo.
+**O plano.** Monte a tabela das ondas que o grafo dá: quais tickets rodam juntos em cada uma.
+Ela vai no seu relato final, com o que de fato rodou em paralelo.
 
 ## A fronteira
 
@@ -93,5 +93,5 @@ achado: docs/specs/exemplo/achados/01-rodada-1.md
 3. Junte o resultado e volte ao fechamento.
 
 Conte as rodadas. Um ticket reprovado duas vezes passa a ser despachado com o modelo
-`opus`. A entrega inteira tem limite de 3 rodadas de correção: na quarta, pare e relate
-ao dono.
+`opus`. A entrega inteira tem limite de 3 rodadas de correção: na quarta, pare e devolva o
+relato do que travou.

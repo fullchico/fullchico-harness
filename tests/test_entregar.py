@@ -11,12 +11,16 @@ sys.path.insert(0, str(ROOT / "plugin/payload"))
 import tickets_check  # noqa: E402
 
 SKILL = ROOT / "plugin/skills/entregar"
-REFS = ("spec.md", "tickets.md", "despacho.md", "fechamento.md")
-AGENTS = ("implementador", "revisor-spec")
+REFS = ("spec.md",)
+# O que o orquestrador segue vai para o projeto, em .harness/entrega/: é lido por um
+# subagente, que não enxerga os arquivos da skill.
+RUN = ROOT / "plugin/payload/entrega"
+RUN_DOCS = ("tickets.md", "despacho.md", "fechamento.md")
+AGENTS = ("implementador", "revisor-spec", "orquestrador")
 
 
 def texts():
-    files = [SKILL / "SKILL.md"] + [SKILL / "references" / r for r in REFS]
+    files = [SKILL / "SKILL.md"] + [SKILL / "references" / r for r in REFS] + [RUN / r for r in RUN_DOCS]
     files += [ROOT / f"plugin/agents/{a}.md" for a in AGENTS] + [ROOT / "plugin/payload/subagent-rules.md"]
     return {str(f.relative_to(ROOT)): f.read_text() for f in files}
 
@@ -34,6 +38,38 @@ class TestEntregar(unittest.TestCase):
         self.assertEqual((rev["name"], rev["model"]), ("revisor-spec", "inherit"))
         self.assertNotIn("Edit", rev["tools"])
         self.assertNotIn("Write", rev["tools"])
+
+    def test_design_runs_on_the_session_model_and_execution_on_sonnet(self):
+        orq = frontmatter(ROOT / "plugin/agents/orquestrador.md")
+        self.assertEqual((orq["name"], orq["model"]), ("orquestrador", "sonnet"))
+        for tool in ("Agent", "Bash", "Edit", "Write", "Read"):
+            self.assertIn(tool, orq["tools"])
+        skill = (SKILL / "SKILL.md").read_text()
+        self.assertIn("`harness:orquestrador`", skill)
+        body = (ROOT / "plugin/agents/orquestrador.md").read_text()
+        for doc in RUN_DOCS:
+            self.assertTrue((RUN / doc).exists(), doc)
+            self.assertIn(f".harness/entrega/{doc}", body)
+        for doc in ("tickets.md", "despacho.md"):
+            self.assertNotIn(doc, skill, "a sessão de desenho não carrega o texto da execução")
+
+    def test_orchestrator_request_is_pointer_only(self):
+        repo = make_repo()
+        (repo / "docs/specs/x").mkdir(parents=True)
+        (repo / "docs/specs/x/spec.md").write_text("x")
+        commit_all(repo, "docs: add spec")
+        ask = lambda prompt: run_hook("dispatch_guard.py", {"tool_name": "Agent", "cwd": str(repo), "tool_input": {
+            "subagent_type": "harness:orquestrador", "prompt": prompt}})[0]
+        self.assertEqual(ask("spec: docs/specs/x/spec.md"), 0)
+        self.assertEqual(ask("spec: docs/specs/x/spec.md\nCapriche, o dono tem pressa."), 2)
+        self.assertEqual(ask("spec: docs/specs/x/spec.md\nticket: docs/specs/x/spec.md"), 2)
+        self.assertEqual(ask("faça a entrega"), 2)
+
+    def test_run_docs_reach_the_project(self):
+        repo = make_repo()
+        self.assertEqual(sync(repo).returncode, 0)
+        for doc in RUN_DOCS:
+            self.assertTrue((repo / ".harness/entrega" / doc).exists(), doc)
 
     def test_skill_is_user_invoked_and_has_the_two_stops(self):
         text = (SKILL / "SKILL.md").read_text()
@@ -65,7 +101,7 @@ class TestEntregar(unittest.TestCase):
                 rc, _, err = run_hook("dispatch_guard.py", {"tool_name": "Agent", "cwd": str(repo), "tool_input": {
                     "subagent_type": agent, "prompt": prompt}})
                 self.assertEqual(rc, 0, f"{name} ({agent}): {err}")
-        self.assertGreaterEqual(found, 5)
+        self.assertGreaterEqual(found, 6)
 
     def test_skill_never_teaches_a_denied_command(self):
         for name, text in texts().items():
@@ -81,7 +117,7 @@ class TestEntregar(unittest.TestCase):
             self.assertNotIn(reserved, joined)
 
     def test_ticket_example_passes_tickets_check(self):
-        text = (SKILL / "references/tickets.md").read_text()
+        text = (RUN / "tickets.md").read_text()
         examples = re.findall(r"```ticket (\S+)\n(.*?)```", text, flags=re.S)
         self.assertGreaterEqual(len(examples), 2)
         repo = make_repo()
