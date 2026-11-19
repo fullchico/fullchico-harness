@@ -6,8 +6,8 @@
 #   projeto  = <PROJECT>-<contexto>
 #   portas   = um bloco de dez; o serviço na posição i de SERVICES usa base + i
 #
-# Um worktree de agente (dentro de .claude/worktrees/ de uma feature) pertence ao
-# ambiente da feature: mesmas portas, mesmo projeto.
+# Um worktree de agente (em .claude/worktrees/) pertence ao ambiente da feature de onde
+# saiu: mesmas portas, mesmo projeto. A feature é achada pelo git, não pela pasta.
 #
 # Uso: .harness/worktree-env [--print]   (--print só mostra, sem gravar)
 set -euo pipefail
@@ -60,7 +60,7 @@ if not services:
 if len(services) > 10:
     fail(f"SERVICES tem {len(services)} serviços; o bloco de portas comporta 10.")
 
-feature = root.split(MARK)[0] if MARK in root else root
+feature = common.feature_root(root)
 explicit = os.environ.get("HARNESS_ENV", "").strip()
 context = re.sub(r"[^a-z0-9]+", "-", (explicit or os.path.basename(feature)).lower()).strip("-")
 if not context:

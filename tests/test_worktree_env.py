@@ -94,6 +94,40 @@ class TestWorktreeEnv(unittest.TestCase):
         self.assertEqual(env(agent)["COMPOSE_PROJECT_NAME"], "meuapp-roseau-audience")
         self.assertEqual(env(agent)["HARNESS_ENV_CONTEXT"], "roseau-audience")
 
+    def test_agent_worktree_under_the_main_checkout_finds_its_feature(self):
+        # É onde o Claude Code cria os worktrees de agente: sob o checkout principal,
+        # mesmo quando a sessão está no worktree de uma feature.
+        repo = make_repo()
+        conf(repo)
+        commit_all(repo, "chore: conf")
+        other = worktree(repo, repo.parent / "roseau-other", "feat/other")
+        feature = worktree(repo, repo.parent / "roseau-audience", "feat/audience")
+        (feature / "a.txt").write_text("a\n")
+        commit_all(feature, "feat: a")
+        agent = repo / ".claude/worktrees/agent-a1b2c3"
+        git(feature, "worktree", "add", "-q", "-b", "worktree-agent-a1b2c3", str(agent), "HEAD")
+        (agent / "b.txt").write_text("b\n")
+        commit_all(agent, "feat: b")
+        (feature / "c.txt").write_text("c\n")
+        commit_all(feature, "feat: c")  # a feature andou depois do despacho
+        run(feature)
+        run(other)
+        r = run(agent)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(env(agent)["COMPOSE_PROJECT_NAME"], "meuapp-roseau-audience")
+        self.assertEqual(env(agent)["WEB_PORT"], env(feature)["WEB_PORT"])
+
+    def test_fresh_agent_worktree_prefers_the_feature_over_the_main_checkout(self):
+        repo = make_repo()
+        conf(repo)
+        commit_all(repo, "chore: conf")
+        feature = worktree(repo, repo.parent / "roseau-audience", "feat/audience")
+        agent = repo / ".claude/worktrees/agent-zz"
+        git(feature, "worktree", "add", "-q", "-b", "worktree-agent-zz", str(agent), "HEAD")
+        run(feature)
+        self.assertEqual(run(agent).returncode, 0)
+        self.assertEqual(env(agent)["COMPOSE_PROJECT_NAME"], "meuapp-roseau-audience")
+
     def test_explicit_context_wins(self):
         repo = make_repo()
         conf(repo)

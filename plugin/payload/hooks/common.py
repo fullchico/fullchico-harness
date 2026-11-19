@@ -164,6 +164,42 @@ def read_conf(path: str) -> dict:
     return conf
 
 
+AGENT_MARK = "/.claude/worktrees/"
+
+
+def feature_root(root: str) -> str:
+    """O worktree da feature a que este worktree pertence; ele mesmo, se não for de agente.
+
+    O Claude Code cria os worktrees de agente sob o checkout principal, mesmo quando a
+    sessão está no worktree de uma feature. A pasta não diz de quem ele é; o git diz: a
+    feature é o worktree de cujo histórico o agente mais recentemente saiu.
+    """
+    if AGENT_MARK not in root:
+        return root
+    listed = _git(root, "worktree", "list", "--porcelain") or ""
+    trees, path = [], None
+    for line in listed.splitlines():
+        if line.startswith("worktree "):
+            path = line[len("worktree "):]
+        elif line.startswith("HEAD ") and path and AGENT_MARK not in path:
+            trees.append((path, line[len("HEAD "):]))
+    parent = root.split(AGENT_MARK)[0]
+    main = trees[0][0] if trees else parent
+    if os.path.realpath(parent) != os.path.realpath(main):
+        return parent  # agente criado dentro da pasta da própria feature
+    best = None
+    for index, (path, tip) in enumerate(trees):
+        base = _git(root, "merge-base", tip, "HEAD")
+        ahead = _git(root, "rev-list", "--count", f"{base}..HEAD") if base else None
+        if ahead is None or not ahead.isdigit():
+            continue
+        # Menos commits fora do histórico do candidato ganha; no empate, a feature e não o principal.
+        rank = (int(ahead), index == 0, index)
+        if best is None or rank < best[0]:
+            best = (rank, path)
+    return best[1] if best else parent
+
+
 def file_digest(rel: str, data: bytes) -> str:
     """Impressão digital de um arquivo gerenciado.
 
@@ -192,7 +228,9 @@ def conf_approval_path(root):
 if __name__ == "__main__":
     # Uso pelos scripts de shell: common.py state-dir | common.py branch-base <sha> | common.py conf-approval <raiz>
     out = None
-    if len(sys.argv) == 3 and sys.argv[1] == "conf-approval":
+    if len(sys.argv) == 3 and sys.argv[1] == "feature-root":
+        out = feature_root(sys.argv[2])
+    elif len(sys.argv) == 3 and sys.argv[1] == "conf-approval":
         out = conf_approval_path(sys.argv[2])
     if sys.argv[1:] == ["state-dir"]:
         out = state_dir(os.getcwd())

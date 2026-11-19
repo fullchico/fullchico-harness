@@ -13,6 +13,13 @@ conferem. Nunca peça ao dono para colar o arquivo.
 `.harness/up`, depois `.harness/prepare`. Ticket que depende do ambiente não é concluído com
 teste contra um substituto em memória: sem ambiente de verdade ele fica `claimed`.
 
+Rode `.harness/conf-apply` e `.harness/up` sozinhos, um por chamada, sem `&&` nem `;`. Só a
+forma exata sai do sandbox; encadeados, eles rodam dentro dele e falham.
+
+**Testes em paralelo.** Os implementadores de uma rodada dividem o ambiente da feature. Se os
+testes usam banco, a spec precisa dizer como cada um isola o seu (um banco de teste por ticket,
+por exemplo). Isso se escreve na spec, antes de despachar: o pedido só leva ponteiros.
+
 **O plano.** Diga ao dono, em uma tabela, as ondas que o grafo dá: quais tickets rodam juntos
 em cada uma. É como ele sabe de antemão o que vai em paralelo.
 

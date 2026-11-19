@@ -9,7 +9,7 @@ cd "$ROOT" || exit 1
 # worktree de agente, que fica dentro de uma feature, começa com o da feature.
 AGENT_WORKTREE=""
 case "$ROOT" in
-  */.claude/worktrees/*) AGENT_WORKTREE=1; SOURCE="${ROOT%%/.claude/worktrees/*}" ;;
+  */.claude/worktrees/*) AGENT_WORKTREE=1; SOURCE="$(python3 -I "$HERE/hooks/common.py" feature-root "$ROOT")" ;;
   *) SOURCE="$(git worktree list --porcelain | sed -n '1s/^worktree //p')" ;;
 esac
 if [ ! -f .env ] && [ -n "$SOURCE" ] && [ -f "$SOURCE/.env" ] && [ "$(cd "$SOURCE" && pwd -P)" != "$ROOT" ]; then
