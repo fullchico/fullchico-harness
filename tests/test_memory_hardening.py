@@ -208,7 +208,7 @@ class TestSessionHook(unittest.TestCase):
             memory.note_add(str(repo), f"nota-{n}", f"Nota {n}.", [f"m{n:03d}/a.py"])
         started = time.time()
         rc, text = session(repo)
-        self.assertLess(time.time() - started, 8, "o hook tem 20 s de limite; aqui precisa de folga")
+        self.assertLess(time.time() - started, 4, "o hook tem 20 s de limite; aqui precisa de folga")
         self.assertIn("m000: Unidade m000.", text)
 
 

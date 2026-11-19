@@ -14,6 +14,7 @@ chegam ao git depois de conferidos, e só arquivo comum é lido.
 
 Uso: memory.py <raiz> <comando> [argumentos]
 """
+import functools
 import json
 import os
 import re
@@ -51,6 +52,7 @@ def _conf(root):
     return common.read_conf(os.path.join(root, "harness.conf"))
 
 
+@functools.lru_cache(maxsize=None)  # uma pergunta ao git por raiz, não por arquivo lido
 def _store(root):
     folder = common.memory_dir(root)
     if not folder:
