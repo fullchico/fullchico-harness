@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+"""Instala ou atualiza o harness num projeto.
+
+Uso: sync <raiz do projeto> --version <tag> [--force]
+
+Copia o payload para .harness/, gera os arquivos gerenciados a partir dos
+templates e grava .harness/MANIFEST. Nunca toca no que é do projeto.
+
+Saída: 0 ok; 1 se um arquivo gerenciado foi alterado à mão (ou já existia com
+outro conteúdo) e --force não foi passado, sem escrever nada; 2 uso inválido.
+"""
+import argparse
+import hashlib
+import json
+import os
+import subprocess
+import sys
+
+PLUGIN = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PAYLOAD = os.path.join(PLUGIN, "payload")
+TEMPLATES = os.path.join(PLUGIN, "templates")
+sys.path.insert(0, os.path.join(PAYLOAD, "hooks"))
+from managed_guard import BEGIN, END, region  # noqa: E402
+
+
+def sha256(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def read(path: str) -> bytes:
+    with open(path, "rb") as f:
+        return f.read()
+
+
+def merge(base, extra):
+    """Soma o fragmento do projeto ao que o harness gera. Em conflito, o harness vence."""
+    if isinstance(base, dict) and isinstance(extra, dict):
+        out = dict(base)
+        for key, value in extra.items():
+            out[key] = merge(base[key], value) if key in base else value
+        return out
+    if isinstance(base, list) and isinstance(extra, list):
+        return base + [item for item in extra if item not in base]
+    return base
+
+
+def planned_files(root: str, version: str) -> dict:
+    """Caminho relativo -> (conteúdo, executável) de tudo que é inteiramente gerenciado."""
+    plan = {}
+    for folder, dirs, files in os.walk(PAYLOAD):
+        dirs[:] = [d for d in dirs if d != "__pycache__"]
+        for name in files:
+            if name.endswith(".pyc"):
+                continue
+            src = os.path.join(folder, name)
+            rel = os.path.join(".harness", os.path.relpath(src, PAYLOAD))
+            plan[rel] = (read(src), os.access(src, os.X_OK))
+
+    with open(os.path.join(PLUGIN, "map.json"), encoding="utf-8") as f:
+        skill_map = json.load(f)
+    env = f"SPEC_GLOB={skill_map['spec_glob']}\nTICKETS_GLOB={skill_map['tickets_glob']}\n"
+    plan[os.path.join(".harness", "map.env")] = (env.encode("utf-8"), False)
+
+    settings = json.loads(read(os.path.join(TEMPLATES, "settings.json")).decode("utf-8")
+                          .replace("__VERSION__", version))
+    fragment = os.path.join(root, "harness.d", "settings.json")
+    if os.path.exists(fragment):
+        settings = merge(settings, json.loads(read(fragment).decode("utf-8")))
+    text = json.dumps(settings, indent=2, ensure_ascii=False) + "\n"
+    plan[os.path.join(".claude", "settings.json")] = (text.encode("utf-8"), False)
+
+    plan["CLAUDE.md"] = (read(os.path.join(TEMPLATES, "CLAUDE.md")), False)
+    agents_docs = os.path.join(TEMPLATES, "docs", "agents")
+    for name in sorted(os.listdir(agents_docs)):
+        plan[os.path.join("docs", "agents", name)] = (read(os.path.join(agents_docs, name)), False)
+    return plan
+
+
+def managed_region() -> str:
+    body = read(os.path.join(TEMPLATES, "AGENTS.managed.md")).decode("utf-8").strip()
+    return f"{BEGIN}\n{body}\n{END}"
+
+
+def new_agents_md(current, managed: str) -> str:
+    if current is None:
+        project = read(os.path.join(TEMPLATES, "AGENTS.project.md")).decode("utf-8")
+        return f"# AGENTS.md\n\n{managed}\n\n{project}"
+    old = region(current)
+    if old is None:
+        return f"{managed}\n\n{current}"
+    return current.replace(old, managed, 1)
+
+
+def load_manifest(root: str) -> dict:
+    try:
+        return json.loads(read(os.path.join(root, ".harness", "MANIFEST")).decode("utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def conflicts(root: str, plan: dict, manifest: dict, current_agents) -> list:
+    """Arquivos que o dono alterou à mão, ou que já existiam antes do harness."""
+    found = []
+    known = manifest.get("files", {})
+    for rel, (content, _) in sorted(plan.items()):
+        path = os.path.join(root, rel)
+        if not os.path.exists(path):
+            continue
+        actual = sha256(read(path))
+        if actual != sha256(content) and actual != known.get(rel):
+            found.append(rel)
+    expected_region = manifest.get("regions", {}).get("AGENTS.md")
+    if expected_region and current_agents is not None:
+        actual = region(current_agents)
+        if actual is None or sha256(actual.encode("utf-8")) != expected_region:
+            found.append("AGENTS.md")
+    return found
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(prog="sync", add_help=True)
+    parser.add_argument("project")
+    parser.add_argument("--version", required=True)
+    parser.add_argument("--force", action="store_true")
+    try:
+        args = parser.parse_args()
+    except SystemExit:
+        return 2
+
+    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=args.project,
+                         capture_output=True, text=True) if os.path.isdir(args.project) else None
+    if top is None or top.returncode != 0:
+        sys.stderr.write("sync: o projeto precisa ser um repositório git.\n")
+        return 2
+    root = top.stdout.strip()
+
+    plan = planned_files(root, args.version)
+    manifest = load_manifest(root)
+    agents_path = os.path.join(root, "AGENTS.md")
+    current_agents = read(agents_path).decode("utf-8") if os.path.exists(agents_path) else None
+
+    changed = conflicts(root, plan, manifest, current_agents)
+    if changed and not args.force:
+        sys.stderr.write("sync: estes arquivos gerenciados têm conteúdo diferente do que o harness "
+                         "gravou. Nada foi alterado. Confira e rode de novo com --force para "
+                         "substituí-los:\n")
+        for rel in changed:
+            sys.stderr.write(f"  {rel}\n")
+        return 1
+
+    for rel in manifest.get("files", {}):
+        if rel.startswith(".harness" + os.sep) and rel not in plan:
+            stale = os.path.join(root, rel)
+            if os.path.exists(stale):
+                os.remove(stale)
+
+    for rel, (content, executable) in plan.items():
+        path = os.path.join(root, rel)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "wb") as f:
+            f.write(content)
+        os.chmod(path, 0o755 if executable else 0o644)
+
+    managed = managed_region()
+    with open(agents_path, "w", encoding="utf-8") as f:
+        f.write(new_agents_md(current_agents, managed))
+
+    conf = os.path.join(root, "harness.conf")
+    if not os.path.exists(conf):
+        with open(conf, "wb") as f:
+            f.write(read(os.path.join(TEMPLATES, "harness.conf")))
+
+    subprocess.run(["git", "config", "core.hooksPath", ".harness/git-hooks"], cwd=root, check=True)
+
+    record = {
+        "version": args.version,
+        "files": {rel: sha256(content) for rel, (content, _) in sorted(plan.items())},
+        "regions": {"AGENTS.md": sha256(managed.encode("utf-8"))},
+    }
+    with open(os.path.join(root, ".harness", "MANIFEST"), "w", encoding="utf-8") as f:
+        f.write(json.dumps(record, indent=2, ensure_ascii=False) + "\n")
+    print(f"harness {args.version} sincronizado em {root}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -61,3 +61,8 @@ def read_approval(repo, gate):
     path = common.approval_path(common.state_dir(str(repo)), gate, git(repo, "rev-parse", "HEAD"))
     with open(path, encoding="utf-8") as f:
         return json.load(f)
+
+
+def sync(repo, *extra):
+    return subprocess.run([sys.executable, str(ROOT / "plugin/bin/sync"), str(repo),
+                           "--version", "v0.1.0", *extra], capture_output=True, text=True)

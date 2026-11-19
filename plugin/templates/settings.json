@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "extraKnownMarketplaces": {
+    "fullchico": {
+      "source": { "source": "github", "repo": "FullChico/fullchico-harness", "ref": "__VERSION__" }
+    },
+    "ponytail": {
+      "source": { "source": "github", "repo": "DietrichGebert/ponytail" }
+    }
+  },
+  "enabledPlugins": {
+    "harness@fullchico": true,
+    "mattpocock-skills@claude-plugins-official": true,
+    "ponytail@ponytail": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/service_guard.py\"",
+            "timeout": 30,
+            "statusMessage": "Conferindo guard de comandos..."
+          },
+          {
+            "type": "command",
+            "command": "if command -v rtk >/dev/null 2>&1; then rtk hook claude; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/dispatch_guard.py\"",
+            "timeout": 30,
+            "statusMessage": "Conferindo pedido ao revisor..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/managed_guard.py\"",
+            "timeout": 30,
+            "statusMessage": "Conferindo arquivos gerenciados..."
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "^harness:(seguranca|revisor)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.harness/hooks/gate_stamp.py\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "deny": [
+      "Edit(/.harness/**)",
+      "Edit(/.claude/settings.json)",
+      "Edit(/CLAUDE.md)",
+      "Edit(/docs/agents/**)",
+      "Edit(/harness.conf)",
+      "Edit(/harness.d/**)"
+    ]
+  }
+}
