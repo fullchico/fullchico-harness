@@ -25,6 +25,8 @@ Siga os passos em ordem. Só pare nas duas paradas marcadas.
 - Rode `.harness/fetch`. Se a branch padrão do remoto andou, traga-a para dentro da feature
   com `git merge origin/<branch padrão>`, antes de qualquer outra coisa.
 - Leia `GLOSSARY.md` e os ADRs em `docs/adr/`, se existirem.
+- Rode `.harness/memory check`. Se o mapa da área que a mudança vai tocar está envelhecido ou
+  não existe, atualize-o antes com a skill `mapear`.
 
 ## 1. Entrevistar
 

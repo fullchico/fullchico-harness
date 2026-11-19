@@ -79,6 +79,13 @@ worktree da feature e usam o ambiente dela.
 - As portas estão no `.env` do worktree. Não se escolhe porta à mão.
 - `docker` solto não funciona dentro do sandbox: o caminho é `.harness/up`.
 
+## Memória
+
+O mapa do código fica fora dos arquivos versionados, ancorado no commit em que cada
+resumo foi escrito. `.harness/memory check` diz, sem custo, o que envelheceu;
+`.harness/memory slice <caminho>` mostra o resumo de uma área; `/harness:mapear` atualiza.
+Spec já mesclada é histórico. A verdade é o código, os testes e o histórico do git.
+
 ## Arquivos
 
 - **Gerenciados, não edite:** `.harness/`, `.claude/settings.json`, `CLAUDE.md`,

@@ -80,8 +80,8 @@ em `.claude/settings.json` e em `.harness/MANIFEST`. **[autor]**
 plugin/
   .claude-plugin/plugin.json
   agents/        implementador, revisor-spec, seguranca, revisor
-  skills/        setup, update, entregar (com referências de spec, tickets e despacho),
-                 aprender, dream
+  skills/        setup, entregar (com referências de spec, tickets, despacho e fechamento),
+                 mapear, aprender, dream
   map.json       mapa de skills de terceiros
   hooks/         hooks.json
   payload/       conteúdo copiado para .harness/ do projeto
@@ -328,26 +328,33 @@ começou, para agir no worktree certo. Exceção dentro de hook vira negação, 
 ## 7. Memória ancorada em git **[dono]**
 
 Regra única: todo item de memória guarda o commit em que foi escrito e os caminhos que
-descreve. Saber se envelheceu é uma pergunta ao git, sem IA e sem custo:
-`git diff --quiet <commit> HEAD -- <caminhos>`.
+descreve. Saber se envelheceu é uma pergunta ao git, sem IA e sem custo: o commit ainda
+existe, e `git diff --quiet <commit> -- <caminhos>` não acusa diferença?
 
 | Memória | Onde mora | Como nasce | Quando o código muda |
 |---|---|---|---|
 | Histórico de decisões | os commits | commits de contexto (7.1) | não envelhece: descreve aquela mudança |
-| Mapa do código | memória local do Claude | gerado do código, por Haiku | regenerado só nos caminhos tocados |
-| Glossário | `GLOSSARY.md`, versionado | `grill-with-docs` | termo cuja âncora sumiu é sinalizado |
-| ADRs | `docs/adr/`, versionado | `grill-with-docs` | ADR cuja área mudou muito é sinalizada ao dono |
-| Notas do `dream` | memória local do Claude | consolidação das sessões | reconferida contra o código |
+| Mapa do código | diretório git, fora dos arquivos versionados | resumos escritos por subagentes Haiku | só a unidade tocada passa a envelhecida e é refeita |
+| Glossário | `GLOSSARY.md`, versionado | `domain-modeling`, do autor | termo cujo código sumiu é sinalizado |
+| ADRs | `docs/adr/`, versionado | `domain-modeling`, do autor | ADR cuja área teve muitos commits é sinalizado ao dono |
 | Spec da mudança | `docs/specs/`, versionado | `entregar` | sem âncora: histórico |
 
-O que é derivado (mapa, âncoras, notas do `dream`) mora no diretório de memória local que o
-Claude Code já mantém por projeto, compartilhado entre worktrees e carregado a cada sessão
-pelo índice. Não gera commit nem ruído no histórico, e pode ser refeito do zero. **[dono]**:
-memória local, como o Claude já faz. As âncoras do glossário e dos ADRs ficam num arquivo à
-parte nesse diretório, para não tocar no formato do autor.
+**Onde a memória derivada mora. [autor]** Em `<diretório git comum>/harness-memory/`, e não na
+memória local do Claude em `~/.claude/`, como o desenho dizia antes: o sandbox impede o
+agente de gravar em `~/.claude`. O novo lugar continua local, não gera commit, é
+compartilhado por todos os worktrees do repositório e pode ser refeito do zero. As âncoras do
+glossário e dos ADRs ficam lá também, sem tocar no formato dos arquivos do autor.
 
-Âncoras são gravadas só sobre commits da branch padrão, depois do merge, porque os hashes
-de uma branch de trabalho mudam em rebase. **[autor]**
+**O mapa.** Uma unidade é um diretório com arquivos versionados, até a profundidade
+`MAP_DEPTH` (padrão 2); arquivos soltos na raiz formam a unidade `.`. Cada unidade tem um
+resumo de até 1.500 caracteres, cuja primeira linha diz sozinha o que ela faz.
+
+**Toda sessão começa com o índice do mapa,** injetado por um hook de início de sessão, com
+uma linha por unidade e o aviso de que é dado gerado por máquina, não instrução. Subagentes
+consultam a fatia da área em que vão trabalhar com `.harness/memory slice <caminho>`.
+
+**Âncora num commit que não existe mais** (branch reescrita) conta como envelhecida. Por isso
+não é preciso restringir a gravação à branch padrão.
 
 ### 7.1 Commits de contexto **[dono]**
 
@@ -363,10 +370,12 @@ saída.
 Consequência **[autor]**, a confirmar com o dono: merge por squash apaga os commits de
 contexto. O padrão do harness é merge que preserva os commits (rebase ou merge commit).
 
-### 7.2 Comando
+### 7.2 Comandos
 
-`.harness/memory check` lista o que envelheceu, de graça. `.harness/memory refresh` regenera
-o que é derivado, com Haiku. O ciclo de aprendizado chama os dois.
+`.harness/memory check` lista o que envelheceu, de graça: unidades do mapa, termos do
+glossário sem código e ADRs a reler. `units`, `show`, `slice`, `index`, `record`, `forget`,
+`anchor` e `anchors` completam o conjunto. Não há comando de regenerar: regenerar exige ler
+código, e quem conduz isso é a skill `/harness:mapear`, com subagentes Haiku.
 
 ## 8. Ciclo de aprendizado
 
@@ -615,7 +624,7 @@ A testar na implementação:
 | Versão | Conteúdo |
 |---|---|
 | 1 | plugin, portões de push, setup, `.harness/` com ambiente por feature, `entregar` com grafo e paralelismo, checagem grátis antes da paga. **Implementada**; falta a validação do dono numa aplicação de teste |
-| 2 | memória ancorada: mapa do código, âncoras do glossário e dos ADRs |
+| 2 | memória ancorada: mapa do código, âncoras do glossário e dos ADRs. **Implementada**; nunca rodou num projeto de verdade |
 | 3 | ciclo de aprendizado: `retro`, `dream`, medição de custo |
 
 **Validação final. [dono]** Só depois das três versões fechadas, e não antes: adotar o

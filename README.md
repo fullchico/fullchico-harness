@@ -21,6 +21,8 @@ O que foi conferido em sessões reais, e o que ainda não foi, está em
   de contexto novo, gravada por um hook, num lugar onde o agente não escreve.
 - **Dá a cada feature o próprio ambiente Docker,** com portas e projeto isolados, levantado
   com a sua permissão.
+- **Mantém um mapa do código que não envelhece calado.** Cada resumo guarda o commit em que
+  foi escrito, e o git diz, sem custo, o que mudou desde então. Toda sessão começa com o índice.
 - **Mantém a configuração igual entre projetos.** O que o harness instala não é editado no
   projeto: muda aqui e chega por atualização.
 
@@ -73,6 +75,7 @@ o servidor de git e só acessa os sites liberados. Para você, no terminal, nada
 | `.harness/push` | envia a branch, depois do portão | o agente |
 | `.harness/pr` | abre ou consulta o pull request | o agente |
 | `.harness/validate` | checagens do projeto, sem custo de IA | você ou o agente |
+| `.harness/memory` | mapa do código e âncoras: `check`, `slice <caminho>`, `index` | você ou o agente |
 | `.harness/approve` | sua aprovação manual de um portão | só você, no terminal |
 | `.harness/update <tag>` | leva o projeto para uma versão do harness | só você, no terminal |
 
@@ -91,6 +94,13 @@ fragmento do projeto.
 4. Acompanhe: os tickets são criados, os implementadores trabalham em paralelo, a
    checagem roda, os dois revisores dão o veredito, a branch é enviada e o pull request é aberto.
 5. Faça o merge, preservando os commits.
+
+## O mapa do código
+
+`/harness:mapear` gera o mapa na primeira vez e depois refaz só o que mudou. O trabalho de
+ler o código é de subagentes no modelo mais barato. `.harness/memory check` mostra o que
+envelheceu, inclusive termos do glossário cujo código não existe mais e decisões de
+arquitetura cuja área mudou bastante.
 
 ## Atualizar
 
@@ -116,6 +126,8 @@ interativa com um projeto de verdade. É a lista para a primeira validação:
   de segurança rodou de ponta a ponta numa sessão real.
 - Instalar dependências (`pnpm install`) dentro do sandbox, num projeto com muitas.
 - A trava contra desligar o sandbox, numa sessão interativa.
+- `/harness:mapear` num projeto de verdade: a qualidade dos resumos, o custo da primeira
+  geração, e o hook que injeta o índice no começo da sessão.
 - Um push por SSH: a rede é negada por nome de servidor, e não foi conferido se isso cobre SSH.
 
 Limites conhecidos, que não são falha de teste:
