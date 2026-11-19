@@ -116,6 +116,10 @@ def planned_files(root: str, version: str) -> dict:
     plan[os.path.join(".claude", "settings.json")] = (text.encode("utf-8"), False)
 
     plan["CLAUDE.md"] = (read(os.path.join(TEMPLATES, "CLAUDE.md")), False)
+    plan["orca.yaml"] = (read(os.path.join(TEMPLATES, "orca.yaml")), False)
+    # O Conductor é secundário: só entra quando o dono pede, no harness.conf.
+    if common.read_conf(os.path.join(root, "harness.conf")).get("CONDUCTOR") == "1":
+        plan[os.path.join(".conductor", "settings.toml")] = (read(os.path.join(TEMPLATES, "conductor.toml")), False)
     agents_docs = os.path.join(TEMPLATES, "docs", "agents")
     for name in sorted(os.listdir(agents_docs)):
         plan[os.path.join("docs", "agents", name)] = (read(os.path.join(agents_docs, name)), False)
@@ -194,11 +198,17 @@ def main() -> int:
             sys.stderr.write(f"  {rel}\n")
         return 1
 
-    for rel in manifest.get("files", {}):
-        if rel.startswith(".harness" + os.sep) and rel not in plan:
-            stale = os.path.join(root, rel)
-            if os.path.exists(stale):
-                os.remove(stale)
+    # O que o harness gravou antes e deixou de gerar sai. Se o dono mexeu no arquivo,
+    # ele fica, com aviso: o harness não apaga o que não reconhece mais como seu.
+    for rel, known in manifest.get("files", {}).items():
+        stale = os.path.join(root, rel)
+        if rel in plan or not os.path.exists(stale):
+            continue
+        if sha256(read(stale)) == known:
+            os.remove(stale)
+        else:
+            sys.stderr.write(f"sync: {rel.replace(os.sep, '/')} não é mais gerado pelo harness, mas foi "
+                             "alterado à mão; ficou como está.\n")
 
     for rel, (content, executable) in plan.items():
         write_atomic(os.path.join(root, rel), content, executable)

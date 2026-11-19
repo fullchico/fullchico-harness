@@ -1,0 +1,10 @@
+# Gerado pelo harness. Não edite: muda por .harness/update.
+# Subir, parar e remover o ambiente são Quick Commands do Orca, rodados pelo dono:
+#   Start:   .harness/up && .harness/prepare && .harness/dev
+#   Stop:    .harness/down
+#   Destroy: .harness/destroy
+scripts:
+  setup: |
+    .harness/setup-worktree
+  archive: |
+    .harness/destroy || true

@@ -59,6 +59,20 @@ COMMIT: <hash completo do commit revisado>
 RESUMO: <uma linha>
 ```
 
+## Ambiente
+
+Uma feature é um worktree, e cada worktree tem o próprio ambiente: projeto Docker
+e bloco de portas derivados do nome da pasta. Subagentes trabalham em cima do
+worktree da feature e usam o ambiente dela.
+
+- O ambiente só sobe quando a validação exige. Teste que roda sem infra não sobe nada.
+- `.harness/up` sobe a infra, `.harness/down` para, `.harness/destroy` remove e
+  apaga os dados. Os três perguntam ao dono antes de rodar. Só o orquestrador os chama.
+- `.harness/prepare` roda migration e seed; `.harness/dev` roda o app
+  (`--background` para deixar rodando). Os dois usam as portas da feature.
+- As portas estão no `.env` do worktree. Não se escolhe porta à mão.
+- `docker` solto não funciona dentro do sandbox: o caminho é `.harness/up`.
+
 ## Arquivos
 
 - **Gerenciados, não edite:** `.harness/`, `.claude/settings.json`, `CLAUDE.md`,

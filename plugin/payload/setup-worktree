@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Prepara um worktree recém-criado de uma feature. Chamado pelo Orca e pelo
+# Conductor ao abrir o worktree, e pode ser rodado à mão. Não sobe ambiente.
+set -uo pipefail
+. "$(dirname "$0")/env-common.sh"
+
+cd "$ROOT" || exit 1
+MAIN="$(git worktree list --porcelain | sed -n '1s/^worktree //p')"
+# O .env não é versionado: um worktree novo começa com o do checkout principal.
+if [ ! -f .env ] && [ -n "$MAIN" ] && [ -f "$MAIN/.env" ] && [ "$(cd "$MAIN" && pwd -P)" != "$ROOT" ]; then
+  cp "$MAIN/.env" .env
+fi
+
+"$HERE/worktree-env" || exit $?
+
+INSTALL="$(conf_get INSTALL_CMD)"
+if [ -n "$INSTALL" ]; then
+  bash -c "$INSTALL" || exit $?
+fi
+
+# Plugin declarado no projeto não se instala sozinho numa máquina nova.
+if [ -z "${HARNESS_SKIP_PLUGIN:-}" ] && command -v claude >/dev/null 2>&1 && [ -f .claude/settings.json ]; then
+  python3 - <<'PY' | while IFS= read -r plugin; do claude plugin install "$plugin" --scope project >/dev/null 2>&1 || echo "setup-worktree: não instalei o plugin $plugin; rode à mão." >&2; done
+import json
+for name, enabled in json.load(open(".claude/settings.json")).get("enabledPlugins", {}).items():
+    if enabled:
+        print(name)
+PY
+fi
+exit 0
