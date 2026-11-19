@@ -119,6 +119,23 @@ def close_git_host(settings: dict, root: str) -> None:
                                  if d not in denied and not any(d == b or d.endswith("." + b) for b in bare)]
 
 
+IGNORED = (".claude/worktrees/", ".harness-run/")
+
+
+def ignore_run_paths(root: str) -> None:
+    """Garante no .gitignore do projeto os caminhos que o harness cria ao trabalhar.
+
+    Os worktrees de agente ficam dentro da feature; sem isto, um `git add -A` os
+    adicionaria como repositórios embutidos. Só acrescenta linhas que faltam.
+    """
+    path = os.path.join(root, ".gitignore")
+    current = read(path).decode("utf-8") if os.path.exists(path) else ""
+    missing = [line for line in IGNORED if line not in current.splitlines()]
+    if missing:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(current + ("" if current.endswith("\n") or not current else "\n") + "\n".join(missing) + "\n")
+
+
 def planned_files(root: str, version: str) -> dict:
     """Caminho relativo -> (conteúdo, executável) de tudo que é inteiramente gerenciado."""
     plan = {}
@@ -253,6 +270,7 @@ def main() -> int:
             f.write(read(os.path.join(TEMPLATES, "harness.conf")))
 
     install_hook_dispatchers(root)
+    ignore_run_paths(root)
 
     record = {
         "version": args.version,

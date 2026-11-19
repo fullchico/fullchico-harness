@@ -47,6 +47,14 @@ def _inside(root: str, value: str) -> bool:
     return full.startswith(os.path.realpath(root) + os.sep) and os.path.exists(full)
 
 
+def _committed(root: str, value: str) -> bool:
+    """O arquivo existe no commit atual, com o mesmo conteúdo que está no disco?"""
+    if common._git(root, "cat-file", "-t", "HEAD:" + value) != "blob":
+        return False
+    import subprocess
+    return subprocess.run(["git", "diff", "--quiet", "HEAD", "--", value], cwd=root).returncode == 0
+
+
 def check(agent: str, prompt, root):
     required = REQUIRED.get(agent)
     if required is None:
@@ -71,6 +79,12 @@ def check(agent: str, prompt, root):
     for key in ("spec", "ticket", "achado"):
         if key in seen and not _inside(root, seen[key]):
             return f"{FORMAT} `{key}` precisa ser um caminho relativo existente no repositório."
+    if agent == "harness:implementador":
+        # Ele trabalha num worktree próprio, que só tem o que está em commit.
+        for key in ("spec", "ticket", "achado"):
+            if key in seen and not _committed(root, seen[key]):
+                return (f"`{key}` aponta para um arquivo que ainda não está em commit ({seen[key]}). "
+                        "O implementador trabalha num worktree próprio e só enxerga o que foi commitado.")
     if "ticket" in seen:
         issues = os.path.realpath(os.path.join(root, os.path.dirname(seen["spec"]), "issues"))
         if not os.path.realpath(os.path.join(root, seen["ticket"])).startswith(issues + os.sep):

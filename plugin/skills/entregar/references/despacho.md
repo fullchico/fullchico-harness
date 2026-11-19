@@ -29,13 +29,23 @@ ticket: docs/specs/exemplo/issues/01-nome.md
 leitura: GLOSSARY.md
 ```
 
-4. Quando cada um voltar, junte a branch dele na da feature com `git merge --no-ff`.
+   A linha `leitura` é opcional e só lista arquivos que existem. A spec e o ticket precisam
+   estar em commit: o implementador trabalha numa cópia que só tem o que foi commitado.
+
+4. Quando cada um voltar, ele diz em que branch ficaram os commits. Junte essa branch na da
+   feature com `git merge --no-ff`, e depois apague o worktree e a branch dele com
+   `git worktree remove` e `git branch -d`.
    Conflito pequeno você resolve; conflito que muda o sentido do que foi feito volta para
    o implementador, numa rodada de correção.
 5. Confira que o ticket ficou `Status: done`. Rode `.harness/validate --profile push`.
 6. Peça a fronteira de novo. Repita até ela vir vazia e todo ticket estar concluído.
 
-Os worktrees de agente usam o ambiente da feature. Nenhum implementador sobe ambiente.
+Os worktrees de agente usam o ambiente da feature. Nenhum implementador sobe ambiente. Cada
+um prepara a própria cópia com `.harness/setup-worktree`, que traz o `.env` da feature e
+instala as dependências.
+
+Se um implementador cair sem entregar, o ticket dele fica preso em `claimed` e some da
+fronteira. Devolva-o a `Status: open`, faça o commit, e despache de novo.
 
 ## Quando o implementador diz que falta algo
 

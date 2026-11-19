@@ -50,8 +50,9 @@ spec: docs/specs/exemplo/spec.md
 leitura: GLOSSARY.md
 ```
 
-No lugar de `BASE` e de `HASH_DO_COMMIT` vão os dois hashes que você acabou de obter. Sem
-spec, como numa correção de bug, o pedido ao `revisor` vai sem a linha `spec:`.
+No lugar de `BASE` e de `HASH_DO_COMMIT` vão os dois hashes que você acabou de obter. A
+linha `leitura` é opcional e só lista arquivos que existem. Sem spec, como numa correção de
+bug, o pedido ao `revisor` vai sem a linha `spec:`.
 
 Cada revisor termina com `VEREDITO: APPROVED` ou `VEREDITO: REJECTED`. A aprovação é
 gravada por um hook a partir dessa resposta. Você não grava aprovação e não tem como.
@@ -68,7 +69,9 @@ gravada por um hook a partir dessa resposta. Você não grava aprovação e não
 
 É o único caminho até o remoto. Se ele negar, leia o motivo: aprovação faltando para o
 commit atual quer dizer que houve commit depois da revisão, ou que um revisor não fechou
-a resposta no formato. Dispare de novo o revisor que faltou. Não há como contornar.
+a resposta no formato: dispare de novo o revisor que faltou. Se o motivo for a branch padrão
+do remoto ter andado, rode `.harness/fetch` e envie de novo; as aprovações continuam
+valendo. Não há como contornar o portão.
 
 ## 5. Pull request
 

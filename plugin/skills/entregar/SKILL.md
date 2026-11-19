@@ -22,7 +22,8 @@ Siga os passos em ordem. Só pare nas duas paradas marcadas.
 
 - Confira que a sessão está num worktree de feature, numa branch que não é a padrão. Se
   estiver na branch padrão, pare e peça ao dono para abrir o worktree da feature.
-- Rode `.harness/fetch` e traga a branch padrão para dentro da feature, se ela andou.
+- Rode `.harness/fetch`. Se a branch padrão do remoto andou, traga-a para dentro da feature
+  com `git merge origin/<branch padrão>`, antes de qualquer outra coisa.
 - Leia `GLOSSARY.md` e os ADRs em `docs/adr/`, se existirem.
 
 ## 1. Entrevistar
@@ -31,7 +32,9 @@ Com o dono, usando a skill `grilling`, até não sobrar decisão em aberto. Regi
 vocabulário e as decisões difíceis de reverter com a skill `domain-modeling`.
 
 Se o pedido é um bug, use a skill `diagnosing-bugs` no lugar da entrevista. Bug não tem
-spec nem tickets: corrija com teste, em commits `fix`, e vá para o passo 6.
+spec nem tickets: corrija você mesmo, com teste, em commits `fix`, e vá para o passo 6. Se a
+checagem ou um revisor reprovar, é você quem corrige, e a revisão recomeça; não há
+implementador a despachar sem spec e ticket.
 
 ## 2. Especificar
 

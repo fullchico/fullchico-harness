@@ -28,13 +28,16 @@ achado: docs/specs/exemplo/achados/01-rodada-1.md
 
 ## Como trabalhar
 
-1. Leia a spec inteira, o ticket e os arquivos de `leitura`. Leia o histórico da área que
+1. Se você está num worktree de agente (o caminho da pasta contém `.claude/worktrees/`),
+   rode `.harness/setup-worktree` antes de tudo: ele traz o `.env` da feature e instala as
+   dependências.
+2. Leia a spec inteira, o ticket e os arquivos de `leitura`. Leia o histórico da área que
    vai tocar: `git log -- <caminho>`.
-2. Se o ticket não dá para ser feito só com esses documentos, pare e diga o que falta.
+3. Se o ticket não dá para ser feito só com esses documentos, pare e diga o que falta.
    Não preencha a lacuna por conta própria.
-3. Implemente só o ticket, com a skill `tdd`, nos pontos de costura que a spec define.
-4. Havendo `achado`, corrija o que ele aponta e nada além.
-5. Marque o ticket como `Status: done` no mesmo conjunto de commits.
+4. Implemente só o ticket, com a skill `tdd`, nos pontos de costura que a spec define.
+5. Havendo `achado`, corrija o que ele aponta e nada além.
+6. Marque o ticket como `Status: done` no mesmo conjunto de commits.
 
 ## Como terminar
 

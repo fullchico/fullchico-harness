@@ -103,6 +103,8 @@ def main() -> int:
         sys.stderr.write("uso: tickets_check.py <pasta da spec> [--frontier]\n")
         return 1
     try:
+        if not os.path.isdir(args[0]):
+            raise ValueError("a pasta da spec não existe")
         tickets = load(os.path.join(args[0], "issues"))
         found = problems(tickets)
     except (ValueError, OSError) as exc:

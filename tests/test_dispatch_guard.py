@@ -51,6 +51,8 @@ class TestDispatchGuard(unittest.TestCase):
         (self.repo / "docs/specs/y/issues").mkdir(parents=True, exist_ok=True)
         (self.repo / "docs/specs/y/issues/01-a.md").write_text("t")
         (self.repo / "docs/specs/y/spec.md").write_text("s")
+        if git(self.repo, "status", "--short"):
+            self.sha = commit_all(self.repo, "docs: add tickets")
         return self.hook("harness:implementador", prompt)
 
     def test_implementer_gets_spec_and_ticket_only(self):

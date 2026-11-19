@@ -20,6 +20,9 @@
     "mattpocock-skills@claude-plugins-official": true,
     "ponytail@ponytail": true
   },
+  "worktree": {
+    "baseRef": "head"
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -131,7 +134,8 @@
         "github.com",
         "*.github.com"
       ]
-    }
+    },
+    "autoAllowBashIfSandboxed": true
   },
   "permissions": {
     "deny": [
@@ -150,6 +154,16 @@
       "Bash(./.harness/down)",
       "Bash(.harness/destroy)",
       "Bash(./.harness/destroy)"
+    ],
+    "allow": [
+      "Bash(.harness/fetch)",
+      "Bash(./.harness/fetch)",
+      "Bash(.harness/push)",
+      "Bash(./.harness/push)",
+      "Bash(.harness/push --force)",
+      "Bash(./.harness/push --force)",
+      "Bash(.harness/pr *)",
+      "Bash(./.harness/pr *)"
     ]
   }
 }

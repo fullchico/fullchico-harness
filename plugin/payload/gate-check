@@ -78,7 +78,7 @@ while read -r LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
   BASE=""
   if [ -n "$REMOTE_HEAD" ]; then
     if ! git cat-file -e "$REMOTE_HEAD^{commit}" 2>/dev/null; then
-      echo "push negado: a branch padrão do remoto tem commits que este clone ainda não baixou. Rode git fetch." >&2
+      echo "push negado: a branch padrão do remoto andou e este clone ainda não baixou os commits novos. Rode .harness/fetch e envie de novo; as aprovações continuam valendo." >&2
       FAIL=1
       continue
     fi

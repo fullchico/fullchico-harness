@@ -40,5 +40,6 @@ spec: docs/specs/exemplo/spec.md
 leitura: GLOSSARY.md, docs/adr/0001-exemplo.md
 ```
 
-Em `leitura` vão o glossário e só os ADRs que tocam a área. Specs antigas não entram:
+A linha `leitura` é opcional e só lista arquivos que existem: o pedido é negado se apontar
+para um caminho que não está lá. Nela vão o glossário e só os ADRs que tocam a área. Specs antigas não entram:
 são histórico, e a verdade é o código.

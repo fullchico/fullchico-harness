@@ -140,3 +140,18 @@ na lista de excluídos.
 
 Não verificado: `git push` real para o GitHub por `.harness/push`, com as suas credenciais, e
 `.harness/pr` com o `gh` de verdade.
+
+## Suposições do plano de entrega ainda não verificadas (2026-11-19)
+
+A skill `entregar` depende de comportamentos da plataforma que nenhuma sessão real conferiu:
+
+- Que o worktree de um subagente com `isolation: worktree` nasce do topo da branch da feature.
+  As configurações geradas pedem isso com `worktree.baseRef: "head"`; a revisão do plano 3
+  apontou que o padrão é a branch padrão do remoto.
+- Onde a plataforma cria esse worktree quando a sessão já está num worktree aberto pelo Orca,
+  e se o resultado da ferramenta traz o nome da branch. A skill pede ao implementador que diga.
+- Que o `SubagentStart` entrega o `additionalContext` ao subagente.
+- Que `isolation` e `model` passados ao disparar valem para agente de plugin.
+- Que `autoAllowBashIfSandboxed` e as regras `permissions.allow` evitam pergunta nos comandos
+  de dentro do sandbox e em `fetch`, `push` e `pr`.
+- Que o sandbox protege o `.harness/` dentro de um worktree de agente.

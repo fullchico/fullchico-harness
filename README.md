@@ -35,7 +35,13 @@ com sandbox disponível. O remoto do projeto precisa ser HTTPS. Recomendado: `rt
 claude plugin marketplace add FullChico/fullchico-harness
 ```
 
-Depois, dentro do projeto, numa sessão do Claude Code:
+Depois, dentro do projeto:
+
+```bash
+claude plugin install harness@fullchico --scope project
+```
+
+E numa sessão do Claude Code, no projeto:
 
 ```
 /harness:setup
@@ -71,7 +77,10 @@ o servidor de git e só acessa os sites liberados. Para você, no terminal, nada
 | `.harness/update <tag>` | leva o projeto para uma versão do harness | só você, no terminal |
 
 **Você é chamado em poucos momentos:** para aprovar a spec, para autorizar o ambiente a
-subir, parar ou ser removido, e para fazer o merge.
+subir, parar ou ser removido, e para fazer o merge. Os comandos que rodam dentro do sandbox
+e os scripts de `fetch`, `push` e `pr` são aprovados automaticamente pelas configurações
+geradas; se isso for mais do que você quer, tire a chave `autoAllowBashIfSandboxed` num
+fragmento do projeto.
 
 ## Uma primeira entrega
 

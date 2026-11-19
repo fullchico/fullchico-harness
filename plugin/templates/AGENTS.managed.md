@@ -14,7 +14,7 @@ do projeto fica abaixo do marcador final.
 Três regras:
 
 1. **O documento é a única interface.** O pedido a um revisor só aponta: `spec:`,
-   `ticket:`, `diff:`, `commit:`, `leitura:`. Sem narrativa nem opinião.
+   `ticket:`, `diff:`, `commit:`, `leitura:`, `achado:`. Sem narrativa nem opinião.
 2. **Lacuna se corrige no documento.** Se quem implementa não consegue construir
    só com a spec e o ticket, corrija a spec; não explique por fora.
 3. **Revisão no mesmo contexto não é revisão.** Quem escreveu não revisa, e o
@@ -31,7 +31,7 @@ O dono roda `/harness:entregar` no worktree da feature, e o elefante conduz o ci
 | 3. Revisar a spec | goldfish `revisor-spec`; o dono resolve os achados e aprova |
 | 4. Fatiar | um arquivo por ticket em `docs/specs/<slug>/issues/`, com o que o bloqueia |
 | 5. Implementar | goldfish em paralelo, um worktree cada, com `tdd` |
-| 6. Integrar | elefante junta tudo na branch de integração |
+| 6. Integrar | elefante junta tudo na branch da feature |
 | 7. Checar | `.harness/validate`, sem custo de IA |
 | 8. Revisar | goldfish `seguranca` e `revisor`, em paralelo |
 | 9. Enviar | push e PR |

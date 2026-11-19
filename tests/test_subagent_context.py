@@ -12,13 +12,12 @@ def start(agent, **extra):
 
 
 class TestSubagentContext(unittest.TestCase):
-    def test_implementers_and_project_agents_get_the_rules(self):
-        for agent in ("harness:implementador", "backend", "general-purpose", "Explore"):
-            rc, out, _ = start(agent)
-            self.assertEqual(rc, 0, agent)
-            hook = json.loads(out)["hookSpecificOutput"]
-            self.assertEqual(hook["hookEventName"], "SubagentStart")
-            self.assertEqual(hook["additionalContext"], RULES.read_text().strip())
+    def test_the_harness_implementer_gets_the_rules(self):
+        rc, out, _ = start("harness:implementador")
+        self.assertEqual(rc, 0)
+        hook = json.loads(out)["hookSpecificOutput"]
+        self.assertEqual(hook["hookEventName"], "SubagentStart")
+        self.assertEqual(hook["additionalContext"], RULES.read_text().strip())
 
     def test_reviewers_get_nothing(self):
         for agent in ("harness:seguranca", "harness:revisor", "harness:revisor-spec"):

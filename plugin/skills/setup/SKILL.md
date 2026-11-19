@@ -22,7 +22,7 @@ Leia a versão em `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json` e rode, com
 `v` na frente da versão:
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/bin/sync" "<raiz do projeto>" --version v<versão>
+python3 -I "${CLAUDE_PLUGIN_ROOT}/bin/sync" "<raiz do projeto>" --version v<versão>
 ```
 
 Se o comando sair com código 1, ele lista arquivos que já existiam com outro

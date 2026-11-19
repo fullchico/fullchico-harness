@@ -5,10 +5,15 @@ set -uo pipefail
 . "$(dirname "$0")/env-common.sh"
 
 cd "$ROOT" || exit 1
-MAIN="$(git worktree list --porcelain | sed -n '1s/^worktree //p')"
-# O .env não é versionado: um worktree novo começa com o do checkout principal.
-if [ ! -f .env ] && [ -n "$MAIN" ] && [ -f "$MAIN/.env" ] && [ "$(cd "$MAIN" && pwd -P)" != "$ROOT" ]; then
-  cp "$MAIN/.env" .env
+# O .env não é versionado. Um worktree de feature começa com o do checkout principal; um
+# worktree de agente, que fica dentro de uma feature, começa com o da feature.
+AGENT_WORKTREE=""
+case "$ROOT" in
+  */.claude/worktrees/*) AGENT_WORKTREE=1; SOURCE="${ROOT%%/.claude/worktrees/*}" ;;
+  *) SOURCE="$(git worktree list --porcelain | sed -n '1s/^worktree //p')" ;;
+esac
+if [ ! -f .env ] && [ -n "$SOURCE" ] && [ -f "$SOURCE/.env" ] && [ "$(cd "$SOURCE" && pwd -P)" != "$ROOT" ]; then
+  cp "$SOURCE/.env" .env
 fi
 
 "$HERE/worktree-env" || exit $?
@@ -19,7 +24,7 @@ if [ -n "$INSTALL" ]; then
 fi
 
 # Plugin declarado no projeto não se instala sozinho numa máquina nova.
-if [ -z "${HARNESS_SKIP_PLUGIN:-}" ] && command -v claude >/dev/null 2>&1 && [ -f .claude/settings.json ]; then
+if [ -z "$AGENT_WORKTREE" ] && [ -z "${HARNESS_SKIP_PLUGIN:-}" ] && command -v claude >/dev/null 2>&1 && [ -f .claude/settings.json ]; then
   python3 -I - <<'PY' | while IFS= read -r plugin; do claude plugin install "$plugin" --scope project >/dev/null 2>&1 || echo "setup-worktree: não instalei o plugin $plugin; rode à mão." >&2; done
 import json
 for name, enabled in json.load(open(".claude/settings.json")).get("enabledPlugins", {}).items():
