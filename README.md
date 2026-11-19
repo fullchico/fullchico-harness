@@ -23,6 +23,9 @@ O que foi conferido em sessões reais, e o que ainda não foi, está em
   com a sua permissão.
 - **Mantém um mapa do código que não envelhece calado.** Cada resumo guarda o commit em que
   foi escrito, e o git diz, sem custo, o que mudou desde então. Toda sessão começa com o índice.
+- **Liga o `ponytail` e o `rtk` em todo projeto.** O `ponytail` segura o tamanho do código que
+  o agente escreve; o `rtk` comprime a saída de git e de testes. Os dois entram como estão, sem
+  adaptação.
 - **Mantém a configuração igual entre projetos.** O que o harness instala não é editado no
   projeto: muda aqui e chega por atualização.
 
