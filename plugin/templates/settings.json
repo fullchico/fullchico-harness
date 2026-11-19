@@ -85,6 +85,17 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/session_context.py\"",
+            "timeout": 20
+          }
+        ]
+      }
     ]
   },
   "sandbox": {
