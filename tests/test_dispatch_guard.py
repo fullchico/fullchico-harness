@@ -21,6 +21,12 @@ class TestDispatchGuard(unittest.TestCase):
         self.assertEqual(self.hook("harness:revisor", ok, tool="Task"), 0)
         self.assertEqual(self.hook("harness:seguranca", f"diff: main...HEAD\n\ncommit: {self.sha}\n"), 0)
         self.assertEqual(self.hook("harness:revisor-spec", "spec: docs/specs/x/spec.md"), 0)
+
+    def test_diff_accepts_git_revision_syntax(self):
+        for rng in ("HEAD~1...HEAD", "main..HEAD^", "origin/main...feat/x", "HEAD@{1}..HEAD", self.sha + ".." + self.sha):
+            self.assertEqual(self.hook("harness:seguranca", f"diff: {rng}\ncommit: {self.sha}"), 0, rng)
+        for rng in ("HEAD", "main...HEAD --no-index /etc", "main...HEAD;ls", "$(x)...HEAD"):
+            self.assertEqual(self.hook("harness:seguranca", f"diff: {rng}\ncommit: {self.sha}"), 2, rng)
         self.assertEqual(self.hook("harness:revisor-spec",
                                    "spec: docs/specs/x/spec.md\nleitura: GLOSSARY.md, README.md"), 0)
 

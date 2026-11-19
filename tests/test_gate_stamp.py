@@ -2,7 +2,7 @@ import json
 import os
 import unittest
 
-from tests.helpers import git, make_repo, run_hook, read_approval
+from tests.helpers import git, make_repo, run_hook, read_approval, write_tmp
 import common
 import gate_stamp
 
@@ -87,6 +87,71 @@ class TestGateStamp(unittest.TestCase):
         sha = "a" * 40
         v = gate_stamp.parse_verdict(f"VEREDITO: APPROVED \r\nCOMMIT: {sha}\r\nRESUMO: ok  ")
         self.assertEqual(v, {"verdict": "APPROVED", "commit": sha, "resumo": "ok"})
+
+
+def transcript(*entries):
+    """Transcrição de subagente no formato real observado: uma entrada JSON por linha."""
+    lines = [json.dumps({"type": "user", "isSidechain": True, "message": {"role": "user", "content": "pedido"}})]
+    for content in entries:
+        lines.append(json.dumps({"type": "assistant", "isSidechain": True,
+                                 "message": {"role": "assistant", "content": content}}))
+        lines.append(json.dumps({"type": "attachment", "isSidechain": True}))
+    return write_tmp("\n".join(lines) + "\n")
+
+
+def handback(text):
+    return [{"type": "tool_use", "id": "t1", "name": "SubagentHandback", "input": {"message": text}}]
+
+
+def text_block(text):
+    return [{"type": "text", "text": text}]
+
+
+class TestGateStampFromTranscript(unittest.TestCase):
+    """A plataforma real não envia last_assistant_message: o veredito vem da transcrição."""
+
+    def setUp(self):
+        self.repo = make_repo()
+        self.sha = git(self.repo, "rev-parse", "HEAD")
+        self.ok = f"Sem achados.\n\nVEREDITO: APPROVED\nCOMMIT: {self.sha}\nRESUMO: conferido"
+        self.bad = f"Achei x.\n\nVEREDITO: REJECTED\nCOMMIT: {self.sha}\nRESUMO: segredo no diff"
+
+    def stop(self, path, agent="harness:seguranca"):
+        return run_hook("gate_stamp.py", {"hook_event_name": "SubagentStop", "agent_type": agent,
+                                          "cwd": str(self.repo), "agent_transcript_path": path})[0]
+
+    def test_verdict_in_handback_tool_call_stamps(self):
+        tool = [{"type": "tool_use", "id": "t0", "name": "Bash", "input": {"command": "git diff"}}]
+        self.assertEqual(self.stop(transcript(tool, handback(self.ok))), 0)
+        self.assertTrue(stamped(self.repo, "seguranca"))
+        self.assertEqual(read_approval(self.repo, "seguranca")["resumo"], "conferido")
+
+    def test_verdict_in_final_text_block_stamps(self):
+        self.stop(transcript(text_block(self.ok)), agent="harness:revisor")
+        self.assertTrue(stamped(self.repo, "revisao"))
+
+    def test_only_the_last_assistant_entry_counts(self):
+        self.stop(transcript(text_block(self.ok), handback(self.bad)))
+        self.assertFalse(stamped(self.repo, "seguranca"))
+        self.stop(transcript(handback(self.ok), text_block("Vou conferir mais uma coisa.")))
+        self.assertFalse(stamped(self.repo, "seguranca"))
+
+    def test_verdict_in_other_tool_input_does_not_count(self):
+        fake = [{"type": "tool_use", "id": "t0", "name": "Bash", "input": {"command": "echo '" + self.ok + "'"}}]
+        self.stop(transcript(fake))
+        self.assertFalse(stamped(self.repo, "seguranca"))
+
+    def test_missing_or_broken_transcript_does_not_stamp(self):
+        self.assertEqual(self.stop("/nao/existe.jsonl"), 0)
+        self.assertEqual(self.stop(write_tmp("{nao json\n\n[1,2]\n")), 0)
+        self.assertEqual(self.stop(None), 0)
+        self.assertFalse(stamped(self.repo, "seguranca"))
+
+    def test_main_thread_entries_are_ignored(self):
+        main = json.dumps({"type": "assistant", "isSidechain": False,
+                           "message": {"role": "assistant", "content": text_block(self.ok)}})
+        self.stop(write_tmp(main + "\n"))
+        self.assertFalse(stamped(self.repo, "seguranca"))
 
 
 if __name__ == "__main__":

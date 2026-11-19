@@ -20,7 +20,9 @@ REQUIRED = {
 }
 _LINE = re.compile(r"^(spec|ticket|diff|commit|leitura): (\S.*)$")
 _SHA = re.compile(r"^[0-9a-f]{40}$")
-_DIFF = re.compile(r"^[\w./-]+\.\.\.?[\w./-]+$")
+# Revisões do git: nomes, caminhos de ref, ~N, ^, @{N}. Nada de espaço, opção ou shell.
+_REV = r"[\w./~^@{}-]+"
+_DIFF = re.compile(rf"^(?!-){_REV}\.\.\.?(?!-){_REV}$")
 FORMAT = ("Pedido a revisor do harness tem formato fixo, uma chave por linha: "
           "`spec: <caminho>`, `ticket: <caminho>`, `diff: <base>...<topo>`, "
           "`commit: <hash de 40 dígitos>`, `leitura: <caminho>, <caminho>`. "

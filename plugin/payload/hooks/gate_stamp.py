@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common  # noqa: E402
 
 AGENT_GATE = {"harness:seguranca": "seguranca", "harness:revisor": "revisao"}
+HANDBACK_TOOL = "SubagentHandback"
 _VERDICT = re.compile(r"^VEREDITO: (APPROVED|REJECTED)$")
 _COMMIT = re.compile(r"^COMMIT: ([0-9a-f]{40})$")
 _RESUMO = re.compile(r"^RESUMO: (\S.*)$")
@@ -40,10 +41,55 @@ def parse_verdict(message):
     return {key: values[0] for key, values in found.items()}
 
 
+def final_message(payload):
+    """Resposta final do subagente.
+
+    A documentação descreve `last_assistant_message`, mas a plataforma observada não
+    o envia. O texto então vem da transcrição do subagente: a última entrada do
+    assistente, em blocos de texto ou na chamada de devolução `SubagentHandback`.
+    Só essa última entrada conta, para um veredito citado no meio do trabalho não
+    valer como resposta.
+    """
+    message = payload.get("last_assistant_message")
+    if isinstance(message, str) and message.strip():
+        return message
+    path = payload.get("agent_transcript_path")
+    if not isinstance(path, str):
+        return None
+    last = None
+    try:
+        with open(os.path.expanduser(path), encoding="utf-8") as f:
+            for line in f:
+                try:
+                    entry = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(entry, dict) and entry.get("type") == "assistant" and entry.get("isSidechain"):
+                    last = entry
+    except OSError:
+        return None
+    content = ((last or {}).get("message") or {}).get("content")
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return None
+    parts = []
+    for block in content:
+        if not isinstance(block, dict):
+            continue
+        if block.get("type") == "text" and isinstance(block.get("text"), str):
+            parts.append(block["text"])
+        elif block.get("type") == "tool_use" and block.get("name") == HANDBACK_TOOL:
+            text = (block.get("input") or {}).get("message")
+            if isinstance(text, str):
+                parts.append(text)
+    return "\n".join(parts) if parts else None
+
+
 def main():
     payload = common.read_payload()
     gate = gate_for(payload.get("agent_type"))
-    verdict = parse_verdict(payload.get("last_assistant_message"))
+    verdict = parse_verdict(final_message(payload))
     cwd = payload.get("cwd")
     if not gate or not verdict or not isinstance(cwd, str):
         return
