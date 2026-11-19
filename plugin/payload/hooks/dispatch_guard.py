@@ -19,15 +19,24 @@ REQUIRED = {
     "harness:seguranca": ("diff", "commit"),
     "harness:revisor": ("diff", "commit"),
     "harness:revisor-spec": ("spec",),
+    "harness:implementador": ("spec", "ticket"),
 }
-_LINE = re.compile(r"^(spec|ticket|diff|commit|leitura): (\S.*)$")
+# O que cada um pode receber. O implementador recebe a spec e o ticket, e numa rodada
+# de correção o arquivo com o achado; quem revisa recebe o que vai ler, e mais nada.
+ALLOWED = {
+    "harness:seguranca": ("diff", "commit", "spec", "leitura"),
+    "harness:revisor": ("diff", "commit", "spec", "leitura"),
+    "harness:revisor-spec": ("spec", "leitura"),
+    "harness:implementador": ("spec", "ticket", "leitura", "achado"),
+}
+_LINE = re.compile(r"^(spec|ticket|diff|commit|leitura|achado): (\S.*)$")
 _SHA = re.compile(r"^[0-9a-f]{40}$")
 # Revisões do git: nomes, caminhos de ref, ~N, ^, @{N}. Nada de espaço, opção ou shell.
 _REV = r"[\w./~^@{}-]+"
 _DIFF = re.compile(rf"^(?!-){_REV}\.\.\.?(?!-){_REV}$")
 FORMAT = ("Pedido a revisor do harness tem formato fixo, uma chave por linha: "
           "`spec: <caminho>`, `ticket: <caminho>`, `diff: <base>...<topo>`, "
-          "`commit: <hash de 40 dígitos>`, `leitura: <caminho>, <caminho>`. "
+          "`commit: <hash de 40 dígitos>`, `leitura: <caminho>, <caminho>`, `achado: <caminho>`. "
           "Sem narrativa nem opinião: o revisor lê os documentos por conta própria.")
 
 
@@ -53,12 +62,19 @@ def check(agent: str, prompt, root):
         if not m or m.group(1) in seen:
             return FORMAT
         seen[m.group(1)] = m.group(2).strip()
+    extra = [key for key in seen if key not in ALLOWED[agent]]
+    if extra:
+        return f"{FORMAT} Este agente não recebe: {', '.join(extra)}."
     missing = [key for key in required if key not in seen]
     if missing:
         return f"{FORMAT} Falta: {', '.join(missing)}."
-    for key in ("spec", "ticket"):
+    for key in ("spec", "ticket", "achado"):
         if key in seen and not _inside(root, seen[key]):
             return f"{FORMAT} `{key}` precisa ser um caminho relativo existente no repositório."
+    if "ticket" in seen:
+        issues = os.path.realpath(os.path.join(root, os.path.dirname(seen["spec"]), "issues"))
+        if not os.path.realpath(os.path.join(root, seen["ticket"])).startswith(issues + os.sep):
+            return f"{FORMAT} `ticket` precisa ser um ticket da mesma spec (na pasta issues/ ao lado dela)."
     if "leitura" in seen:
         for item in seen["leitura"].split(","):
             if not _inside(root, item.strip()):
