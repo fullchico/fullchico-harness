@@ -22,6 +22,8 @@ Três regras:
 
 ## Ciclo de uma mudança
 
+O dono roda `/harness:entregar` no worktree da feature, e o elefante conduz o ciclo.
+
 | Passo | O que acontece |
 |---|---|
 | 1. Entrevistar | elefante e dono, com `grilling` e `domain-modeling`; atualiza `GLOSSARY.md` e ADRs |
