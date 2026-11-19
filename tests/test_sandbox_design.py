@@ -79,7 +79,8 @@ class TestSandboxSettings(unittest.TestCase):
         self.assertIs(sandbox["enabled"], True)
         self.assertIs(sandbox["allowUnsandboxedCommands"], False)
         self.assertIn(".harness", sandbox["filesystem"]["denyWrite"])
-        self.assertEqual(sandbox["filesystem"]["allowWrite"], ["build"])
+        self.assertIn("build", sandbox["filesystem"]["allowWrite"])
+        self.assertIn("~/.npm", sandbox["filesystem"]["allowWrite"])
 
 
 class TestServiceGuardIsNarrow(unittest.TestCase):

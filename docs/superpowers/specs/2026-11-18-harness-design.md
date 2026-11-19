@@ -280,7 +280,7 @@ A aprovação registra o subagente e a transcrição, para auditoria.
 |---|---|---|
 | `gate-stamp` | fim de subagente | grava aprovação (6.3) |
 | `dispatch-guard` | antes da ferramenta de subagente | confere o pedido de formato fixo (5.1), exige que cubra a branch inteira e registra a base |
-| `service-guard` | antes de Bash | nega os argumentos que pulam os hooks de git (`--no-verify`, `core.hooksPath`); no plano de ambiente, também serviço por comando solto e porta atribuída à mão |
+| `service-guard` | antes de Bash | nega os argumentos que pulam os hooks de git (`--no-verify`, `core.hooksPath`); acrescenta o resumo à pergunta de `up`, `down` e `destroy`. Não vigia serviço nem porta: Docker solto falha no sandbox, e rodar o app dentro dele é o caminho normal |
 | `managed-guard` | antes de Edit/Write | nega alterar a região gerenciada do `AGENTS.md`, e escrever no diretório do git ou no estado do harness |
 | `rtk hook claude` | antes de Bash | compressão de saída, do próprio rtk |
 | `git-hooks/commit-msg` | git | formato do commit, sem assinatura de IA |
@@ -406,6 +406,7 @@ docs/agents/              arquivos que as skills do autor leem
 .harness/                 scripts travados, MANIFEST
 harness.conf, harness.d/  do projeto
 orca.yaml                 setup e archive chamando .harness/
+.harness-run/             PID e log do app em segundo plano, fora do git
 .conductor/settings.toml  só se o dono pedir
 ```
 
@@ -451,7 +452,7 @@ AFTER_UP="pnpm db:migrate"
 DEV_CMD="pnpm dev"
 VALIDATE_PUSH="pnpm test"
 VALIDATE_MERGE="pnpm test && pnpm build"
-MAX_PARALLEL=3
+CONDUCTOR=1                           # gera também .conductor/settings.toml
 ENV_DATABASE_URL='postgresql://app:app@localhost:${POSTGRES_PORT}/app'
 ```
 
@@ -461,37 +462,64 @@ entram, e o fragmento não os remove.
 
 ## 11. Pasta .harness/
 
-Shell puro. **[dono]**
+Shell, com trechos de Python onde o shell do macOS (bash 3.2) não dá conta. **[dono]** pediu
+shell para a infra; os scripts são invólucros bash.
 
-| Script | Função |
-|---|---|
-| `worktree-env` | deriva projeto Docker e bloco de portas do worktree e grava só essas chaves no `.env` |
-| `up` | `worktree-env`, sobe o compose em segundo plano, espera ficar saudável, roda `AFTER_UP`. Só infra |
-| `dev` | roda `DEV_CMD`. Primeiro plano para o dono; `--background` com PID e log para o agente |
-| `down` | encerra o `dev` em segundo plano e para os containers; mantém dados |
-| `destroy` | remove containers, volumes e imagens do worktree; recusa rodar no checkout principal |
-| `validate` | manifesto, formato de commit, credencial, grafo, e o perfil `push` ou `merge` do projeto |
-| `memory` | `check` e `refresh` (seção 7) |
-| `approve` | carimbo manual do dono |
-| `update` | seção 12 |
-
-`worktree-env` aproveita o script e os testes do movacrm: base por `CONDUCTOR_PORT` quando
-existir, senão `20000 + hash(caminho) % 2000 * 10`, com busca do próximo bloco livre.
+| Script | Função | Onde roda |
+|---|---|---|
+| `setup-worktree` | prepara um worktree novo: copia o `.env` do checkout principal, grava as portas, roda `INSTALL_CMD`, instala os plugins declarados | terminal, Orca ou Conductor |
+| `worktree-env` | deriva projeto Docker e bloco de portas da feature e grava só essas chaves no `.env` | dentro do sandbox |
+| `up` | confere o compose e sobe só a infra | fora do sandbox, com pergunta ao dono |
+| `prepare` | roda `AFTER_UP`: migration e seed | dentro do sandbox |
+| `dev` | roda `DEV_CMD`: o app. `--background` grava PID e log em `.harness-run/` | dentro do sandbox |
+| `down` | para o app em segundo plano e os contêineres; mantém dados | fora do sandbox, com pergunta |
+| `destroy` | remove contêineres, volumes e imagens da feature; recusa no checkout principal | fora do sandbox, com pergunta |
+| `validate` | manifesto e o perfil `push` ou `merge` do projeto | dentro do sandbox |
+| `approve` | carimbo manual do dono | terminal do dono |
+| `update` | seção 12 | terminal do dono |
 
 **Feature = worktree = ambiente. [dono]** O Orca ou o Conductor abre um worktree por feature a
-partir da branch padrão, e o ambiente sai do nome da pasta dele: projeto Docker e bloco de
-portas próprios. É o modelo que já funciona no movacrm. Os subagentes trabalham em cima
-desse worktree e usam o ambiente dele. Um worktree de agente criado dentro da feature
-(`.claude/worktrees/`) pertence ao mesmo ambiente e não sobe nada.
+partir da branch padrão, e o ambiente sai do nome da pasta dele: projeto Docker
+`<PROJECT>-<pasta>` e um bloco de dez portas. É o modelo que já funciona no movacrm. Os
+subagentes trabalham em cima desse worktree e usam o ambiente dele. Um worktree de agente
+criado dentro da feature (`.claude/worktrees/`) pertence ao mesmo ambiente: calcula as
+mesmas portas e, se chamar `up`, nada é recriado.
 
-**Quem sobe:** o orquestrador, a partir do worktree da feature, com pergunta ao dono (uma
-por feature). **Quando sobe:** só quando a validação exige. **[dono]**
+**Quem sobe:** o orquestrador, a partir do worktree da feature. **Quando sobe:** só quando a
+validação exige. **[dono]**
 
-Limite aceito: subagentes em paralelo na mesma feature compartilham o banco, e tickets que
-criem migration ou testes que limpem tabelas podem interferir.
+**Como o ambiente convive com o sandbox. [dono]** escolheu o agente poder pedir, com
+pergunta, e a checagem do compose; o mecanismo é **[autor]**, verificado em sessão real:
 
-Integrações de uma linha: `orca.yaml` (`setup`: `worktree-env` e `INSTALL_CMD`; `archive`:
-`destroy`; Quick Commands Start, Stop, Destroy) e `.conductor/settings.toml`.
+- Docker não roda dentro do sandbox. `up`, `down` e `destroy`, nas formas exatas
+  `.harness/<nome>` e `./.harness/<nome>`, são os únicos comandos excluídos dele.
+- Cada um tem uma regra nativa de pergunta (`permissions.ask`), que continua perguntando nos
+  modos automático e de permissão liberada, e vira negação no modo sem interface. Um hook
+  acrescenta à pergunta o resumo do que vai subir, ou o que será parado ou apagado.
+- Uma variação do comando, como `bash .harness/up`, não casa com a pergunta nem com a
+  exclusão: roda dentro do sandbox, onde o Docker não responde.
+- `up` não executa nenhum comando do projeto, e recusa um compose com montagem de pasta fora
+  do projeto (o socket do Docker e o `.git` inclusive), contêiner privilegiado, espaços de
+  processo ou de rede da máquina, capacidades extras ou dispositivos. A checagem lê a
+  configuração final que o próprio Docker devolve.
+- `prepare` e `dev` são código do projeto e rodam dentro do sandbox, falando com `localhost`.
+- As configurações geradas liberam `localhost`, os domínios `github.com` e
+  `registry.npmjs.org`, e escrita nos caches de npm, pnpm, yarn e bun. O projeto acrescenta
+  os seus em `harness.d/settings.json`.
+- `git` por SSH não funciona dentro do sandbox no macOS: os remotos precisam ser HTTPS.
+
+Limites aceitos: subagentes em paralelo na mesma feature compartilham o banco; no Linux o
+sandbox não alcança `localhost`, então `prepare` e `dev` precisariam de outra saída; e a
+pergunta ao dono só foi exercitada no modo sem interface, onde ela nega.
+
+`worktree-env` usa `CONDUCTOR_PORT` como base quando existe; senão
+`20000 + crc32(caminho da feature) % 2000 * 10`, procurando o próximo bloco livre. Quando o
+ambiente já está de pé, as portas vêm do registro que o `up` grava no estado do harness.
+
+Integrações de uma linha: `orca.yaml` (`setup`: `.harness/setup-worktree`; `archive`:
+`.harness/destroy`), sempre gerado, e `.conductor/settings.toml`, gerado quando o
+`harness.conf` tem `CONDUCTOR=1`. Os Quick Commands do Orca (Start, Stop, Destroy) são
+cadastrados pelo dono; os comandos estão no cabeçalho do `orca.yaml`.
 
 ## 12. Atualização
 
