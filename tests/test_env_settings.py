@@ -20,11 +20,14 @@ class TestEnvSettings(unittest.TestCase):
         self.assertEqual(sync(self.repo).returncode, 0)
         self.s = settings(self.repo)
 
-    def test_only_exact_env_commands_leave_the_sandbox_and_all_of_them_ask(self):
+    def test_only_exact_env_commands_leave_the_sandbox_and_only_destroy_asks(self):
         excluded = self.s["sandbox"]["excludedCommands"]
         for form in FORMS:
             self.assertIn(form, excluded)
-            self.assertIn(f"Bash({form})", self.s["permissions"]["ask"])
+            # Mínimo de interrupção: só o que apaga dados pergunta ao dono.
+            asks = form.endswith("destroy")
+            self.assertEqual(f"Bash({form})" in self.s["permissions"]["ask"], asks, form)
+            self.assertEqual(f"Bash({form})" in self.s["permissions"]["allow"], not asks, form)
         # nada além dos scripts do harness sai do sandbox, e nenhum deles com argumento livre,
         # exceto o pr, que repassa título e arquivo como argumentos, sem interpretá-los
         self.assertTrue(all(c.lstrip("./").startswith("harness/") for c in excluded), excluded)
@@ -55,7 +58,7 @@ class TestEnvSettings(unittest.TestCase):
         self.assertIn("api.exemplo.com", s["sandbox"]["network"]["allowedDomains"])
         self.assertIn("registry.npmjs.org", s["sandbox"]["network"]["allowedDomains"])
         self.assertIs(s["sandbox"]["network"]["allowLocalBinding"], True)
-        self.assertIn("Bash(.harness/up)", s["permissions"]["ask"])
+        self.assertIn("Bash(.harness/destroy)", s["permissions"]["ask"])
         self.assertIn(".harness/up", s["sandbox"]["excludedCommands"])
 
 
@@ -80,19 +83,9 @@ class TestAskWithSummary(unittest.TestCase):
                            capture_output=True, text=True, env=env)
         return r.returncode, (json.loads(r.stdout) if r.stdout.strip() else None)
 
-    def test_up_asks_with_the_compose_summary(self):
-        for form in (".harness/up", "./.harness/up", "  .harness/up  "):
-            rc, out = self.ask(form)
-            self.assertEqual(rc, 0, form)
-            hook = out["hookSpecificOutput"]
-            self.assertEqual((hook["hookEventName"], hook["permissionDecision"]), ("PreToolUse", "ask"))
-            self.assertIn("postgres:16", hook["permissionDecisionReason"])
-            self.assertIn("meuapp-roseau", hook["permissionDecisionReason"])
-
-    def test_up_reason_warns_when_the_compose_will_be_refused(self):
-        self.config.write_text(json.dumps({"services": {"db": {"image": "x", "privileged": True}}}))
-        _, out = self.ask(".harness/up")
-        self.assertIn("privilegiado", out["hookSpecificOutput"]["permissionDecisionReason"])
+    def test_up_and_down_do_not_interrupt_the_owner(self):
+        for form in (".harness/up", "./.harness/up", "  .harness/up  ", ".harness/down"):
+            self.assertEqual(self.ask(form), (0, None), form)
 
     def test_destroy_reason_names_the_project_and_says_data_is_deleted(self):
         _, out = self.ask(".harness/destroy")
@@ -100,16 +93,6 @@ class TestAskWithSummary(unittest.TestCase):
         self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "ask")
         self.assertIn("meuapp-roseau", reason)
         self.assertIn("apaga", reason.lower())
-
-    def test_down_reason_says_data_is_kept(self):
-        _, out = self.ask(".harness/down")
-        self.assertIn("mant", out["hookSpecificOutput"]["permissionDecisionReason"].lower())
-
-    def test_summary_failure_still_asks(self):
-        rc, out = self.ask(".harness/up", FAKE_DOCKER_RC="1")
-        self.assertEqual(rc, 0)
-        self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "ask")
-        self.assertIn("resum", out["hookSpecificOutput"]["permissionDecisionReason"].lower())
 
     def test_other_forms_get_no_special_treatment(self):
         for c in ("bash .harness/up", ".harness/up --force", "cd x && .harness/up",

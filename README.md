@@ -20,7 +20,7 @@ O que foi conferido em sessões reais, e o que ainda não foi, está em
 - **Nenhum agente aprova o próprio trabalho.** A aprovação nasce do veredito de um revisor
   de contexto novo, gravada por um hook, num lugar onde o agente não escreve.
 - **Dá a cada feature o próprio ambiente Docker,** com portas e projeto isolados, levantado
-  com a sua permissão.
+  sem pedir nada a você.
 - **Mantém um mapa do código que não envelhece calado.** Cada resumo guarda o commit em que
   foi escrito, e o git diz, sem custo, o que mudou desde então. Toda sessão começa com o índice.
 - **Liga o `ponytail` e o `rtk` em todo projeto.** O `ponytail` segura o tamanho do código que
@@ -69,12 +69,12 @@ o servidor de git e só acessa os sites liberados. Para você, no terminal, nada
 
 | Comando | Para quê | Quem roda |
 |---|---|---|
-| `.harness/up` | sobe a infra da feature | você ou o agente, com a sua permissão |
+| `.harness/up` | sobe a infra da feature | você ou o agente |
 | `.harness/prepare` | migration e seed | você ou o agente |
 | `.harness/dev` | o app | você ou o agente |
-| `.harness/down` | para o ambiente, mantém os dados | você ou o agente, com a sua permissão |
+| `.harness/down` | para o ambiente, mantém os dados | você ou o agente |
 | `.harness/destroy` | remove o ambiente da feature | você ou o agente, com a sua permissão |
-| `.harness/conf-apply` | grava o `harness.conf` que o agente propôs | o agente, com a sua permissão |
+| `.harness/conf-apply` | grava o `harness.conf` que o agente propôs | o agente |
 | `.harness/fetch` | atualiza as referências do remoto | o agente |
 | `.harness/push` | envia a branch, depois do portão | o agente |
 | `.harness/pr` | abre ou consulta o pull request | o agente |
@@ -84,11 +84,12 @@ o servidor de git e só acessa os sites liberados. Para você, no terminal, nada
 | `.harness/approve` | sua aprovação manual de um portão | só você, no terminal |
 | `.harness/update <tag>` | leva o projeto para uma versão do harness | só você, no terminal |
 
-**Você é chamado em poucos momentos:** para aprovar a spec, para autorizar o ambiente a
-subir, parar ou ser removido, e para fazer o merge. Os comandos que rodam dentro do sandbox
-e os scripts de `fetch`, `push` e `pr` são aprovados automaticamente pelas configurações
-geradas; se isso for mais do que você quer, tire a chave `autoAllowBashIfSandboxed` num
-fragmento do projeto.
+**O princípio é máximo de qualidade com máximo de autonomia e mínimo de interrupção.** Você é
+chamado para aprovar a spec (e nem isso no modo autônomo), para remover um ambiente, que apaga
+dados, e para fazer o merge. Todo o resto roda sem pergunta: os comandos dentro do sandbox e os
+scripts do harness. A qualidade não depende da sua atenção: vem dos portões, dos revisores e do
+sandbox. Se quiser alguma pergunta de volta, acrescente a regra em `permissions.ask` num
+fragmento do projeto (`harness.d/settings.json`); pergunta vence liberação.
 
 ## Uma primeira entrega
 
@@ -105,8 +106,8 @@ fragmento do projeto.
 Se você disser "segue até o fim" durante uma entrega, ela corre em modo autônomo: toda
 pergunta recebe a resposta recomendada, a aprovação da spec deixa de ser uma parada, e cada
 decisão tomada sem você fica escrita na spec, na seção "Decisões tomadas sem o dono". Você
-ainda é chamado nos avisos de permissão (gravar o `harness.conf`, subir o ambiente), se a
-entrega não fechar em três rodadas de correção, e para o merge.
+só é chamado se a entrega não fechar em três rodadas de correção, se faltar um dado que só
+você tem, e para o merge.
 
 ## O mapa do código
 
@@ -138,7 +139,7 @@ Arquivo gerenciado que foi alterado à mão trava a atualização, que lista o q
 Tudo abaixo passou em testes automáticos ou em sessões sem interface, mas não numa sessão
 interativa com um projeto de verdade. É a lista para a primeira validação:
 
-- A pergunta de permissão de `.harness/up`, `down` e `destroy` aparecendo e sendo aprovada.
+- `.harness/conf-apply`, `up` e `down` rodando sem pergunta, e a pergunta do `destroy` aparecendo.
 - `.harness/push` enviando para o GitHub com as suas credenciais, e `.harness/pr` com o `gh`.
 - `/harness:setup` e `/harness:entregar` de ponta a ponta. A orquestração é conduzida por
   um modelo e não tem teste automático: os testes cobrem as peças e a coerência entre o que

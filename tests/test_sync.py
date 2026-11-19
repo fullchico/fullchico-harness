@@ -136,7 +136,7 @@ class TestSync(unittest.TestCase):
         self.assertEqual((self.repo / "CLAUDE.local.md").read_text(), "meu\n")
         s = settings(self.repo)
         self.assertIn("mcp__x", s["permissions"]["ask"])
-        self.assertIn("Bash(.harness/up)", s["permissions"]["ask"])
+        self.assertIn("Bash(.harness/destroy)", s["permissions"]["ask"])
         self.assertIn("Stop", s["hooks"])
         self.assertIn("Edit(/.harness/**)", s["permissions"]["deny"])
         self.assertIn("PreToolUse", s["hooks"])

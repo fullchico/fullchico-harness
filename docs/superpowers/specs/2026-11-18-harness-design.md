@@ -136,14 +136,20 @@ Depois o dono faz o merge.
 
 **Modo autônomo [dono].** Se o dono mandar seguir até o fim, a entrega corre sem ele: toda
 pergunta recebe a resposta recomendada, a aprovação da spec deixa de ser parada, e cada decisão
-fica escrita na spec, na seção "Decisões tomadas sem o dono". Continuam parando: os avisos de
-permissão da plataforma, o limite de rodadas e o merge. Os portões, as revisões e o sandbox não
+fica escrita na spec, na seção "Decisões tomadas sem o dono". Continuam parando: remover um
+ambiente, o limite de rodadas e o merge. Os portões, as revisões e o sandbox não
 mudam.
 
 **O `harness.conf` num projeto novo [autor].** O agente não grava o arquivo, porque os comandos
 dele rodam fora do sandbox. Ele propõe: escreve `.harness-run/harness.conf` e roda
-`.harness/conf-apply`. O guard mostra o conteúdo inteiro ao dono e guarda a cópia mostrada no
-estado, onde o agente não grava; o script aplica essa cópia, uma vez.
+`.harness/conf-apply`. O guard confere o formato e guarda a cópia conferida no estado, onde o
+agente não grava; o script aplica essa cópia, uma vez, sem pergunta. O arquivo é versionado e
+chega aos revisores no diff. Os comandos dele só rodam fora do sandbox quando é o dono quem
+roda um script, o mesmo caso de um script do `package.json`.
+
+**Princípio [dono], 2026-11-19:** máximo de qualidade com máximo de autonomia e mínimo de
+interrupção. A qualidade vem dos portões, dos revisores e do sandbox, e não de pedir a atenção
+do dono. Uma pergunta só se justifica quando a ação não tem volta.
 
 | Passo | Peça | De quem | Quem executa | Saída |
 |---|---|---|---|---|
@@ -574,14 +580,16 @@ mesmas portas e, se chamar `up`, nada é recriado.
 **Quem sobe:** o orquestrador, a partir do worktree da feature. **Quando sobe:** só quando a
 validação exige. **[dono]**
 
-**Como o ambiente convive com o sandbox. [dono]** escolheu o agente poder pedir, com
-pergunta, e a checagem do compose; o mecanismo é **[autor]**, verificado em sessão real:
+**Como o ambiente convive com o sandbox. [dono]** escolheu primeiro o agente pedir com
+pergunta; depois da primeira entrega real, trocou pelo mínimo de interrupção: só `destroy`
+pergunta. O mecanismo é **[autor]**:
 
 - Docker não roda dentro do sandbox. `up`, `down` e `destroy`, nas formas exatas
   `.harness/<nome>` e `./.harness/<nome>`, são os únicos comandos excluídos dele.
-- Cada um tem uma regra nativa de pergunta (`permissions.ask`), que continua perguntando nos
-  modos automático e de permissão liberada, e vira negação no modo sem interface. Um hook
-  acrescenta à pergunta o resumo do que vai subir, ou o que será parado ou apagado.
+- `up` e `down` são liberados (`permissions.allow`): não apagam nada, e o compose é conferido
+  pelo próprio `up`. `destroy` tem uma regra nativa de pergunta (`permissions.ask`), que
+  continua perguntando nos modos automático e de permissão liberada, e vira negação no modo sem
+  interface. Um hook acrescenta à pergunta o que será apagado.
 - Uma variação do comando, como `bash .harness/up`, não casa com a pergunta nem com a
   exclusão: roda dentro do sandbox, onde o Docker não responde.
 - `up` não executa nenhum comando do projeto, e recusa um compose com montagem de pasta fora

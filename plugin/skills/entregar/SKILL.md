@@ -29,11 +29,11 @@ análise"), a entrega passa a correr sem ele, e continua assim até ele dizer o 
 - **Cada decisão fica escrita.** A spec ganha a seção `## Decisões tomadas sem o dono`: uma
   linha por decisão, com o que foi escolhido, a alternativa descartada e o motivo. É por ela
   que o dono confere depois.
-- **Não peça nada por mensagem que tenha comando próprio.** O `harness.conf` se propõe com
-  `.harness/conf-apply` e o ambiente sobe com `.harness/up`. O dono confirma no aviso que o
-  próprio comando abre; não espere um "pronto" na conversa.
+- **Não peça ao dono nada que tenha comando próprio.** O `harness.conf` se grava com
+  `.harness/conf-apply` e o ambiente sobe com `.harness/up`, os dois sem pergunta. Pedir que
+  ele cole um arquivo ou rode um script, e esperar um "pronto", é falha sua.
 
-O que continua parando, mesmo assim: um aviso de permissão da plataforma, a PARADA 2, uma
+O que continua parando, mesmo assim: remover um ambiente (`.harness/destroy`), a PARADA 2, uma
 decisão sem alternativa recomendável (falta um dado que só o dono tem), e o merge, que é
 sempre dele. O que o modo autônomo não muda: os portões, as revisões e o sandbox.
 

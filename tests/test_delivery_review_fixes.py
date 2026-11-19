@@ -26,9 +26,10 @@ class TestSettingsForDelivery(unittest.TestCase):
         allow = self.s["permissions"]["allow"]
         for form in (".harness/fetch", ".harness/push", ".harness/push --force", ".harness/pr *"):
             self.assertIn(f"Bash({form})", allow)
-        for form in (".harness/up", ".harness/down", ".harness/destroy"):
-            self.assertNotIn(f"Bash({form})", allow)
-            self.assertIn(f"Bash({form})", self.s["permissions"]["ask"])
+        for form in (".harness/up", ".harness/down", ".harness/conf-apply"):
+            self.assertIn(f"Bash({form})", allow)
+        self.assertNotIn("Bash(.harness/destroy)", allow)
+        self.assertIn("Bash(.harness/destroy)", self.s["permissions"]["ask"])
 
     def test_gitignore_covers_agent_worktrees_and_run_files(self):
         lines = (self.repo / ".gitignore").read_text().splitlines()

@@ -5,8 +5,9 @@
 **O `harness.conf`.** Sem `PROJECT` nele não há portas, nem ambiente, nem worktree de
 implementador. Se estiver vazio (projeto novo), proponha você: escreva o conteúdo em
 `.harness-run/harness.conf`, no formato do arquivo atual, com o que a spec decidiu, e rode
-exatamente `.harness/conf-apply`. O dono vê o conteúdo inteiro e confirma no aviso; o comando
-grava o arquivo e as portas no `.env`. Faça o commit do `harness.conf`.
+exatamente `.harness/conf-apply`. O comando confere a proposta, grava o arquivo e as portas no
+`.env`, sem perguntar ao dono. Faça o commit do `harness.conf`: é pelo diff que os revisores o
+conferem. Nunca peça ao dono para colar o arquivo.
 
 **O ambiente.** Se os testes da entrega precisam de banco ou de outro serviço, suba antes:
 `.harness/up`, depois `.harness/prepare`. Ticket que depende do ambiente não é concluído com

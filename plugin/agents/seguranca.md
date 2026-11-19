@@ -35,7 +35,9 @@ Só achado concreto, apontado no diff:
 - autorização ausente: rota, consulta ou ação nova sem checar quem pode;
 - dado sensível em log, mensagem de erro ou resposta;
 - dependência nova de origem duvidosa, ou versão fixada trocada por faixa aberta;
-- guardrail desligado: hook removido, checagem pulada, teste de segurança apagado.
+- guardrail desligado: hook removido, checagem pulada, teste de segurança apagado;
+- `harness.conf` alterado: leia cada comando dele (instalação, migration, checagens). O dono
+  não o confere antes; a conferência é esta.
 
 Não reprove por estilo, por preferência ou por risco hipotético sem linha no
 diff. Você não edita arquivos e não corrige nada: só relata.

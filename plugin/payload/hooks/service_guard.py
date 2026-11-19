@@ -32,56 +32,35 @@ def classify(command: str, cwd=None):
     return None
 
 
-ENV_FORMS = {prefix + name: name for name in ("up", "down", "destroy") for prefix in (".harness/", "./.harness/")}
+DESTROY_FORMS = (".harness/destroy", "./.harness/destroy")
 PAYLOAD = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def env_reason(action: str, cwd: str) -> str:
-    """Texto que o dono lê ao decidir se o ambiente sobe, para ou é removido."""
+def destroy_reason(cwd: str) -> str:
+    """Texto que o dono lê ao decidir se o ambiente é removido. É a única pergunta do ambiente:
+    subir e parar não apagam nada, e o compose é conferido pelo próprio script."""
     root = common.repo_root(cwd) or cwd
-    values = {}
+    project = "desta feature"
     try:
         printed = subprocess.run([os.path.join(PAYLOAD, "worktree-env"), "--print"], cwd=root,
                                  capture_output=True, text=True, timeout=20)
         values = dict(line.split("=", 1) for line in printed.stdout.splitlines() if "=" in line)
+        project = values.get("COMPOSE_PROJECT_NAME", project)
     except (OSError, subprocess.SubprocessError):
         pass
-    project = values.get("COMPOSE_PROJECT_NAME", "desta feature")
-    if action == "down":
-        return f"Parar o app e os contêineres do ambiente {project}. Os dados são mantidos."
-    if action == "destroy":
-        return (f"Remover o ambiente {project}: contêineres, volumes e imagens locais. "
-                "Isso apaga os dados do banco desse ambiente.")
-    head = f"Subir o ambiente {project}. O comando roda fora do sandbox e só sobe a infra."
-    compose_file = common.read_conf(os.path.join(root, "harness.conf")).get("COMPOSE_FILE", "")
-    try:
-        config = subprocess.run(["docker", "compose", "-p", project, "-f", os.path.join(root, compose_file),
-                                 "config", "--format", "json"], cwd=root, capture_output=True, text=True,
-                                timeout=20, env=dict(os.environ, **values))
-        if config.returncode != 0 or not compose_file:
-            raise ValueError("docker compose config falhou")
-        sys.path.insert(0, PAYLOAD)
-        import compose_check
-        parsed = json.loads(config.stdout)
-        lines = [head, compose_check.summary(parsed, root)]
-        problems = compose_check.violations(parsed, root)
-        if problems:
-            lines.append("ATENÇÃO, o script vai recusar este compose: " + "; ".join(problems))
-        return "\n".join(lines)
-    except Exception:
-        return head + " Não consegui resumir o compose; o script confere e mostra o resumo ao rodar."
+    return (f"Remover o ambiente {project}: contêineres, volumes e imagens locais. "
+            "Isso apaga os dados do banco desse ambiente.")
 
 
 CONF_FORMS = (".harness/conf-apply", "./.harness/conf-apply")
 CONF_LIMIT = 4000
-CONF_HEAD = ("Gravar o harness.conf deste projeto com o conteúdo abaixo, proposto pelo agente. "
-             "Atenção: os comandos dele (instalação, migration, checagens) rodam fora do sandbox.")
 
 
-def conf_question(cwd: str) -> str:
-    """Confere a proposta, guarda a cópia que o dono vai ver e devolve o texto da pergunta.
+def conf_check(cwd: str) -> None:
+    """Confere a proposta de harness.conf e guarda a cópia conferida onde o agente não grava.
 
-    O script grava essa cópia, e não o arquivo do agente: o que é aplicado é o que foi mostrado.
+    O script aplica essa cópia, e não o arquivo do agente: o que é gravado é o que foi conferido.
+    Não há pergunta ao dono: o arquivo é versionado, e chega aos revisores no diff da entrega.
     """
     root = common.repo_root(cwd)
     if not root:
@@ -105,7 +84,6 @@ def conf_question(cwd: str) -> str:
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(text)
     os.replace(tmp, target)
-    return f"{CONF_HEAD}\n\n{text}"
 
 
 def main():
@@ -125,20 +103,14 @@ def main():
     if reason:
         common.deny(reason)
     if command.strip() in CONF_FORMS and isinstance(cwd, str):
-        print(json.dumps({"hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": "ask",
-            "permissionDecisionReason": conf_question(cwd),
-        }}, ensure_ascii=False))
-        return
-    action = ENV_FORMS.get(command.strip())
-    if action and isinstance(cwd, str):
+        conf_check(cwd)
+    elif command.strip() in DESTROY_FORMS and isinstance(cwd, str):
         # A pergunta em si vem da regra nativa permissions.ask, que vale em todo modo.
         # Aqui só se acrescenta o que o dono precisa ler para decidir.
         print(json.dumps({"hookSpecificOutput": {
             "hookEventName": "PreToolUse",
             "permissionDecision": "ask",
-            "permissionDecisionReason": env_reason(action, cwd),
+            "permissionDecisionReason": destroy_reason(cwd),
         }}, ensure_ascii=False))
 
 

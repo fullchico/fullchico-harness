@@ -161,16 +161,16 @@
       "Edit(/harness.d/**)"
     ],
     "ask": [
+      "Bash(.harness/destroy)",
+      "Bash(./.harness/destroy)"
+    ],
+    "allow": [
       "Bash(.harness/up)",
       "Bash(./.harness/up)",
       "Bash(.harness/down)",
       "Bash(./.harness/down)",
-      "Bash(.harness/destroy)",
-      "Bash(./.harness/destroy)",
       "Bash(.harness/conf-apply)",
-      "Bash(./.harness/conf-apply)"
-    ],
-    "allow": [
+      "Bash(./.harness/conf-apply)",
       "Bash(.harness/fetch)",
       "Bash(./.harness/fetch)",
       "Bash(.harness/push)",
