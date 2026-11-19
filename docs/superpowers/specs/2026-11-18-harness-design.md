@@ -392,10 +392,12 @@ removê-lo.
 | Classe | Arquivos | Quem altera |
 |---|---|---|
 | Gerenciado | `.harness/`, `docs/agents/`, `.claude/settings.json`, `CLAUDE.md`, `.codex/`, `.agents/skills/` gerado, `orca.yaml`, `.conductor/`, região marcada do `AGENTS.md` | só o `update` |
-| Do projeto, só o dono | `harness.conf`, `harness.d/` | o dono, à mão |
-| Livre | `CLAUDE.local.md`, `.claude/settings.local.json`, código, skills e agentes do projeto, região do projeto no `AGENTS.md` | qualquer um |
+| Do projeto, só o dono | `harness.conf`, `harness.d/`, `.claude/settings.local.json` | o dono, à mão |
+| Livre | `CLAUDE.local.md`, código, skills e agentes do projeto, região do projeto no `AGENTS.md` | qualquer um |
 
-`harness.conf` e `harness.d/` são negados ao agente porque controlam os guardrails.
+`harness.conf` e `harness.d/` são negados ao agente porque controlam os guardrails. O
+`.claude/settings.local.json` entra na mesma classe **[autor]**, a confirmar com o dono: por ele
+um agente desligaria todos os hooks. Achado da revisão final do plano 1.
 
 Proteção em três camadas: negação nativa por caminho (`permissions.deny` com `Edit(...)`);
 `managed-guard` para a região marcada do `AGENTS.md`; e o manifesto, conferido no push, que
