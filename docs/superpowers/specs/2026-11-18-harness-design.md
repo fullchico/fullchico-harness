@@ -478,17 +478,16 @@ Shell puro. **[dono]**
 `worktree-env` aproveita o script e os testes do movacrm: base por `CONDUCTOR_PORT` quando
 existir, senão `20000 + hash(caminho) % 2000 * 10`, com busca do próximo bloco livre.
 
-**O ambiente é por spec. [dono]** Uma spec implementada por vários subagentes em paralelo,
-cada um num worktree, usa um ambiente só; outra spec em paralelo tem outro, com outras
-portas. A spec de um worktree vem do nome da branch: `spec/<slug>` na integração e
-`ticket/<slug>/<NN>-<nome>` em cada ticket. Branch fora desse padrão tem ambiente próprio,
-pelo nome da pasta.
+**Feature = worktree = ambiente. [dono]** O Orca ou o Conductor abre um worktree por feature a
+partir da branch padrão, e o ambiente sai do nome da pasta dele: projeto Docker e bloco de
+portas próprios. É o modelo que já funciona no movacrm. Os subagentes trabalham em cima
+desse worktree e usam o ambiente dele. Um worktree de agente criado dentro da feature
+(`.claude/worktrees/`) pertence ao mesmo ambiente e não sobe nada.
 
-**Quem sobe:** o orquestrador, a partir do worktree de integração, com pergunta ao dono
-(uma por spec). Implementadores só gravam as portas no próprio `.env` e usam o que está de
-pé. **Quando sobe:** só quando a validação exige. **[dono]**
+**Quem sobe:** o orquestrador, a partir do worktree da feature, com pergunta ao dono (uma
+por feature). **Quando sobe:** só quando a validação exige. **[dono]**
 
-Limite aceito: o banco é compartilhado entre implementadores em paralelo, e tickets que
+Limite aceito: subagentes em paralelo na mesma feature compartilham o banco, e tickets que
 criem migration ou testes que limpem tabelas podem interferir.
 
 Integrações de uma linha: `orca.yaml` (`setup`: `worktree-env` e `INSTALL_CMD`; `archive`:
