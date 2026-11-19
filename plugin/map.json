@@ -1,0 +1,39 @@
+{
+  "spec_glob": "docs/specs/*/spec.md",
+  "tickets_glob": "docs/specs/*/issues/*.md",
+  "sources": {
+    "mattpocock-skills": {
+      "plugin": "mattpocock-skills@claude-plugins-official",
+      "ref": "1.3.1"
+    },
+    "ponytail": {
+      "plugin": "ponytail@ponytail",
+      "marketplace": { "source": "github", "repo": "DietrichGebert/ponytail" },
+      "ref": "4.8.4"
+    },
+    "rtk": {
+      "binary": "rtk",
+      "hook": "rtk hook claude"
+    }
+  },
+  "steps": [
+    { "step": "entrevistar", "skill": "grilling", "source": "mattpocock-skills", "adaptation": "nenhuma" },
+    { "step": "entrevistar", "skill": "domain-modeling", "source": "mattpocock-skills", "adaptation": "docs/agents/domain.md gerado: glossário e ADRs" },
+    { "step": "implementar", "skill": "tdd", "source": "mattpocock-skills", "adaptation": "instrução: testes nos pontos de costura da spec" },
+    { "step": "bug", "skill": "diagnosing-bugs", "source": "mattpocock-skills", "adaptation": "nenhuma" },
+    { "step": "abrir-pr", "skill": "pr", "source": "mattpocock-skills", "adaptation": "instrução: corpo em português, sem assinatura de IA" },
+    { "step": "sempre-ligado", "skill": "ponytail", "source": "ponytail", "adaptation": "nenhuma" },
+    { "step": "sempre-ligado", "skill": "rtk", "source": "rtk", "adaptation": "hook no settings.json gerado" },
+    { "step": "avulsa", "skill": "code-review", "source": "mattpocock-skills", "adaptation": "nenhuma" },
+    { "step": "avulsa", "skill": "prototype", "source": "mattpocock-skills", "adaptation": "nenhuma" },
+    { "step": "avulsa", "skill": "research", "source": "mattpocock-skills", "adaptation": "nenhuma" },
+    { "step": "avulsa", "skill": "codebase-design", "source": "mattpocock-skills", "adaptation": "nenhuma" },
+    { "step": "avulsa-dono", "skill": "grill-with-docs", "source": "mattpocock-skills", "adaptation": "nenhuma" },
+    { "step": "avulsa-dono", "skill": "to-spec", "source": "mattpocock-skills", "adaptation": "nenhuma" },
+    { "step": "avulsa-dono", "skill": "to-tickets", "source": "mattpocock-skills", "adaptation": "nenhuma" },
+    { "step": "avulsa-dono", "skill": "implement-spec", "source": "mattpocock-skills", "adaptation": "nenhuma" },
+    { "step": "avulsa-dono", "skill": "retro", "source": "mattpocock-skills", "adaptation": "nenhuma" },
+    { "step": "avulsa-dono", "skill": "wayfinder", "source": "mattpocock-skills", "adaptation": "nenhuma" },
+    { "step": "avulsa-dono", "skill": "handoff", "source": "mattpocock-skills", "adaptation": "nenhuma" }
+  ]
+}
