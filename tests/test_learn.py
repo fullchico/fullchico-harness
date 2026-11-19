@@ -90,6 +90,12 @@ class TestLearn(unittest.TestCase):
         self.assertEqual(report["papéis"]["subagente"]["claude-haiku-5-5"]["output"], 3)
         self.assertEqual(report["total"]["input"], 110 + 1500 + 50 + 7)
 
+    def test_internal_marker_model_is_not_a_model(self):
+        path = write_session(self.home, self.repo, "s1", [
+            assistant("ok", mid="m1", model="claude-opus-5-5"),
+            assistant("erro interno", mid="m2", model="<synthetic>", usage=(0, 0, 0, 0))])
+        self.assertEqual(list(learn.usage(path)["papéis"]["principal"]), ["claude-opus-5-5"])
+
     def test_unrecognised_file_is_reported_not_zeroed(self):
         folder = self.home / ".claude/projects" / slug(self.repo)
         folder.mkdir(parents=True)

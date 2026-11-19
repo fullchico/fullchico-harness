@@ -108,7 +108,10 @@ def _usage_of(path) -> dict:
         message = entry.get("message")
         if entry.get("type") != "assistant" or not isinstance(message, dict) or not isinstance(message.get("usage"), dict):
             continue
-        by_message[message.get("id") or id(entry)] = (message.get("model") or "desconhecido", message["usage"])
+        model = message.get("model") or "desconhecido"
+        if model.startswith("<"):  # marcador interno de mensagem que não veio de um modelo
+            continue
+        by_message[message.get("id") or id(entry)] = (model, message["usage"])
     totals = {}
     for model, usage in by_message.values():
         bucket = totals.setdefault(model, {key: 0 for key, _ in FIELDS} | {"mensagens": 0})
