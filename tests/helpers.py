@@ -66,3 +66,26 @@ def read_approval(repo, gate):
 def sync(repo, *extra):
     return subprocess.run([sys.executable, str(ROOT / "plugin/bin/sync"), str(repo),
                            "--version", "v0.1.0", *extra], capture_output=True, text=True)
+
+
+def clone_repo(origin, name="work dir") -> pathlib.Path:
+    """Clone de trabalho de `origin`, com identidade de commit configurada."""
+    repo = _tmpdir() / name
+    subprocess.run(["git", "clone", "-q", str(origin), str(repo)], check=True, capture_output=True)
+    git(repo, "config", "user.name", "Teste")
+    git(repo, "config", "user.email", "teste@example.com")
+    return repo
+
+
+def commit_all(repo, subject: str) -> str:
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", subject)
+    return git(repo, "rev-parse", "HEAD")
+
+
+def commit_file(repo, path: str, subject: str) -> str:
+    target = pathlib.Path(repo) / path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with open(target, "a", encoding="utf-8") as f:
+        f.write(subject + "\n")
+    return commit_all(repo, subject)
