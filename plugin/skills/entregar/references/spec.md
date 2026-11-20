@@ -55,6 +55,12 @@ lugar, diga ao dono já na entrevista, porque liberar um domínio é dele (`harn
 
 **Fora de escopo.** O que não entra, dito com todas as letras.
 
+## Nomes
+
+Todo nome que vai virar código (rota, pasta, arquivo, tabela, campo, identificador) é escrito
+na spec já na língua que o `AGENTS.md` define para o código. O texto que o usuário vê fica na
+língua do produto. Os termos vêm do glossário, que traz o nome de código de cada um.
+
 ## O que não entra na spec
 
 Caminho de arquivo e trecho de código envelhecem rápido. Descreva o módulo e o contrato.

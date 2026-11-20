@@ -32,6 +32,9 @@ Cite o trecho da spec em cada item:
 - **Módulo que depende de outro sem contrato:** a spec diz que um módulo usa algo de outro
   (avisar, consultar, validar) e não define a porta: o que ela recebe e devolve, onde mora e
   quem a implementa. Vale também para o que front e back trocam sem estar nas operações.
+- **Nome fora da língua do código:** rota, pasta, arquivo, tabela ou identificador que a spec
+  escreve numa língua diferente da que o `AGENTS.md` define para o código. Um nome errado na
+  spec é copiado por todos os tickets, e corrigir depois reabre quase todos.
 - **Teste sem ponto de costura:** comportamento que a spec pede e não diz por onde se testa.
 - **Conflito:** com o glossário, com um ADR, ou com o que o código já faz.
 - **Risco de implementação:** onde a mudança é maior ou mais frágil do que a spec dá a entender.
