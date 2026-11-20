@@ -78,5 +78,55 @@ Arquitetura do `AGENTS.md`.
   já o exporta.
 - **Instalação reproduzível:** `pnpm install --frozen-lockfile` na checagem; quem muda o
   lockfile é o ticket de contrato.
+- **A skill de NestJS usa TypeORM, Jest e `class-transformer`.** Leia como Drizzle num
+  adaptador, Vitest e esquema do contrato. `synchronize`, `@InjectRepository` e `jest.fn()`
+  não entram. A regra dela "Throw HTTP Exceptions from Services" não vale: `NotFoundException`
+  e afins ficam no controller ou num filtro.
+- **Entre módulos do back.** De outro módulo só se importa a entrada pública (o `index`), para
+  o que é transversal, como o guard de autenticação. Colaboração de negócio é pela porta do
+  contrato: `exports` de service, `SharedModule` e evento em memória não a substituem.
+- **Sem porta de entrada.** A skill hexagonal cria `ports/inbound` e interface para o use
+  case: aqui o use case é a entrada. Log, relógio e gerador de id não viram porta. Arquivo em
+  kebab-case, e quem monta as dependências é o módulo Nest da própria pasta.
+- **Porta com uma implementação só não é abstração prematura.** O `clean-code-guard` manda
+  embutir: para o que sai do processo, a porta fica. E cópia marcada com `shortcut:` no front
+  não é duplicação a extrair.
+- **`@InjectQueue` e `@Processor` ficam no adaptador.** O processor só traduz o job e chama
+  o use case. A conexão vem do `.env`, nunca de `localhost:6379`.
+- **Sem `vi.mock` de módulo nosso.** As skills de teste preferem mock: aqui a porta recebe o
+  substituto em memória. `vi.fn` fica para callback.
+- **Migration é arquivo gerado e aplicado por `.harness/prepare`.** `drizzle-kit push` não se
+  usa, nem em desenvolvimento. Chave primária é `identity` ou UUID, não o `serial` dos exemplos.
+- **RLS do Supabase não se aplica.** `auth.uid()` e os papéis `anon`, `authenticated` e
+  `service_role` não existem aqui: autorização é no back. Pooler e parâmetros do servidor do
+  banco são do ambiente, não do ticket.
+- **Camadas do FSD sem prefixo.** A skill manda `src/_app` e `src/_pages` e chama o nosso
+  layout de antigo: vale o que está acima. Se o build quebrar por causa do `pages/` vazio,
+  relate; não renomeie.
+- **Sem `shared/db` nem rota de API no front.** As skills de FSD, Next e React mostram
+  consulta a banco em `shared/db`, em ação de servidor, em rota e em `generateStaticParams`:
+  nada disso existe aqui. `model/` do front guarda estado e forma de exibição, não a regra
+  que decide.
+- **Tipos de pedido e resposta vêm do pacote do contrato,** não de DTO escrito à mão. Não
+  acrescente `axios`, `swr`, `lru-cache` nem outra dependência por sugestão de skill.
+- **CLI do shadcn com versão fixa e só do registro oficial.** Nada de `@latest`, registro de
+  comunidade, `owner/repo` ou URL; nada de `add --all`, `init --force`, `apply` de preset nem
+  `shadcn mcp init`.
+- **Playwright nunca usa servidor de desenvolvimento** nem `reuseExistingServer`; endereço e
+  portas vêm do `.env`. O teste prepara dado pela API, não pelo banco. `data-testid` só
+  quando papel e texto não alcançam.
+- **Auditoria ao vivo (Lighthouse, axe, Search Console) não roda no sandbox.** As skills `seo`
+  e `accessibility` valem como lista de conferência sobre o código.
+- **Fatia-se por comportamento, na vertical,** nunca por camada. Sem sub-branch nem commit
+  direto na principal. O contrato fica no pacote comum, não em `src/types`.
+- **Todo revisor fecha com o bloco `VEREDITO`,** não com o formato de achado da skill.
+- **Comando de skill se traduz para `pnpm`** (`pnpm exec`, script do pacote): onde ela escreve
+  `npx`, `npm` ou `yarn`, leia pnpm. `pnpm add -g`, `pnpm setup`, `self-update`,
+  `corepack prepare` e script baixado da rede são do dono. Dependência nova e
+  `--no-frozen-lockfile` só no ticket de contrato.
+- **Skill não entra por dependência.** O recurso do pnpm de ligar skills de pacotes em
+  `.claude/skills` não se usa; `dangerouslyAllowAllBuilds` nunca.
+- **Versão da skill não é a do projeto.** As de Vitest e pnpm documentam versões beta ou
+  futuras: confira a API contra a versão instalada antes de usar.
 - **Nenhuma skill instala ferramenta global nem troca o gerenciador de pacotes.** É `pnpm`.
 - **Skill que manda "use sempre"** não manda: quem decide é a tabela acima.
