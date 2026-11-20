@@ -35,6 +35,15 @@ O tempo da v6 não entra na comparação: a internet estava fraca durante a exec
 8. **Teto de pendências por ticket.** Acima de um número pequeno, o ticket volta para correção
    em vez de seguir: pendência é exceção, não o caminho normal.
 
+9. **Revisor deixa processo de pé e trava a entrega.** Na v6 o revisor de ambiente copiou o
+   projeto para uma pasta temporária, subiu a API para testar e não a derrubou. O servidor
+   ficou na porta da API da feature por mais de uma hora; o ticket de ponta a ponta não
+   conseguiu subir a aplicação, e o sandbox não deixa a sessão encerrar processo de outro
+   agente. A entrega parou em 13 de 14 e devolveu ao dono. Trilhos a avaliar: revisor não sobe
+   servidor nas portas da feature; ao terminar um subagente, o hook encerra o que ele deixou
+   escutando nessas portas; e um comando do harness, fora do sandbox, que libera as portas da
+   feature, para o orquestrador não depender do dono.
+
 ## Vindas da lista da v6, ainda não feitas
 
 9. A entrega termina com o app de pé e o link na última mensagem (na v6 o relato só diz como
