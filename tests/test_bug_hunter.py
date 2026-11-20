@@ -96,7 +96,7 @@ class TestFinalPass(unittest.TestCase):
     def test_definitions(self):
         self.assertIn("bugs", common.GATES)
         s = json.loads((self.repo / ".claude/settings.json").read_text())
-        self.assertIn("^harness:(seguranca|revisor|qualidade|revisor-bugs)$", [h["matcher"] for h in s["hooks"]["SubagentStop"]])
+        self.assertIn("^harness:(seguranca|revisor|qualidade|revisor-bugs|revisor-ambiente)$", [h["matcher"] for h in s["hooks"]["SubagentStop"]])
         head = (ROOT / "plugin/agents/revisor-bugs.md").read_text().split("---")[1]
         self.assertIn("name: revisor-bugs", head)
         for tool in ("Edit", "Write", "Agent"):

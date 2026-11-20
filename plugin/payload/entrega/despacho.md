@@ -66,8 +66,16 @@ diff: BASE...HASH_DO_COMMIT
 commit: HASH_DO_COMMIT
 ```
 
-   O ticket de contrato vai com o modelo `opus`: o que passar errado ali é seguido por todos
-   os outros tickets. Os demais vão no modelo do agente.
+   **O ticket de contrato tem duas leituras, juntas:** na mesma mensagem do
+   `harness:revisor-bugs`, com o modelo `opus`, dispare o `harness:revisor-ambiente`, com as
+   mesmas quatro linhas. Um procura defeito de comportamento; o outro, o que só funciona na
+   pasta de quem escreveu. O `.harness/integrate` exige os dois nesse commit. Os demais
+   tickets passam só pelo `harness:revisor-bugs`, no modelo do agente.
+
+   **Achado simples não reprova.** O revisor responde `APPROVED` com linhas `PENDENCIA:`, o
+   hook as registra e o ticket segue. Você não corrige pendência agora nem a discute: elas
+   são tratadas no fechamento, e o push é recusado enquanto houver uma aberta
+   (`.harness/pendings` lista).
 
    `HASH_DO_COMMIT` é a ponta da branch do implementador (`git rev-parse <branch>`), e `BASE` é
    o commit de onde ela saiu (`git merge-base HEAD <branch>`). Reprovou: é rodada de correção
@@ -120,7 +128,21 @@ ticket: docs/specs/exemplo/issues/01-nome.md
 achado: docs/specs/exemplo/achados/01-rodada-1.md
 ```
 
-3. Junte o resultado e volte ao fechamento.
+3. Quando ele voltar, o revisor que reprovou recebe o mesmo arquivo de achado, para conferir
+   a correção e não reler o ticket inteiro:
+
+```pedido harness:revisor-bugs
+spec: docs/specs/exemplo/spec.md
+ticket: docs/specs/exemplo/issues/01-nome.md
+diff: BASE...HASH_DO_COMMIT
+commit: HASH_DO_COMMIT
+achado: docs/specs/exemplo/achados/01-rodada-1.md
+```
+
+   No ticket de contrato, o commit novo pede as duas leituras de novo: quem reprovou vai com
+   `achado:`; quem tinha aprovado vai com `achado:` também, para conferir só o que a correção tocou.
+
+4. Junte o resultado e volte ao fechamento.
 
 **A posse não muda calada.** Se um ticket precisar de um caminho que não possuía, corrija o
 `Owns:` antes de integrar e registre na spec, em "Decisões tomadas sem o dono", o que mudou e
@@ -130,6 +152,7 @@ por quê. Você não faz commit de código: o que não é documento entra por um
 glossário, os tickets e o `harness.conf` (por `.harness/conf-apply`). Tipo de commit errado
 apontado pelo revisor não se conserta com commit novo: devolva o relato, é decisão do dono.
 
-Conte as rodadas. A rodada de correção de um ticket vai em `sonnet`; reprovado duas vezes,
-em `opus`. A entrega inteira tem limite de 3 rodadas de correção: na quarta, pare e devolva o
-relato do que travou.
+Conte as rodadas **por ticket**. A rodada de correção de um ticket vai em `sonnet`; reprovado
+duas vezes, em `opus`. Cada ticket tem limite de 3 rodadas de correção: na quarta do mesmo
+ticket, pare e devolva o relato do que travou. Só reprovação conta rodada, e só achado severo
+reprova; os outros tickets continuam andando enquanto um está em correção.

@@ -141,5 +141,15 @@ EOT
   fi
 done
 
+# Achado simples não bloqueou o ticket; em troca, não sai sem ser conferido.
+OPEN="$(python3 -I "$H/hooks/common.py" pendings 2>/dev/null)"
+if [ -n "$OPEN" ]; then
+  echo "push negado: há pendências do caçador de bugs que ninguém conferiu:" >&2
+  echo "$OPEN" | sed 's/^/  /' >&2
+  echo "  Corrija cada uma com o teste indicado e peça o passe final ao harness:revisor-bugs:" >&2
+  echo "  é ele que fecha, com a linha RESOLVIDA: <id>." >&2
+  FAIL=1
+fi
+
 [ "$FAIL" -eq 0 ] || exit 1
 exit 0

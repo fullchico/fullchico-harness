@@ -36,6 +36,16 @@ DENY_ALONE = ("Os scripts do harness que saem do sandbox rodam sozinho, um por c
               "sem `&&`, `;`, `|`, redirecionamento nem `bash` na frente. Rode os outros comandos numa chamada separada.")
 
 
+# Revisor roda no worktree da feature, que o orquestrador e os outros revisores também usam.
+# Trocar o commit dele no meio deixa a feature fora da branch: um commit nessa hora se perde.
+REVIEWERS = ("harness:revisor-bugs", "harness:revisor-ambiente", "harness:revisor", "harness:seguranca",
+             "harness:qualidade", "harness:revisor-spec")
+_MOVES = re.compile(r"\bgit\b(?:\s+-C\s+\S+|\s+-c\s+\S+)*\s+(?:checkout|switch|reset|restore|stash|clean)\b")
+DENY_MOVE = ("Revisor não muda o commit nem os arquivos deste worktree: ele é da feature inteira. "
+             "Para ler o código de outro commit use `git show <commit>:<arquivo>` e `git diff`. Para rodar os "
+             "testes da branch de um implementador, entre no worktree dele: `git worktree list` mostra o caminho.")
+
+
 def classify(command: str, cwd=None):
     lowered = command.lower()
     if any(mark in lowered for mark in SKIP):
@@ -118,6 +128,8 @@ def main():
     if not isinstance(command, str) or not command.strip():
         common.deny("service-guard: comando ausente na entrada do hook; negado.")
     cwd = payload.get("cwd")
+    if payload.get("agent_type") in REVIEWERS and _MOVES.search(command):
+        common.deny(DENY_MOVE)
     reason = classify(command, cwd if isinstance(cwd, str) else None)
     if reason:
         common.deny(reason)

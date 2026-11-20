@@ -43,14 +43,16 @@ Leia cada roteiro na hora de usá-lo, não todos de uma vez:
    worktree de agente, até a fronteira do grafo esvaziar.
 3. Checar, revisar e enviar: `.harness/entrega/fechamento.md`.
 
-Se a entrega não fechar em 3 rodadas de correção, pare: é a única parada.
+Se um ticket não fechar em 3 rodadas de correção, pare: é a única parada. A conta é por
+ticket, e só reprovação conta.
 
 ## Como terminar
 
 Um relato curto, nesta ordem:
 
 - o link do pull request; ou, se não houve envio, o motivo exato e o que falta;
+- como o dono abre o que foi entregue: comando, endereços e usuário de teste;
 - o que entrou e o que ficou de fora;
-- quantas rodadas de correção houve, e o achado de cada uma;
+- quantas rodadas de correção houve, e o achado de cada uma; as pendências abertas e fechadas;
 - as decisões tomadas sem o dono;
 - o que os subagentes relataram fora do escopo.

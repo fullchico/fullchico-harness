@@ -37,6 +37,32 @@ sys.exit(0 if d.get("status") == "PASS" and d.get("gate") == "bugs" and d.get("s
   exit 1
 }
 
+# O ticket de contrato é a base de todos os outros: além da caça a bugs, alguém conferiu, nesse
+# mesmo commit, que o que ele monta funciona fora da máquina de quem escreveu.
+IS_CONTRACT="$(python3 -I -c 'import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, sys.argv[1])
+import os, tickets_check
+ticket = sys.argv[2]
+common = tickets_check.contract_paths(os.path.dirname(os.path.dirname(os.path.abspath(ticket))))
+owns = tickets_check.owned(ticket)
+print("yes" if any(tickets_check._overlap(o, c) for o in owns for c in common) else "no")' "$HERE" "$TICKET")" \
+  || die "não consegui ler a posse do ticket (linha Owns:)."
+if [ "$IS_CONTRACT" = "yes" ]; then
+  python3 -I -c 'import json, sys
+try:
+    d = json.load(open(sys.argv[1], encoding="utf-8"))
+except (OSError, ValueError):
+    sys.exit(1)
+sys.exit(0 if d.get("status") == "PASS" and d.get("gate") == "ambiente" and d.get("sha") == sys.argv[2] else 1)' \
+    "$STATE/approvals/ambiente/$TIP.json" "$TIP" || {
+    echo "integrate: este é o ticket de contrato, e falta a conferência de ambiente no commit $TIP." >&2
+    echo "  Dispare o harness:revisor-ambiente com spec, ticket, diff (<branch da feature>...$TIP) e commit ($TIP)," >&2
+    echo "  na mesma mensagem do harness:revisor-bugs. Commit novo pede as duas de novo." >&2
+    exit 1
+  }
+fi
+
 # O programa vai por -c: a entrada padrão é a lista de arquivos alterados.
 CHECK='import sys
 sys.dont_write_bytecode = True

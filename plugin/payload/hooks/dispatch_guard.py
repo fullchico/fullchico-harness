@@ -23,6 +23,7 @@ REQUIRED = {
     "harness:orquestrador": ("spec",),
     "harness:qualidade": ("commit",),
     "harness:revisor-bugs": ("diff", "commit"),
+    "harness:revisor-ambiente": ("spec", "ticket", "diff", "commit"),
 }
 # O que cada um pode receber. O implementador recebe a spec e o ticket, e numa rodada
 # de correção o arquivo com o achado; quem revisa recebe o que vai ler, e mais nada.
@@ -37,7 +38,10 @@ ALLOWED = {
     "harness:qualidade": ("commit",),
     # Quem caça bug recebe o que vai ler: o intervalo, o commit, e a spec e o ticket que dizem
     # o que o código deveria fazer. Com `ticket`, revisa a branch de um implementador.
-    "harness:revisor-bugs": ("diff", "commit", "spec", "ticket", "leitura"),
+    # Numa rodada de correção recebe também o achado: confere a correção, não relê o ticket inteiro.
+    "harness:revisor-bugs": ("diff", "commit", "spec", "ticket", "leitura", "achado"),
+    # Só no ticket de contrato: confere que o que ele monta funciona fora da máquina de quem escreveu.
+    "harness:revisor-ambiente": ("diff", "commit", "spec", "ticket", "leitura", "achado"),
 }
 _LINE = re.compile(r"^(spec|ticket|diff|commit|leitura|achado): (\S.*)$")
 _SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -107,7 +111,7 @@ def check(agent: str, prompt, root):
         return f"{FORMAT} `commit` precisa ser o hash completo."
     if "diff" in seen and not _DIFF.match(seen["diff"]):
         return f"{FORMAT} `diff` precisa ser um intervalo, como main...HEAD."
-    if agent == "harness:revisor-bugs" and "ticket" in seen:
+    if agent in ("harness:revisor-bugs", "harness:revisor-ambiente") and "ticket" in seen:
         return ticket_range(seen["diff"], seen["commit"], root)
     if "commit" in seen and "diff" in seen:
         return bound(seen["diff"], seen["commit"], root)

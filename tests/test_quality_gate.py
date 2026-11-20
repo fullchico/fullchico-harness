@@ -61,7 +61,7 @@ class TestQualityGate(unittest.TestCase):
     def test_settings_and_agent_definition(self):
         s = json.loads((self.repo / ".claude/settings.json").read_text())
         matchers = [h["matcher"] for h in s["hooks"]["SubagentStop"]]
-        self.assertIn("^harness:(seguranca|revisor|qualidade|revisor-bugs)$", matchers)
+        self.assertIn("^harness:(seguranca|revisor|qualidade|revisor-bugs|revisor-ambiente)$", matchers)
         head = (ROOT / "plugin/agents/qualidade.md").read_text().split("---")[1]
         self.assertIn("name: qualidade", head)
         self.assertIn("model: haiku", head)

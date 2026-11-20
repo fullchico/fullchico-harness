@@ -66,7 +66,7 @@
     ],
     "SubagentStop": [
       {
-        "matcher": "^harness:(seguranca|revisor|qualidade|revisor-bugs)$",
+        "matcher": "^harness:(seguranca|revisor|qualidade|revisor-bugs|revisor-ambiente)$",
         "hooks": [
           {
             "type": "command",

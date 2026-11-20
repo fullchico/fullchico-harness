@@ -22,7 +22,21 @@ Falhou por defeito do código: é uma rodada de correção (`.harness/entrega/de
 saída como achado. Falhou porque o ambiente não respondeu: conserte o ambiente e rode de novo;
 isso não é rodada de correção. Revisor só roda sobre código que passou aqui.
 
-## 3. Revisão
+## 3. Pendências
+
+```bash
+.harness/pendings
+```
+
+São os achados simples que o caçador de bugs deixou abertos para os tickets passarem. Se a
+lista veio vazia, siga. Senão, cada pendência é corrigida agora, com o teste que ela indica:
+grave a lista em `docs/specs/<slug>/achados/pendencias.md`, faça o commit, e despache um
+`harness:implementador` por ticket dono dos arquivos apontados, com esse arquivo como `achado:`
+(reabra o ticket com `.harness/ticket reopen`). Integre como qualquer rodada de correção e
+volte ao passo 2. Quem fecha a pendência é o caçador de bugs, no passe final abaixo: você não
+tem como fechá-la.
+
+## 4. Revisão
 
 Daqui em diante não se faz mais commit: cada commit novo invalida a revisão. Pegue o
 commit do topo e a base da branch:
@@ -59,7 +73,7 @@ commit: HASH_DO_COMMIT
 ```
 
 E a caça a bugs final, sobre a branch inteira, que procura o que só aparece olhando os módulos
-juntos. O pedido é o dos revisores, sem a linha `ticket:`:
+juntos e confere cada pendência aberta (responde `RESOLVIDA: <id>` para as que foram corrigidas). O pedido é o dos revisores, sem a linha `ticket:`:
 
 ```pedido harness:revisor-bugs
 spec: docs/specs/exemplo/spec.md
@@ -79,9 +93,10 @@ gravada por um hook a partir dessa resposta. Você não grava aprovação e não
   dispare só a qualidade de novo. Se foi teste ou build, é rodada de correção.
 - **O caçador de bugs reprovou:** é rodada de correção para os tickets donos dos arquivos
   apontados; cada caso entra como teste junto com a correção.
-- **Os quatro aprovaram:** siga.
+- **Os quatro aprovaram:** rode `.harness/pendings`. Vazio: siga. Se sobrou pendência, ela
+  não foi corrigida: volte ao passo 3.
 
-## 4. Enviar
+## 5. Enviar
 
 ```bash
 .harness/push
@@ -93,7 +108,7 @@ a resposta no formato: dispare de novo o que faltou. Se o motivo for a branch pa
 do remoto ter andado, rode `.harness/fetch` e envie de novo; as aprovações continuam
 valendo. Não há como contornar o portão.
 
-## 5. Pull request
+## 6. Pull request
 
 Escreva o corpo em português, sem assinatura de IA, com a skill `write-pr-description` se
 ela estiver instalada, neste padrão. `.harness/pr` recusa o corpo sem a abertura e sem as
@@ -137,3 +152,15 @@ Grave o corpo em `.harness-run/pr-body.md` e abra o pull request:
 O título segue o formato dos commits e carrega o tipo mais alto da mudança: `feat` manda
 sobre `fix`. Use só letras, números, espaço e pontuação simples: `&`, `$`, crase, `<`, `>`,
 `;` e `|` fazem o comando ser negado. Depois do envio, `.harness/down`. Os commits são preservados no merge, sem squash.
+
+## 7. Como o dono abre o que foi entregue
+
+A entrega só termina quando o dono consegue ver o resultado. No relato final, depois do link
+do pull request, diga em três linhas:
+
+- os comandos que sobem o ambiente e o aplicativo: `.harness/up` e depois `.harness/dev`;
+- os endereços, com as portas do `.env` desta feature (o front, a API, e a caixa de e-mail de
+  teste se houver);
+- o usuário e a senha de teste, se o sistema tem login.
+
+Não deixe o aplicativo rodando: quem sobe é o dono.

@@ -85,6 +85,8 @@ cat <<EOT
 
 Harness $VERSION instalado em $ROOT, no perfil $PROFILE.
 $NEXT
+Abra o Claude Code uma vez nessa pasta, em modo interativo, e aceite o diálogo de confiança:
+sem isso ele ignora as permissões do projeto (.claude/settings.json), inclusive em sessões por linha de comando.
 Depois faça o commit do que foi gerado e envie a branch padrão ao remoto. Esse primeiro envio é
 seu, no terminal: os portões valem para ele também (.harness/approve em cada um).
 EOT

@@ -49,6 +49,10 @@ perguntar.
 - Rode `.harness/fetch`. Se a branch padrão do remoto andou, traga-a para dentro da feature
   com `git merge origin/<branch padrão>`, antes de qualquer outra coisa.
 - Leia `GLOSSARY.md` e os ADRs em `docs/adr/`, se existirem.
+- **Só este worktree é fonte.** Não leia outros worktrees deste repositório, outras branches
+  de feature nem pastas vizinhas à procura de uma spec ou de código parecido: outra tentativa
+  do mesmo pedido não é requisito, e o que ela decidiu não foi decidido aqui. O que vale é o
+  que o dono disse, o que está nesta branch e o que a branch padrão do remoto já tem.
 - Rode `.harness/memory check`. Se o mapa da área que a mudança vai tocar está envelhecido ou
   não existe, atualize-o antes com a skill `mapear`.
 
@@ -89,14 +93,15 @@ A linha `leitura` é opcional e só lista arquivos que existem. Diga ao dono, em
 a execução começou, e espere o orquestrador voltar. Enquanto ele trabalha você não faz nada:
 não acompanhe, não confira o repositório, não repita o trabalho dele.
 
-**PARADA 2, só se acontecer.** Se o orquestrador voltar sem fechar a entrega em 3 rodadas de
-correção, relate ao dono o que travou: o achado que se repete, o que foi tentado, e a sua
+**PARADA 2, só se acontecer.** Se o orquestrador voltar porque um ticket não fechou em
+3 rodadas de correção, relate ao dono o que travou: o achado que se repete, o que foi tentado, e a sua
 leitura do motivo. Se ele voltar por lacuna na spec, corrija a spec, faça o commit e dispare
 de novo.
 
 ## 5. Relatar
 
-Diga ao dono o que o orquestrador devolveu: o link do pull request, o que entrou, o que ficou
+Diga ao dono o que o orquestrador devolveu: o link do pull request, como abrir o que foi
+entregue (comando, endereços e usuário de teste), o que entrou, o que ficou
 de fora, quantas rodadas de correção houve, as decisões tomadas sem ele (que estão na spec), e
 qualquer coisa que os subagentes relataram fora do escopo.
 

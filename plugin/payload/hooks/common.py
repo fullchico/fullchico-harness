@@ -9,7 +9,7 @@ import sys
 
 sys.dont_write_bytecode = True
 
-GATES = ("seguranca", "revisao", "qualidade", "bugs")
+GATES = ("seguranca", "revisao", "qualidade", "bugs", "ambiente")
 _CONF_LINE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$")
 
 
@@ -146,6 +146,33 @@ def approval_path(state: str, gate: str, sha: str) -> str:
     return os.path.join(state, "approvals", gate, sha + ".json")
 
 
+def pendings_dir(cwd):
+    """Onde ficam as pendências da feature deste worktree: achados simples do caçador de bugs,
+    que não bloquearam o ticket mas precisam ser conferidos antes do push."""
+    state, root = state_dir(cwd), repo_root(cwd)
+    if not state or not root:
+        return None
+    feature = os.path.realpath(feature_root(root))
+    return os.path.join(state, "pendings", hashlib.sha256(feature.encode("utf-8")).hexdigest()[:16])
+
+
+def pendings(cwd) -> list:
+    """Todas as pendências da feature, abertas e resolvidas, em ordem de criação."""
+    folder = pendings_dir(cwd)
+    found = []
+    try:
+        names = sorted(os.listdir(folder), key=lambda n: int(n[1:-5]) if n[1:-5].isdigit() else 0)
+    except (OSError, TypeError):
+        return found
+    for name in names:
+        try:
+            with open(os.path.join(folder, name), encoding="utf-8") as f:
+                found.append(json.load(f))
+        except (OSError, ValueError):
+            continue
+    return found
+
+
 def read_conf(path: str) -> dict:
     conf = {}
     try:
@@ -232,6 +259,11 @@ if __name__ == "__main__":
         out = feature_root(sys.argv[2])
     elif len(sys.argv) == 3 and sys.argv[1] == "conf-approval":
         out = conf_approval_path(sys.argv[2])
+    if sys.argv[1:] == ["pendings"]:
+        for item in pendings(os.getcwd()):
+            if item.get("status") == "open":
+                print(f"{item['id']}: {item['text']} (commit {item['commit'][:7]})")
+        sys.exit(0)
     if sys.argv[1:] == ["state-dir"]:
         out = state_dir(os.getcwd())
     elif len(sys.argv) == 3 and sys.argv[1] == "branch-base":

@@ -17,11 +17,51 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common  # noqa: E402
 
 AGENT_GATE = {"harness:seguranca": "seguranca", "harness:revisor": "revisao", "harness:qualidade": "qualidade",
-              "harness:revisor-bugs": "bugs"}
+              "harness:revisor-bugs": "bugs", "harness:revisor-ambiente": "ambiente"}
 HANDBACK_TOOL = "SubagentHandback"
 _VERDICT = re.compile(r"^VEREDITO: (APPROVED|REJECTED)$")
 _COMMIT = re.compile(r"^COMMIT: ([0-9a-f]{40})$")
 _RESUMO = re.compile(r"^RESUMO: (\S.*)$")
+
+
+_PENDING = re.compile(r"^PENDENCIA: (\S.*)$")
+_RESOLVED = re.compile(r"^RESOLVIDA: (P[0-9]+)$")
+
+
+def track_pendings(cwd, message, verdict):
+    """O caçador de bugs abre pendência para achado simples e a fecha quando confere a correção.
+
+    Pendência só nasce de uma revisão aprovada: se ele reprovou, tudo o que apontou vai para a
+    rodada de correção. Fechar vale em qualquer veredito.
+    """
+    folder = common.pendings_dir(cwd)
+    if not folder:
+        return
+    known = common.pendings(cwd)
+    now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    for raw in message.splitlines():
+        line = raw.strip()
+        opened, closed = _PENDING.match(line), _RESOLVED.match(line)
+        if closed:
+            for item in known:
+                if item["id"] == closed.group(1) and item["status"] == "open":
+                    item.update(status="resolved", resolved_at=now, resolved_commit=verdict["commit"])
+                    _write(folder, item)
+        elif opened and verdict["verdict"] == "APPROVED":
+            text = opened.group(1).strip()
+            if any(item["text"] == text for item in known):
+                continue
+            item = {"id": f"P{len(known) + 1}", "text": text, "status": "open", "commit": verdict["commit"], "opened_at": now}
+            known.append(item)
+            _write(folder, item)
+
+
+def _write(folder, item):
+    os.makedirs(folder, exist_ok=True)
+    tmp = os.path.join(folder, f"{item['id']}.json.{os.getpid()}.tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(item, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, os.path.join(folder, f"{item['id']}.json"))
 
 
 def gate_for(agent_type):
@@ -118,13 +158,15 @@ def main():
     state = common.state_dir(cwd)
     if not state:
         return
-    if gate == "bugs":
+    if gate in ("bugs", "ambiente"):
         # A caça a bugs também revisa a ponta da branch de um implementador, antes de integrar:
         # o commit não precisa ser o HEAD, mas precisa existir neste repositório.
         if common._git(cwd, "cat-file", "-t", verdict["commit"]) != "commit":
             return
     elif verdict["commit"] != common.head_sha(cwd):
         return
+    if gate == "bugs":
+        track_pendings(cwd, final_message(payload) or "", verdict)
     path = common.approval_path(state, gate, verdict["commit"])
     if verdict["verdict"] == "REJECTED":
         if os.path.exists(path):
