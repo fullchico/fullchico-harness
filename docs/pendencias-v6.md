@@ -14,6 +14,33 @@ pedido das anteriores.
 2. **Confiança da pasta do projeto.** Em pasta nunca aberta em modo interativo, o Claude Code
    ignora as permissões `allow` do projeto. O instalador ou o `setup` deve avisar o dono.
 
+3. **Bloqueio do caçador de bugs por gravidade** (decisão do dono, 2026-11-20). A v5 parou no
+   ticket de contrato: quatro reprovações seguidas, cada uma com um achado diferente, e o teto de
+   três rodadas encerrou a entrega com zero tickets integrados.
+   - Achado **severo** (resultado errado, perda de dado, falha de segurança, quebra o que os
+     outros tickets consomem) reprova e bloqueia, como hoje.
+   - Achado **simples** não bloqueia: o ticket é integrado e o achado fica aberto como pendência
+     registrada, com o teste que o pegaria.
+   - **Na ponta, antes do push,** cada pendência aberta é conferida: foi corrigida e tem o teste?
+     Pendência sem conferência barra o envio. É o que garante que "deixar passar" não vira "esquecer".
+   - O caçador precisa de **critério escrito** para severo e simples, e o registro precisa ser de
+     máquina (arquivo por achado, com estado), não opinião solta no relato.
+4. **A partir da segunda rodada o caçador confere a correção,** não relê o ticket inteiro atrás
+   de novidade. Achado novo fora do que a correção tocou entra como pendência, pela regra acima.
+5. **Conferência no início se mantém.** O dono gostou de o contrato ser conferido antes de
+   qualquer ticket ser construído sobre ele: fica, com os critérios do item 3.
+6. **Ticket de contrato menor.** O da v5 carregava contrato, banco, proxy, lint, estrutura de
+   testes e ligação dos módulos: sempre sobra uma borda para o revisor. Avaliar dividir em
+   contrato (tipos e portas) e fundação (ambiente, ferramentas).
+7. **Teto de rodadas não derruba a entrega por achado simples.** Com o item 3 o teto volta a
+   contar só reprovação por achado severo.
+8. **Loop independente e conferência 360 no fim** (conceito do dono). Depois da entrevista a
+   entrega corre sozinha, e só é dada como validada quando tudo estiver pronto: todos os
+   tickets, todas as pendências conferidas e os portões da branch inteira.
+9. **Versão de teste isolada das anteriores.** A sessão de desenho da v5 leu a spec da
+   `teste-v4`, no worktree ao lado, e reaproveitou regras e critérios. Para medir um loop do
+   zero, a versão nova não pode enxergar as antigas.
+
 ## Já listadas antes, ainda não feitas
 
 4. Reabertura e reprovação de contrato contadas, subindo para Opus na segunda.
