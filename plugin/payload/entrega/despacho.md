@@ -66,6 +66,9 @@ diff: BASE...HASH_DO_COMMIT
 commit: HASH_DO_COMMIT
 ```
 
+   O ticket de contrato vai com o modelo `opus`: o que passar errado ali é seguido por todos
+   os outros tickets. Os demais vão no modelo do agente.
+
    `HASH_DO_COMMIT` é a ponta da branch do implementador (`git rev-parse <branch>`), e `BASE` é
    o commit de onde ela saiu (`git merge-base HEAD <branch>`). Reprovou: é rodada de correção
    para aquele ticket, com a resposta como achado, e cada caso apontado entra como teste junto

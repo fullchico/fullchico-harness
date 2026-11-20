@@ -51,6 +51,24 @@ onde entra, o que é gravado, o que sai. A spec e o ticket dizem o que o código
 - **Regra importante sem teste,** ou teste cujo nome promete mais do que as asserções conferem.
 - **Tempo, fuso e arredondamento.**
 
+**No ticket de contrato** (o que possui os caminhos comuns), o defeito é o que falta: tudo
+que os outros tickets vão seguir sai daqui, e o que faltar reabre este ticket no meio da
+entrega. Confira contra a spec, item por item, e reprove com o item que falta:
+
+- cada porta que um módulo consome de outro está definida, com quem a implementa;
+- a resposta para identificador inválido, corpo malformado e erro não previsto, o formato do
+  erro, a ordenação e a paginação estão definidos uma vez, com um teste que todo módulo
+  pode rodar contra si;
+- toda constante de regra usada por back e front está aqui, e só aqui;
+- cada rota, campo e nome está na língua do código, igual à spec;
+- existem o teste de contrato entre front e back e o teste que sobe a aplicação inteira.
+
+**Em todo módulo com porta de saída** (banco, fila, serviço externo): os mesmos testes da
+porta rodam contra o substituto e contra o adaptador de verdade. Se só o substituto é
+testado, é achado, e o caso concreto é a primeira diferença de comportamento entre os dois.
+Em regra com borda (data, dinheiro, intervalo), a skill `property-based-testing` diz que
+propriedade conferir.
+
 **Na branch inteira,** o que só aparece olhando os módulos juntos:
 
 - **O mesmo problema resolvido de jeitos diferentes** em módulos vizinhos: a mesma entrada

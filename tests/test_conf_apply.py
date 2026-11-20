@@ -9,7 +9,7 @@ from tests.helpers import ROOT, make_repo, sync
 
 HOOKS = ROOT / "plugin/payload/hooks"
 GOOD = ('# proposto na entrega\nPROJECT=barbearia\nSERVICES="web api postgres"\n'
-        'VALIDATE_PUSH="pnpm test"\n')
+        'VALIDATE_PUSH="pnpm test"\nMODULE_ROOTS="apps/api/src/modules"\n')
 
 
 class TestConfApply(unittest.TestCase):
@@ -45,6 +45,14 @@ class TestConfApply(unittest.TestCase):
         self.assertEqual((self.repo / "harness.conf").read_text(), GOOD)
         self.assertIn("WEB_PORT", (self.repo / ".env").read_text())
         self.assertNotEqual(self.apply().returncode, 0, "a aprovação vale uma vez")
+
+    def test_typescript_profile_must_say_where_the_modules_are(self):
+        self.proposal.write_text('PROJECT=barbearia\nVALIDATE_PUSH="pnpm test"\n')
+        rc, _, err = self.guard()
+        self.assertEqual(rc, 2)
+        self.assertIn("MODULE_ROOTS", err)
+        self.proposal.write_text('PROJECT=barbearia\nPROFILE=livre\nVALIDATE_PUSH="pnpm test"\n')
+        self.assertEqual(self.guard()[:2], (0, None), "os outros perfis não têm estrutura fixa de módulos")
 
     def test_without_the_guard_check_nothing_is_written(self):
         self.proposal.write_text(GOOD)

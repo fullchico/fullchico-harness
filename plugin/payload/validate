@@ -29,6 +29,10 @@ for SPEC in "$ROOT"/docs/specs/*/; do
   python3 -I "$HERE/tickets_check.py" "${SPEC%/}" >/dev/null || exit 1
 done
 
+# Fronteira entre módulos, do próprio harness e por lista branca (MODULE_ROOTS no harness.conf):
+# não depende de regra escrita pelo projeto.
+python3 -I "$HERE/arch_check.py" "$ROOT" || { echo "validate: um módulo importa do que não é dele." >&2; exit 1; }
+
 # Fronteiras da arquitetura, pela ferramenta que o projeto escolheu (direção das dependências,
 # entrada pública dos módulos). Roda nos dois perfis: arquitetura não espera o merge.
 ARCH="$(python3 -I - "$HERE/hooks" "$ROOT/harness.conf" VALIDATE_ARCH <<'PY'

@@ -94,7 +94,7 @@ class TestProjectWithoutServices(unittest.TestCase):
     def setUp(self):
         self.repo = make_repo()
         self.assertEqual(sync(self.repo).returncode, 0)
-        self.conf = 'PROJECT=lib\nINSTALL_CMD="touch instalou"\n'
+        self.conf = 'PROJECT=lib\nPROFILE=livre\nINSTALL_CMD="touch instalou"\n'
 
     def test_setup_worktree_installs_without_ports(self):
         (self.repo / "harness.conf").write_text(self.conf)
