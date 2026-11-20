@@ -59,7 +59,7 @@ if [ -z "${HARNESS_SKIP_PLUGIN:-}" ] && command -v npx >/dev/null 2>&1; then
 for s in json.load(open(sys.argv[1])).get("project_skills", []):
     print(s["repo"], s["skill"])' "$HARNESS/plugin/map.json" | while read -r REPO SKILL; do
     [ -d "$ROOT/.claude/skills/$SKILL" ] && continue
-    (cd "$ROOT" && npx -y skills add "$REPO" -s "$SKILL" -a claude-code -y --copy >/dev/null 2>&1) \
+    (cd "$ROOT" && npx -y skills add "$REPO" -s "$SKILL" -a claude-code -y --copy </dev/null >/dev/null 2>&1) \
       || echo "install: não instalei a skill $SKILL; rode à mão: npx skills add $REPO -s $SKILL -a claude-code -y --copy" >&2
   done
 fi

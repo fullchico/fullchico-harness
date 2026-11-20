@@ -14,6 +14,10 @@ def fake_claude():
     script = folder / "claude"
     script.write_text('#!/usr/bin/env bash\necho "$PWD|$*" >> "$CLAUDE_LOG"\n')
     script.chmod(script.stat().st_mode | stat.S_IXUSR)
+    # Um `npx` de mentira que, como o de verdade, consome a entrada padrão.
+    npx = folder / "npx"
+    npx.write_text('#!/usr/bin/env bash\ncat >/dev/null\necho "npx $*" >> "$CLAUDE_LOG"\n')
+    npx.chmod(npx.stat().st_mode | stat.S_IXUSR)
     return folder
 
 
@@ -39,6 +43,9 @@ class TestInstall(unittest.TestCase):
         installs = [line for line in calls.splitlines() if "plugin install" in line]
         self.assertTrue(all(line.startswith(str(repo.resolve())) for line in installs), installs)
         self.assertIn("/harness:setup", r.stdout)
+        for skill in ("hexagonal-architecture", "feature-sliced-design", "parallel-feature-development",
+                      "clean-code-guard"):
+            self.assertIn(f"-s {skill} -a claude-code -y --copy", calls, skill)
 
     def test_defaults_to_the_current_folder_and_can_run_twice(self):
         repo = make_repo()
