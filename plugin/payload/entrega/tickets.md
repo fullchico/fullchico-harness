@@ -29,7 +29,9 @@ só dele: um módulo do back, ou uma fatia do front. Não é uma camada técnica
 - Com o contrato fechado, o módulo do back e a fatia do front do mesmo recurso são tickets
   separados e rodam juntos: cada lado testa contra o contrato.
 - O último ticket é o de ponta a ponta: transforma os critérios de aceite da spec em testes que
-  exercitam o sistema inteiro, numa pasta só dele, e é bloqueado por todos os outros. É ele
+  exercitam o sistema inteiro, numa pasta só dele, e é bloqueado por todos os outros. Os testes
+  sobem o aplicativo sozinhos e entram só na checagem de merge (`VALIDATE_MERGE`), nunca na de
+  cada ticket. É ele
   que protege o que já funciona quando alguém mexer em outra parte. O navegador roda num
   contêiner do ambiente (o serviço entra no compose pelo ticket de contrato), porque dentro
   do sandbox ele não abre; os testes se conectam a ele pelo endereço do `.env`.
@@ -71,12 +73,13 @@ os implementadores não trocam mensagens: quem precisa de algo que não é seu r
 
 Status: open
 Blocked by:
-Owns: packages/contracts
+Owns: packages/contracts, package.json, pnpm-lock.yaml, pnpm-workspace.yaml, docker-compose.dev.yml, apps/api/package.json, apps/api/src/main.ts, apps/api/src/shared, apps/web/package.json, apps/web/app, apps/web/src/shared
 
 ## O que entregar
 
 Os tipos do envio de foto e da resposta, e os erros definidos na spec, no pacote que front e
-back importam.
+back importam. Com ele vêm as dependências, o compose do ambiente e o que liga os módulos
+ao aplicativo: tudo o que mais de um ticket usa.
 
 ## Como validar
 
@@ -88,7 +91,7 @@ A checagem de tipos passa nos dois lados.
 
 Status: open
 Blocked by: 01
-Owns: apps/api/src/modules/arquivos
+Owns: apps/api/src/modules/files
 
 ## O que entregar
 
@@ -105,7 +108,7 @@ Pelo use case de guardar foto: uma imagem válida, uma grande demais e uma de ti
 
 Status: open
 Blocked by: 01
-Owns: apps/web/src/pages/perfil
+Owns: apps/web/src/pages/profile
 
 ## O que entregar
 

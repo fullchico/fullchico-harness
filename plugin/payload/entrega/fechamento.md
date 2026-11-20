@@ -2,35 +2,25 @@
 
 A ordem importa: primeiro o que é de graça, depois o que custa.
 
-## 1. Checagem
+## 1. Ambiente de pé
+
+O ambiente da feature (banco, fila, contêiner do navegador) já está de pé desde o despacho e
+fica assim até o envio. Confira com `.harness/up`, sozinho: se já está no ar, ele só avisa.
+Depois de integrar um ticket que mudou o schema, rode `.harness/prepare` de novo.
+
+Você não sobe o aplicativo à mão. Os testes de ponta a ponta compilam e sobem o aplicativo
+do commit atual por conta própria (o `webServer` do Playwright), e o derrubam ao terminar.
+
+## 2. Checagem
 
 ```bash
 .harness/validate --profile merge
 ```
 
-Falhou: é uma rodada de correção (`.harness/entrega/despacho.md`), com a saída da checagem como
-achado. Revisor só roda sobre código que passou aqui.
-
-## 2. Ambiente, se a validação exigir
-
-A maior parte se valida sem ambiente, pelos pontos de costura da spec. Suba só quando o
-que falta conferir depende do conjunto funcionando:
-
-```bash
-.harness/up
-.harness/prepare
-.harness/dev --background
-```
-
-Rode cada um sozinho, sem encadear. Confira o comportamento pelas portas do `.env`. Deixe o
-ambiente de pé: uma rodada de correção ainda pode precisar dele. `.harness/down` só depois do
-envio.
-
-O app roda dentro do sandbox. Um servidor de desenvolvimento que vigia arquivos pode não
-subir ali (o `next dev` é um caso). Não é defeito do código: pare o `.harness/dev`, gere o
-build de produção e suba os processos compilados nas mesmas portas do `.env`. Diga no relato
-que a validação foi feita sobre o build.
-
+É a checagem completa: testes de unidade e de integração, fronteiras, build e ponta a ponta.
+Falhou por defeito do código: é uma rodada de correção (`.harness/entrega/despacho.md`), com a
+saída como achado. Falhou porque o ambiente não respondeu: conserte o ambiente e rode de novo;
+isso não é rodada de correção. Revisor só roda sobre código que passou aqui.
 
 ## 3. Revisão
 
@@ -74,9 +64,11 @@ voltarem. O push exige os três vereditos sobre o mesmo commit.
 Cada revisor termina com `VEREDITO: APPROVED` ou `VEREDITO: REJECTED`. A aprovação é
 gravada por um hook a partir dessa resposta. Você não grava aprovação e não tem como.
 
-- **Reprovou:** é uma rodada de correção, com a resposta do revisor como achado. Depois
-  dela, volte ao passo 1.
-- **Os dois aprovaram:** siga.
+- **Um revisor reprovou:** é uma rodada de correção, com a resposta dele como achado. Depois
+  dela, volte ao passo 2: commit novo pede os três vereditos de novo.
+- **A qualidade reprovou:** leia o resumo. Se foi o ambiente que não respondeu, conserte-o e
+  dispare só a qualidade de novo. Se foi teste ou build, é rodada de correção.
+- **Os três aprovaram:** siga.
 
 ## 4. Enviar
 
@@ -86,7 +78,7 @@ gravada por um hook a partir dessa resposta. Você não grava aprovação e não
 
 É o único caminho até o remoto. Se ele negar, leia o motivo: aprovação faltando para o
 commit atual quer dizer que houve commit depois da revisão, ou que um revisor não fechou
-a resposta no formato: dispare de novo o revisor que faltou. Se o motivo for a branch padrão
+a resposta no formato: dispare de novo o que faltou. Se o motivo for a branch padrão
 do remoto ter andado, rode `.harness/fetch` e envie de novo; as aprovações continuam
 valendo. Não há como contornar o portão.
 

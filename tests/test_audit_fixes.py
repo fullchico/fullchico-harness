@@ -140,3 +140,46 @@ class TestSmallThings(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSecondAudit(unittest.TestCase):
+    def test_validate_gives_the_project_command_the_feature_env(self):
+        repo = make_repo()
+        self.assertEqual(sync(repo).returncode, 0)
+        (repo / ".env").write_text("POSTGRES_PORT=37752\n")
+        (repo / "harness.conf").write_text("VALIDATE_PUSH='test \"$POSTGRES_PORT\" = 37752'\n")
+        r = subprocess.run([str(repo / ".harness/validate"), "--profile", "push"], cwd=repo, capture_output=True,
+                           text=True, env={k: v for k, v in os.environ.items() if k != "POSTGRES_PORT"})
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_setup_worktree_survives_a_failing_install(self):
+        repo = make_repo()
+        self.assertEqual(sync(repo).returncode, 0)
+        (repo / "harness.conf").write_text('PROJECT=novo\nINSTALL_CMD="exit 7"\n')
+        commit_all(repo, "chore: adopt harness")
+        agent = repo / ".claude/worktrees/agent-a"
+        git(repo, "worktree", "add", "-q", "-b", "worktree-agent-a", str(agent), "HEAD")
+        run = lambda where: subprocess.run([str(where / ".harness/setup-worktree")], cwd=where, capture_output=True,
+                                           text=True, env=dict(os.environ, HARNESS_SKIP_PLUGIN="1"))
+        r = run(agent)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("INSTALL_CMD", r.stdout + r.stderr)
+        self.assertEqual(run(repo).returncode, 7, "num worktree de feature a falha continua aparecendo")
+
+    def test_texts_agree_on_three_gates_english_examples_and_who_runs_the_app(self):
+        run = ROOT / "plugin/payload/entrega"
+        closing = (run / "fechamento.md").read_text()
+        self.assertIn("Os três aprovaram", closing)
+        self.assertNotIn("Os dois aprovaram", closing)
+        self.assertNotIn(".harness/dev --background", closing)
+        tickets = (run / "tickets.md").read_text()
+        for portuguese in ("modules/arquivos", "pages/perfil"):
+            self.assertNotIn(portuguese, tickets)
+        stack = (ROOT / "plugin/templates/docs/agents/stack.md").read_text()
+        for needed in ("webServer", "host.docker.internal", "VALIDATE_MERGE", "shm_size"):
+            self.assertIn(needed, stack, needed)
+        security = (ROOT / "plugin/agents/seguranca.md").read_text()
+        self.assertIn("Skill", security.split("---")[1])
+        self.assertIn("owasp-security", security)
+        self.assertIn("accessibility", (ROOT / "plugin/agents/revisor.md").read_text())
+        self.assertIn("Critérios de aceite", (ROOT / "plugin/skills/entregar/references/spec.md").read_text())

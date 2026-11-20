@@ -75,5 +75,6 @@ cat <<EOT
 
 Harness $VERSION instalado em $ROOT.
 $NEXT
-Depois faça o commit do que foi gerado.
+Depois faça o commit do que foi gerado e envie a branch padrão ao remoto. Esse primeiro envio é
+seu, no terminal: os portões valem para ele também (.harness/approve em cada um).
 EOT

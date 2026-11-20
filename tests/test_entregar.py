@@ -137,7 +137,7 @@ class TestEntregar(unittest.TestCase):
     def test_skill_runs_the_harness_commands(self):
         joined = "\n".join(texts().values())
         for command in (".harness/fetch", ".harness/push", ".harness/pr create", ".harness/validate --profile merge",
-                        ".harness/up", ".harness/prepare", ".harness/dev --background", "tickets_check.py",
+                        ".harness/up", ".harness/prepare", ".harness/integrate", "tickets_check.py",
                         "--frontier", 'isolation'):
             self.assertIn(command, joined, command)
 

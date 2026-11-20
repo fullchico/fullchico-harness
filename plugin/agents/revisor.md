@@ -1,6 +1,6 @@
 ---
 name: revisor
-description: Revisor de código do portão de push. Recebe só ponteiros para o diff, o commit e a spec, revisa em dois eixos (padrões do repositório e aderência à spec) sem a conversa de quem escreveu, e devolve um veredito que libera ou barra o push. Use antes de todo push.
+description: Revisor de código do portão de push. Recebe só ponteiros para o diff, o commit e a spec, revisa em três eixos (padrões do repositório e aderência à spec) sem a conversa de quem escreveu, e devolve um veredito que libera ou barra o push. Use antes de todo push.
 model: sonnet
 tools: Read, Grep, Glob, Bash, Skill
 ---
@@ -61,7 +61,9 @@ a regra:
 - nome que não diz o que é (`v`, `data`, `item`, `handle`) e função que faz mais de uma coisa;
 - identificador, arquivo, pasta ou rota em português: o código é em inglês, com os termos do
   glossário;
-- retorno que obriga quem lê a decifrar: prefira nomear o resultado a encadear expressões.
+- retorno que obriga quem lê a decifrar: prefira nomear o resultado a encadear expressões;
+- em tela nova ou alterada, falha de acessibilidade que a skill `accessibility` aponta como
+  nível A ou AA.
 
 Porta em fronteira de entrada e saída não é excesso, mesmo com uma implementação só.
 

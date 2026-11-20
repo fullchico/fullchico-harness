@@ -34,7 +34,7 @@ entrega a execução ao `orquestrador`, em modelo mais barato (passos 4 em diant
 | 5. Implementar | goldfish em paralelo, um worktree cada, com `tdd` |
 | 6. Integrar | o orquestrador junta tudo na branch da feature |
 | 7. Checar | `.harness/validate`, sem custo de IA |
-| 8. Revisar | goldfish `seguranca` e `revisor`, em paralelo |
+| 8. Revisar | goldfish `seguranca`, `revisor` e `qualidade`, em paralelo |
 | 9. Enviar | push e PR |
 
 Toda `feat` passa pelo ciclo inteiro. Bug entra por `diagnosing-bugs`. Spec já

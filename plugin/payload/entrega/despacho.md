@@ -9,7 +9,8 @@
 sai do sandbox. Em projeto novo o compose chega com o ticket de contrato: integre-o primeiro, e
 só então suba o ambiente e despache os demais. Ticket que depende do ambiente não é concluído
 com teste contra um substituto em memória: sem ambiente de verdade ele fica `claimed`. O
-ambiente fica de pé até o envio.
+ambiente fica de pé até o envio. Integrado um ticket que muda o schema do banco, rode
+`.harness/prepare` de novo.
 
 **Testes em paralelo.** Os implementadores de uma rodada dividem o ambiente da feature. Se os
 testes usam banco, a spec precisa dizer como cada um isola o seu (um banco de teste por ticket,
@@ -54,7 +55,7 @@ leitura: GLOSSARY.md
    A linha `leitura` é opcional e só lista arquivos que existem. A spec e o ticket precisam
    estar em commit: o implementador trabalha numa cópia que só tem o que foi commitado.
 
-4. Quando cada um voltar, ele diz em que branch ficaram os commits. Junte essa branch na da
+4. Quando todos voltarem, cada um diz em que branch ficaram os commits. Junte cada branch na da
    feature com `.harness/integrate <arquivo do ticket> <branch>`, um ticket por vez. O comando
    confere que a branch só mexeu no que o ticket possui, junta, roda a checagem e desfaz a
    junção se ela falhar; no fim apaga os worktrees de agente já integrados. Não junte com
@@ -89,7 +90,8 @@ Quando a checagem ou um revisor reprova:
 2. Devolva o ticket afetado a `Status: open`, faça o commit, e despache-o de novo, com o
    achado apontado. O implementador começa de uma cópia nova da feature: se a rodada veio de
    uma recusa do `.harness/integrate`, o trabalho anterior não está nela, então diga no achado
-   o nome da branch recusada, para ele trazer o que serve com `git merge <branch>`. Integrado
+   o nome da branch recusada, para ele trazer o que serve com `git merge <branch>`; no conflito
+   do arquivo do ticket, vale `Status: open`. Integrado
    o ticket refeito, jogue fora a branch recusada: `.harness/agents-clean --discard <branch>`.
 
 ```pedido harness:implementador

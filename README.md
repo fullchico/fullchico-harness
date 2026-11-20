@@ -23,7 +23,7 @@ O que foi conferido em sessões reais, e o que ainda não foi, está em
   recusa a branch que mexer fora da posse ou quebrar a checagem.
 - **Gasta o modelo caro só onde ele paga.** A sua sessão (Opus) faz a entrevista e a spec. A
   execução inteira é de um orquestrador em Sonnet, que recebe só a spec; os implementadores e
-  os revisores também são Sonnet, e o trabalho bruto é Haiku.
+  os revisores também são Sonnet, e os implementadores e o trabalho bruto são Haiku.
 - **Não deixa código sem revisão chegar ao remoto.** O shell do agente roda no sandbox do
   Claude Code, sem rede para o servidor de git. O único caminho é `.harness/push`, que
   exige três aprovações sobre o commit (segurança, revisão de código e qualidade: a checagem

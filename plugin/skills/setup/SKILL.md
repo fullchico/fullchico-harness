@@ -18,7 +18,9 @@ O diretório precisa ser um repositório git. Se não for, pare e avise.
 
 ## 2. Sincronizar
 
-Leia a versão em `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json` e rode, com
+Se `.harness/MANIFEST` já existe, o projeto foi adotado pelo instalador (`install`), que
+também traz as skills dos autores: pule este passo. Senão, leia a versão em
+`${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json` e rode, com
 `v` na frente da versão:
 
 ```bash

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# O portão de push: dois vereditos sobre o commit do topo e a trava de spec.
+# O portão de push: três vereditos sobre o commit do topo (segurança, revisão, qualidade) e a trava de spec.
 #
 # Uso: gate-check <url do remoto>   com as linhas de ref no stdin, no formato do git:
 #      <ref local> <sha local> <ref remoto> <sha remoto>

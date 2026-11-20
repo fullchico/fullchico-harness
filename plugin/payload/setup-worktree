@@ -31,7 +31,14 @@ fi
 
 INSTALL="$(conf_get INSTALL_CMD)"
 if [ -n "$INSTALL" ]; then
-  bash -c "$INSTALL" || exit $?
+  bash -c "$INSTALL"
+  RC=$?
+  if [ "$RC" -ne 0 ]; then
+    # Num worktree de agente de um projeto que acabou de nascer ainda não há o que instalar:
+    # quem traz o manifesto é o primeiro ticket. Ali a falha é avisada e o trabalho segue.
+    [ -n "$AGENT_WORKTREE" ] || exit "$RC"
+    echo "setup-worktree: o INSTALL_CMD ($INSTALL) falhou. Se o projeto ainda não tem manifesto de dependências, é esperado; senão, rode-o à mão e veja o erro." >&2
+  fi
 fi
 
 # Plugin declarado no projeto não se instala sozinho numa máquina nova.

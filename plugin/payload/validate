@@ -10,8 +10,9 @@ case "${2:-}" in
   *) echo "uso: validate --profile <push|merge>" >&2; exit 2 ;;
 esac
 
-HERE="$(cd "$(dirname "$0")" && pwd -P)"
-ROOT="$(cd "$HERE/.." && pwd -P)"
+. "$(dirname "$0")/env-common.sh"
+# Os comandos do projeto recebem o .env da feature (portas, endereços), como em prepare e dev.
+load_env
 
 DRIFT="$(python3 -I "$HERE/manifest_check.py" "$ROOT")" || {
   echo "validate: arquivos gerenciados pelo harness foram alterados fora do update:" >&2

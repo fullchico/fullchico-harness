@@ -21,7 +21,11 @@ de esquema, e cada escolha que foi feita na entrevista, com o motivo.
 **Decisões de teste.** Os pontos de costura: por onde cada comportamento é testado. Prefira
 um ponto de costura que já existe e o mais alto possível. Diga o que é um bom teste aqui
 (comportamento observável, não detalhe interno) e aponte testes parecidos que já existem.
-Esta seção é obrigatória: é ela que permite implementar e validar sem subir ambiente.
+Esta seção é obrigatória: é ela que permite implementar cada ticket sem o sistema inteiro no ar.
+
+**Critérios de aceite.** Numerados, do ponto de vista de quem usa: o que precisa acontecer para
+a entrega valer. Cada um vira um teste de ponta a ponta, e é essa suíte que protege o que já
+funciona nas entregas seguintes.
 
 **Módulos e contrato.** Os módulos do back e as fatias do front que nascem ou mudam, cada um
 com a sua pasta, e o contrato entre front e back: os tipos e as operações, onde ficam, e o que
@@ -32,8 +36,10 @@ os serviços de que os testes dependem (banco, fila) e como cada implementador i
 quando vários rodam ao mesmo tempo no mesmo ambiente (um banco de teste por ticket, por
 exemplo); e, se o projeto ainda não tem `harness.conf` preenchido, uma subseção `harness.conf`
 com o conteúdo do arquivo, incluindo `CONTRACT_PATHS` (os caminhos do contrato e do que é
-comum) e `VALIDATE_ARCH` (o comando que confere as fronteiras). Sem ela o orquestrador não é
-despachado. O sandbox só alcança o registro do npm: se o projeto instala dependências de outro
+comum), `VALIDATE_ARCH` (o comando que confere as fronteiras), o serviço `playwright` em
+`SERVICES` com o endereço dele em `ENV_PW_TEST_CONNECT_WS_ENDPOINT`, e os testes de ponta a
+ponta só no `VALIDATE_MERGE`. Sem ela o orquestrador não é despachado. O que vale para a
+stack está em `docs/agents/stack.md`: leia antes de escrever esta seção. O sandbox só alcança o registro do npm: se o projeto instala dependências de outro
 lugar, diga ao dono já na entrevista, porque liberar um domínio é dele (`harness.d/settings.json`).
 
 **Fora de escopo.** O que não entra, dito com todas as letras.

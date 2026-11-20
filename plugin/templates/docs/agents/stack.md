@@ -22,8 +22,8 @@ Use só as do seu papel. As outras estão instaladas, mas não são para você.
 
 | Papel | Skills |
 |---|---|
-| ticket de contrato | `zod`, `pnpm`, `seo`, `vitest` |
-| módulo do back | `hexagonal-architecture`, `drizzle-orm-patterns`, `zod`, `vitest`; `supabase-postgres-best-practices` ao mexer em tabela ou consulta; `bullmq` ao mexer em fila |
+| ticket de contrato | `zod`, `pnpm`, `seo`, `vitest`; `drizzle-orm-patterns` e `supabase-postgres-best-practices` para o schema do banco, que é dele |
+| módulo do back | `hexagonal-architecture`, `drizzle-orm-patterns`, `zod`, `vitest`; `supabase-postgres-best-practices` ao escrever consulta; `bullmq` ao mexer em fila |
 | fatia do front | `feature-sliced-design`, `vercel-react-best-practices`, `shadcn`, `frontend-design`, `zod`, `vitest`; `seo` em página pública |
 | ticket de ponta a ponta | `playwright-best-practices` |
 | revisor de código | `clean-code-guard`, `ponytail-review`, `accessibility` |
@@ -47,11 +47,26 @@ que vem com o próprio pacote instalado.
 - **Erro de domínio não é erro HTTP.** O use case devolve ou lança erro do domínio; quem
   traduz para status é o adaptador de entrada.
 - **Validação de entrada é pelo esquema do contrato,** não por decoradores numa classe à parte.
-- **Teste de ponta a ponta** fica na pasta do ticket que o possui, usa localizador por papel
-  e texto, e roda com o navegador do contêiner do ambiente: o serviço `playwright` do compose,
-  com a mesma versão do pacote instalado, alcançado por `PW_TEST_CONNECT_WS_ENDPOINT`. Dentro
-  do sandbox o navegador não abre, e não se instala navegador na máquina. A página testada é
-  o build do aplicativo, alcançado do contêiner por `host.docker.internal`. Sem page object
-  até haver repetição.
+- **Teste de ponta a ponta** fica na pasta do ticket que o possui e usa localizador por papel
+  e texto. Sem page object até haver repetição.
+  - O navegador é o do contêiner do ambiente: o serviço `playwright` do compose, com a mesma
+    versão do pacote instalado e `shm_size` (não `ipc: host`, que o `up` recusa), alcançado por
+    `PW_TEST_CONNECT_WS_ENDPOINT`. Dentro do sandbox o navegador não abre, e não se instala
+    navegador na máquina.
+  - O aplicativo é o build do commit atual, compilado e servido pela própria suíte, com o
+    `webServer` do Playwright, nas portas do `.env`. Isso não é "subir servidor próprio": é a
+    suíte cuidando do que testa. Ninguém deixa o aplicativo rodando por fora.
+  - Do contêiner, o aplicativo é `http://host.docker.internal:<porta do web>`. O navegador só
+    fala com essa origem: as chamadas à API passam pelo servidor do front (um proxy), porque
+    dentro do contêiner `localhost` é o próprio contêiner.
+  - A suíte entra só no `VALIDATE_MERGE`. O `VALIDATE_PUSH`, que roda ao fechar e ao integrar
+    cada ticket, fica com o que não precisa do sistema inteiro no ar.
+- **Next com Feature-Sliced Design.** A pasta `app/` do Next fica na raiz do aplicativo, com um
+  `pages/` vazio ao lado, e as camadas do padrão ficam em `src/`. Sem isso o Next trata
+  `src/pages` como roteador.
+- **Os testes leem o `.env` da raiz** do worktree (portas e endereços). A checagem do harness
+  já o exporta.
+- **Instalação reproduzível:** `pnpm install --frozen-lockfile` na checagem; quem muda o
+  lockfile é o ticket de contrato.
 - **Nenhuma skill instala ferramenta global nem troca o gerenciador de pacotes.** É `pnpm`.
 - **Skill que manda "use sempre"** não manda: quem decide é a tabela acima.
