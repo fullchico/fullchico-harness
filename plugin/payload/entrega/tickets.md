@@ -24,6 +24,11 @@ só dele: um módulo do back, ou uma fatia do front. Não é uma camada técnica
   cada porta que um módulo consome está definida nele. Porta que falta aqui reabre este ticket
   no meio da entrega. Ele bloqueia todos os outros e
   não tem teste que dependa do ambiente, porque é ele que o traz.
+- Quando a base é grande, divida-a em dois tickets, um bloqueando o outro: primeiro o
+  **contrato** (o que se troca e o que é comum: tipos, portas, convenções, esquema do banco),
+  depois a **fundação** (o que faz o projeto rodar: dependências, ambiente, ferramentas,
+  estrutura de testes, ligação dos módulos). Os dois possuem caminhos de `CONTRACT_PATHS`, e
+  todos os outros tickets esperam os dois. Um ticket só, com tudo, é o que mais volta da revisão.
 - O ticket de contrato fixa também o que todos os módulos fazem igual, para não sair um de cada
   jeito: a resposta para identificador inválido, para corpo malformado e para erro não
   previsto; o formato do erro; como se ordena e se pagina. E toda constante de regra que back

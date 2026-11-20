@@ -26,10 +26,17 @@ _RESUMO = re.compile(r"^RESUMO: (\S.*)$")
 
 _PENDING = re.compile(r"^PENDENCIA: (\S.*)$")
 _RESOLVED = re.compile(r"^RESOLVIDA: (P[0-9]+)$")
+# Pendência é exceção. Um ticket aprovado com mais que isso não está pronto: a aprovação não é
+# gravada, e o que foi apontado vira o achado de uma rodada de correção.
+MAX_PENDINGS = 2
+
+
+def too_many_pendings(message) -> bool:
+    return sum(1 for raw in message.splitlines() if _PENDING.match(raw.strip())) > MAX_PENDINGS
 
 
 def track_pendings(cwd, message, verdict):
-    """O caçador de bugs abre pendência para achado simples e a fecha quando confere a correção.
+    """O caçador de bugs e o revisor de ambiente abrem pendência para achado simples e a fecha quando confere a correção.
 
     Pendência só nasce de uma revisão aprovada: se ele reprovou, tudo o que apontou vai para a
     rodada de correção. Fechar vale em qualquer veredito.
@@ -165,8 +172,11 @@ def main():
             return
     elif verdict["commit"] != common.head_sha(cwd):
         return
-    if gate == "bugs":
-        track_pendings(cwd, final_message(payload) or "", verdict)
+    if gate in ("bugs", "ambiente"):
+        message = final_message(payload) or ""
+        if verdict["verdict"] == "APPROVED" and too_many_pendings(message):
+            return
+        track_pendings(cwd, message, verdict)
     path = common.approval_path(state, gate, verdict["commit"])
     if verdict["verdict"] == "REJECTED":
         if os.path.exists(path):

@@ -72,8 +72,10 @@ commit: HASH_DO_COMMIT
    pasta de quem escreveu. O `.harness/integrate` exige os dois nesse commit. Os demais
    tickets passam só pelo `harness:revisor-bugs`, no modelo do agente.
 
-   **Achado simples não reprova.** O revisor responde `APPROVED` com linhas `PENDENCIA:`, o
-   hook as registra e o ticket segue. Você não corrige pendência agora nem a discute: elas
+   **Achado simples não reprova.** O revisor responde `APPROVED` com até duas linhas
+   `PENDENCIA:`, o hook as registra e o ticket segue. Com mais de duas a aprovação não é
+   gravada, mesmo que ele tenha escrito `APPROVED`: é rodada de correção, com as pendências
+   como achado. Você não corrige pendência agora nem a discute: elas
    são tratadas no fechamento, e o push é recusado enquanto houver uma aberta
    (`.harness/pendings` lista).
 
@@ -95,6 +97,11 @@ commit: HASH_DO_COMMIT
 Os worktrees de agente usam o ambiente da feature. Nenhum implementador sobe ambiente. Cada
 um prepara a própria cópia com `.harness/setup-worktree`, que traz o `.env` da feature e
 instala as dependências.
+
+**Porta ocupada.** Se a aplicação ou um teste não sobe porque uma porta da feature está em
+uso, rode `.harness/ports-free`, sozinho: ele encerra o processo esquecido por outro agente
+e não toca no que roda da pasta da feature nem nos contêineres. O mesmo comando roda sozinho
+quando um revisor termina.
 
 Se um implementador cair sem entregar, o ticket dele fica preso em `claimed` e some da
 fronteira. Reabra-o com `.harness/ticket reopen` e despache de novo.

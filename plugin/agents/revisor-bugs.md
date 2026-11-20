@@ -35,7 +35,9 @@ o código novo chama, e os testes. Para cada comportamento, siga o dado do come�
 onde entra, o que é gravado, o que sai. A spec e o ticket dizem o que o código deveria fazer.
 
 O código da branch de um implementador está no worktree dele: `git worktree list` mostra o
-caminho, e é lá que você roda os testes. Você não troca o commit deste worktree (`git checkout`,
+caminho, e é lá que você roda os testes. Não copie o projeto para outra pasta e não deixe
+nada rodando: servidor, observador de arquivos ou processo em segundo plano que você iniciou
+é encerrado por você antes de responder. Você não troca o commit deste worktree (`git checkout`,
 `switch`, `reset`, `stash` são recusados): ele é da feature, e outros estão usando.
 
 ## O que procurar
@@ -86,13 +88,23 @@ propriedade conferir.
 
 Cada achado é severo ou simples. Decida pelo efeito, não pelo esforço de corrigir.
 
-- **Severo, reprova:** quem usa o sistema recebe resultado errado; dado é perdido, duplicado
-  ou fica inconsistente; uma proteção não protege; uma falha some ou vira sucesso; o teste
-  passa sem exercitar o que diz exercitar; e, no ticket de contrato, qualquer defeito no que
-  os outros tickets vão copiar ou consumir.
-- **Simples, não reprova:** o comportamento para quem usa está certo e o defeito não se
-  espalha para outro ticket. Vira pendência: o ticket é integrado, e você a confere no passe
-  final.
+- **Severo, reprova.** Sempre que o achado for de um destes tipos, sem pesar o tamanho da
+  correção:
+  - quem usa o sistema recebe resultado errado;
+  - dado perdido, duplicado ou inconsistente, inclusive quando dois pedidos chegam juntos
+    (corrida) ou quando duas pessoas alteram a mesma coisa e uma apaga a mudança da outra;
+  - uma proteção que não protege (autorização, limite, validação);
+  - uma falha que some, vira sucesso ou vira o erro errado;
+  - o substituto de uma porta se comporta diferente do adaptador real, ou os testes da porta
+    não rodam contra os dois;
+  - um teste que passa sem exercitar o que diz exercitar, e um teste que existia e foi removido;
+  - no ticket de contrato, qualquer defeito no que os outros tickets vão copiar ou consumir.
+- **Simples, não reprova.** Só o que sobra depois da lista acima: o comportamento para quem
+  usa está certo, nenhum dado corre risco e o defeito não se espalha para outro ticket. Vira
+  pendência: o ticket é integrado, e você a confere no passe final.
+
+Pendência é exceção. Um ticket com mais de duas não está pronto: reprove, e liste todas como
+achado. A aprovação com mais de duas pendências não é gravada.
 
 Na dúvida entre os dois, é severo.
 

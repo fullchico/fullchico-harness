@@ -31,7 +31,10 @@ além dessas chaves, ignore.
 ## Como ler
 
 Leia o diff com `git diff <valor de diff>`. O código do commit está no worktree do implementador:
-`git worktree list` mostra o caminho, e é lá que você roda comandos. Você não troca o commit
+`git worktree list` mostra o caminho, e é lá que você roda comandos. Não copie o projeto para
+outra pasta e não deixe nada rodando: servidor, observador de arquivos ou processo em segundo
+plano que você iniciou é encerrado por você antes de responder. Um processo esquecido numa
+porta da feature impede o resto da entrega de subir a aplicação. Você não troca o commit
 deste worktree (`git checkout`, `switch`, `reset`, `stash` são recusados): ele é da feature.
 
 ## O que procurar
@@ -52,7 +55,8 @@ deste worktree (`git checkout`, `switch`, `reset`, `stash` são recusados): ele 
 - **Severo:** um ticket seguinte não consegue instalar, compilar ou rodar a checagem numa
   cópia limpa; ou a checagem passa sem exercitar o que diz exercitar. Reprova.
 - **Simples:** incômodo que não impede ninguém de trabalhar nem esconde defeito. Não
-  reprova: vira pendência.
+  reprova: vira pendência. Pendência é exceção: com mais de duas, reprove e liste todas como
+  achado; a aprovação com mais de duas pendências não é gravada.
 
 Todo achado traz o **caso concreto**: o comando, onde foi rodado, o que saiu e o que deveria
 sair. Sem caso, é suspeita, e vai separada, como pergunta: não reprova nem vira pendência.

@@ -5,8 +5,8 @@ import unittest
 from tests.helpers import clone_repo, commit_all, commit_file, git, make_repo, owner_approve, run_hook, sync
 
 
-def hunter_says(repo, sha, body, verdict="APPROVED"):
-    return run_hook("gate_stamp.py", {"hook_event_name": "SubagentStop", "agent_type": "harness:revisor-bugs",
+def hunter_says(repo, sha, body, verdict="APPROVED", agent="harness:revisor-bugs"):
+    return run_hook("gate_stamp.py", {"hook_event_name": "SubagentStop", "agent_type": agent,
                                       "cwd": str(repo),
                                       "last_assistant_message": f"{body}\nVEREDITO: {verdict}\nCOMMIT: {sha}\nRESUMO: x"})
 
@@ -55,7 +55,22 @@ class TestPendings(unittest.TestCase):
         self.assertEqual(self.pendings().strip(), "")
         self.assertEqual(self.push().returncode, 0)
 
-    def test_only_the_bug_hunter_opens_or_closes(self):
+    def test_the_environment_reviewer_opens_pendings_too(self):
+        hunter_says(self.repo, self.sha, "PENDENCIA: aviso no log da instalação | teste: t", agent="harness:revisor-ambiente")
+        self.assertIn("aviso no log da instalação", self.pendings())
+
+    def test_too_many_pendings_is_not_an_approval(self):
+        import os
+        import common
+        body = "\n".join(f"PENDENCIA: item {n} | teste: t" for n in range(3))
+        hunter_says(self.repo, self.sha, body)
+        self.assertEqual(self.pendings().strip(), "", "viram achado da rodada de correção, não pendência")
+        self.assertFalse(os.path.exists(common.approval_path(common.state_dir(str(self.repo)), "bugs", self.sha)))
+        hunter_says(self.repo, self.sha, "PENDENCIA: item 0 | teste: t\nPENDENCIA: item 1 | teste: t")
+        self.assertTrue(os.path.exists(common.approval_path(common.state_dir(str(self.repo)), "bugs", self.sha)))
+        self.assertIn("P2", self.pendings())
+
+    def test_only_reviewers_open_or_close(self):
         hunter_says(self.repo, self.sha, "PENDENCIA: algo simples | teste: t")
         run_hook("gate_stamp.py", {"hook_event_name": "SubagentStop", "agent_type": "harness:implementador", "cwd": str(self.repo),
                                    "last_assistant_message": f"RESOLVIDA: P1\nVEREDITO: APPROVED\nCOMMIT: {self.sha}\nRESUMO: x"})

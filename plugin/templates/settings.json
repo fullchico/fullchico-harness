@@ -72,6 +72,11 @@
             "type": "command",
             "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/gate_stamp.py\"",
             "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.harness/ports-free\"",
+            "timeout": 30
           }
         ]
       }
@@ -145,7 +150,9 @@
       "./.harness/skills-show *",
       ".harness/skills-add *",
       "./.harness/skills-add *",
-      "./.harness/pr *"
+      "./.harness/pr *",
+      ".harness/ports-free",
+      "./.harness/ports-free"
     ],
     "network": {
       "allowLocalBinding": true,
@@ -195,7 +202,9 @@
       "Bash(./.harness/skills-search *)",
       "Bash(.harness/skills-show *)",
       "Bash(./.harness/skills-show *)",
-      "Bash(./.harness/pr *)"
+      "Bash(./.harness/pr *)",
+      "Bash(.harness/ports-free)",
+      "Bash(./.harness/ports-free)"
     ]
   }
 }

@@ -33,7 +33,8 @@ sys.exit(0 if d.get("status") == "PASS" and d.get("gate") == "bugs" and d.get("s
   "$STATE/approvals/bugs/$TIP.json" "$TIP" || {
   echo "integrate: falta a caça a bugs do ticket, no commit $TIP." >&2
   echo "  Dispare o harness:revisor-bugs com spec, ticket, diff (<branch da feature>...$TIP) e commit ($TIP)." >&2
-  echo "  Se ele reprovou, é rodada de correção para este ticket; commit novo pede revisão nova." >&2
+  echo "  Se ele reprovou, ou aprovou com mais de duas pendências, é rodada de correção para este ticket;" >&2
+  echo "  commit novo pede revisão nova." >&2
   exit 1
 }
 
