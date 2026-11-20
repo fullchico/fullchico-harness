@@ -32,8 +32,8 @@ podem ser feitos agora, em paralelo.
 
 1. Pegue da fronteira até `MAX_PARALLEL` tickets. O valor está no `harness.conf`; se não
    estiver, use 3.
-2. Em cada um, troque `Status: open` por `Status: claimed`. Faça um commit só:
-   `chore(tickets): claim <NN>, <NN>`.
+2. Marque-os como em andamento, com o comando, que também faz o commit:
+   `.harness/ticket claim docs/specs/<slug> <NN> <NN>`.
 3. Dispare todos na mesma mensagem, para rodarem ao mesmo tempo. Para cada ticket, a
    ferramenta de subagente com:
    - o agente: um agente do projeto em `.claude/agents/` cuja descrição cobre a área do
@@ -70,16 +70,17 @@ um prepara a própria cópia com `.harness/setup-worktree`, que traz o `.env` da
 instala as dependências.
 
 Se um implementador cair sem entregar, o ticket dele fica preso em `claimed` e some da
-fronteira. Devolva-o a `Status: open`, faça o commit, e despache de novo.
+fronteira. Reabra-o com `.harness/ticket reopen` e despache de novo.
 
 ## Quando o implementador diz que falta algo
 
-É uma lacuna da spec ou do ticket. Corrija o documento, faça o commit, devolva o ticket a
-`Status: open` e despache de novo. Não responda a lacuna no pedido.
+É uma lacuna da spec ou do ticket. Corrija o documento, faça o commit, reabra o ticket com
+`.harness/ticket reopen` e despache de novo. Não responda a lacuna no pedido.
 
 Se o que falta é algo comum (um tipo, um utilitário, uma dependência), ele pertence ao ticket
-de contrato: acrescente o item a esse ticket, devolva-o a `Status: open`, despache-o, integre,
-e só então reabra o ticket que relatou a falta.
+de contrato: acrescente o item a esse ticket, reabra-o com
+`.harness/ticket reopen docs/specs/<slug> <NN> "<o que falta>"`, despache-o, integre, e só
+então reabra o ticket que relatou a falta.
 
 ## Rodada de correção
 
@@ -87,8 +88,8 @@ Quando a checagem ou um revisor reprova:
 
 1. Grave o achado, como veio, em `docs/specs/<slug>/achados/<NN>-rodada-<n>.md` e faça o
    commit. O arquivo precisa estar versionado para o implementador enxergá-lo no worktree dele.
-2. Devolva o ticket afetado a `Status: open`, faça o commit, e despache-o de novo, com o
-   achado apontado. O implementador começa de uma cópia nova da feature: se a rodada veio de
+2. Reabra o ticket afetado, com `.harness/ticket reopen docs/specs/<slug> <NN> "<motivo>"`,
+   e despache-o de novo, com o achado apontado. O implementador começa de uma cópia nova da feature: se a rodada veio de
    uma recusa do `.harness/integrate`, o trabalho anterior não está nela, então diga no achado
    o nome da branch recusada, para ele trazer o que serve com `git merge <branch>`; no conflito
    do arquivo do ticket, vale `Status: open`. Integrado

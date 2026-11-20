@@ -28,8 +28,18 @@ a entrega valer. Cada um vira um teste de ponta a ponta, e é essa suíte que pr
 funciona nas entregas seguintes.
 
 **Módulos e contrato.** Os módulos do back e as fatias do front que nascem ou mudam, cada um
-com a sua pasta, e o contrato entre front e back: os tipos e as operações, onde ficam, e o que
-mais é comum a mais de um módulo. É daqui que sai a posse de cada ticket.
+com a sua pasta. É daqui que sai a posse de cada ticket. O contrato tem duas partes, e as duas
+ficam definidas aqui, antes de qualquer implementação:
+
+- **Entre front e back:** as operações (método, rota, status) e os tipos de entrada e saída.
+- **Entre módulos:** para cada módulo, o que ele **oferece** aos outros e o que ele **consome**
+  de outros: a porta, o que ela recebe e devolve, e quem a implementa. Um módulo nunca
+  importa outro: consome uma porta que mora no que é comum. Todo "consome" tem de ter um
+  "oferece" correspondente. Liste também o que os testes de todos precisam em comum (como
+  isolar banco e fila entre implementadores que rodam juntos).
+
+O que ficar de fora daqui vira um ticket reaberto no meio da entrega, e uma rodada perdida
+para todos os que dependem dele.
 
 **Ambiente e execução.** Quem executa a spec não tem a quem perguntar, então diga aqui:
 os serviços de que os testes dependem (banco, fila) e como cada implementador isola o seu

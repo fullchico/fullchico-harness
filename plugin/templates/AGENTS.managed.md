@@ -63,7 +63,9 @@ então a mudança é o assunto da spec, não um efeito colateral.
 - **Porta só para o que sai do processo** (banco, fila, serviço externo). Ali ela vale mesmo
   com uma implementação só. Log, relógio e utilitário não viram porta, e o use case não
   precisa de interface de entrada: ele mesmo é a entrada.
-- **Cada módulo monta as próprias dependências,** dentro da pasta dele.
+- **Cada módulo monta as próprias dependências,** dentro da pasta dele. Um módulo nunca
+  importa outro: o que um oferece ao outro é uma porta definida no que é comum, pelo ticket
+  de contrato.
 <!-- /perfil -->
 <!-- perfil: fullstack-typescript -->
 - **Front:** Feature-Sliced Design puro (skill `feature-sliced-design`): o código nasce na

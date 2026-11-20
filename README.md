@@ -100,6 +100,7 @@ o servidor de git e só acessa os sites liberados. Para você, no terminal, nada
 | `.harness/destroy` | remove o ambiente da feature | você ou o agente, com a sua permissão |
 | `.harness/conf-apply` | grava o `harness.conf` que o agente propôs | o agente |
 | `.harness/integrate <ticket> <branch>` | junta o trabalho de um implementador: posse, merge, checagem | o agente |
+| `.harness/ticket claim\|reopen` | marca tickets como em andamento, ou reabre um, já com o commit | o agente |
 | `.harness/agents-clean` | remove os worktrees de agente já integrados | o agente |
 | `.harness/fetch` | atualiza as referências do remoto | o agente |
 | `.harness/push` | envia a branch, depois do portão | o agente |

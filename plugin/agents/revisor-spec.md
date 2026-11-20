@@ -29,6 +29,9 @@ Cite o trecho da spec em cada item:
 - **Requisito ambíguo:** uma frase que dois implementadores leriam de formas diferentes.
 - **Decisão que falta:** um ponto em que quem implementa teria de escolher sozinho, e a
   escolha muda o resultado.
+- **Módulo que depende de outro sem contrato:** a spec diz que um módulo usa algo de outro
+  (avisar, consultar, validar) e não define a porta: o que ela recebe e devolve, onde mora e
+  quem a implementa. Vale também para o que front e back trocam sem estar nas operações.
 - **Teste sem ponto de costura:** comportamento que a spec pede e não diz por onde se testa.
 - **Conflito:** com o glossário, com um ADR, ou com o que o código já faz.
 - **Risco de implementação:** onde a mudança é maior ou mais frágil do que a spec dá a entender.
