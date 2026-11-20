@@ -9,8 +9,9 @@ num serviço externo.
 - A spec é `docs/specs/<slug>/spec.md`.
 - Tickets são um arquivo cada, em `docs/specs/<slug>/issues/<NN>-<slug>.md`,
   numerados a partir de `01`. Nunca um arquivo único com todos.
-- Cada ticket tem, perto do topo, uma linha `Status:` e uma linha
-  `Blocked by: NN, NN` (vazia quando nada o bloqueia).
+- Cada ticket tem, perto do topo, uma linha `Status:`, uma linha
+  `Blocked by: NN, NN` (vazia quando nada o bloqueia) e uma linha `Owns:` com as
+  pastas ou arquivos que são só dele.
 - Não há rótulos de triagem.
 
 ## Quando uma skill disser "publish to the issue tracker"

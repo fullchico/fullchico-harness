@@ -46,7 +46,8 @@ except (OSError, ValueError):
 ok = d.get("status") == "PASS" and d.get("gate") == sys.argv[2] and d.get("sha") == sys.argv[3]
 # A aprovação de um revisor vale para o intervalo que ele leu: a base tem de ser a
 # mesma que o remoto informa. O carimbo do dono vale para o commit.
-ok = ok and (d.get("by") == "owner" or (d.get("base") and d.get("base") == sys.argv[4]))
+# Remoto ainda sem nenhum commit: não há base de lá para comparar, e o que sobe é o histórico inteiro.
+ok = ok and (d.get("by") == "owner" or not sys.argv[4] or (d.get("base") and d.get("base") == sys.argv[4]))
 sys.exit(0 if ok else 1)
 PY
 }

@@ -1,13 +1,30 @@
 # Fatiar a spec em tickets
 
-Um ticket é uma fatia vertical: atravessa as camadas necessárias e entrega algo que
-funciona e se testa sozinho. "Criar a tabela", "fazer a API" e "fazer a tela" são camadas,
-não fatias. "Usuário troca a foto e vê a nova no perfil" é uma fatia.
+## Antes de fatiar
+
+**O `harness.conf`.** Se o projeto ainda não tem `PROJECT` nele, grave agora, com o que a spec
+diz: escreva o conteúdo em `.harness-run/harness.conf` e rode exatamente `.harness/conf-apply`,
+sozinho, sem `&&` nem `;`. O comando confere a proposta e grava o arquivo, sem perguntar ao
+dono. Faça o commit do `harness.conf`. É antes de fatiar porque `CONTRACT_PATHS` muda o que o
+validador do grafo aceita.
+
+**Entrega retomada.** Se a pasta `issues/` da spec já existe, não fatie de novo: valide o grafo
+e continue da fronteira.
+
+## O que é um ticket
+
+Um ticket entrega um comportamento que funciona e se testa sozinho, dentro de uma pasta que é
+só dele: um módulo do back, ou uma fatia do front. Não é uma camada técnica do sistema inteiro
+("criar todas as tabelas", "fazer todas as telas").
 
 - Cada ticket cabe numa sessão de um implementador.
-- Um ticket que só prepara o terreno para os outros é legítimo, e bloqueia os que dependem dele.
-- Dois tickets que não se bloqueiam serão feitos ao mesmo tempo, por pessoas diferentes.
-  Se eles mexem no mesmo arquivo, um deve bloquear o outro.
+- O primeiro ticket é o de contrato: o que front e back trocam, o que é comum, as dependências,
+  o compose do ambiente e o que liga os módulos ao aplicativo. Ele bloqueia todos os outros e
+  não tem teste que dependa do ambiente, porque é ele que o traz.
+- Com o contrato fechado, o módulo do back e a fatia do front do mesmo recurso são tickets
+  separados e rodam juntos: cada lado testa contra o contrato.
+- Dois tickets que não se bloqueiam serão feitos ao mesmo tempo. Se precisam do mesmo arquivo,
+  um bloqueia o outro.
 
 ## Formato
 
@@ -32,37 +49,53 @@ os implementadores não trocam mensagens: quem precisa de algo que não é seu r
   outros tickets esperem por ele.
 - **Com o contrato fechado, back e front do mesmo recurso rodam juntos:** cada lado testa
   contra o contrato, sem esperar o outro existir.
-- **Nada de arquivo central editado por vários.** Registro de módulos, índice geral e schema
-  único são do ticket de contrato, ou então são montados por convenção.
+- **Nada de arquivo central editado por vários.** Cada módulo monta as próprias dependências
+  dentro da pasta dele. O que liga os módulos ao aplicativo, o índice geral e o schema único
+  são do ticket de contrato, ou então são descobertos por convenção.
+- **Da skill, não use:** posse por camada, substituto escrito por um implementador para
+  destravar outro, e junção feita à mão. Aqui a posse é por pasta e quem junta é o
+  `.harness/integrate`.
 
-```ticket 01-guardar-foto.md
-# Guardar a foto enviada
+```ticket 01-contrato-da-foto.md
+# Contrato da troca de foto
 
 Status: open
 Blocked by:
-Owns: src/arquivos
+Owns: packages/contracts
+
+## O que entregar
+
+Os tipos do envio de foto e da resposta, e os erros definidos na spec, no pacote que front e
+back importam.
+
+## Como validar
+
+A checagem de tipos passa nos dois lados.
+```
+
+```ticket 02-guardar-foto.md
+# Guardar a foto enviada
+
+Status: open
+Blocked by: 01
+Owns: apps/api/src/modules/arquivos
 
 ## O que entregar
 
 O envio de uma imagem válida grava o arquivo e devolve o endereço dele. Imagem maior que
-o limite ou de tipo não aceito é recusada com o erro definido na spec.
+o limite ou de tipo não aceito é recusada com o erro do contrato.
 
 ## Como validar
 
-Pelo ponto de costura do serviço de arquivos: enviar uma imagem válida, uma grande demais
-e uma de tipo errado.
-
-## Arquivos prováveis
-
-O serviço de arquivos e os testes dele.
+Pelo use case de guardar foto: uma imagem válida, uma grande demais e uma de tipo errado.
 ```
 
-```ticket 02-mostrar-foto-no-perfil.md
+```ticket 03-mostrar-foto-no-perfil.md
 # Mostrar a foto nova no perfil
 
 Status: open
 Blocked by: 01
-Owns: src/perfil
+Owns: apps/web/src/pages/perfil
 
 ## O que entregar
 
@@ -70,12 +103,10 @@ Depois de trocar a foto, o perfil mostra a nova, sem recarregar a página.
 
 ## Como validar
 
-Pelo ponto de costura da tela de perfil, com o serviço de arquivos simulado.
-
-## Arquivos prováveis
-
-A tela de perfil e os testes dela.
+Pela tela de perfil, com as respostas do contrato simuladas.
 ```
+
+Os tickets 02 e 03 rodam juntos: possuem pastas diferentes e esperam só o contrato.
 
 ## Antes de seguir
 

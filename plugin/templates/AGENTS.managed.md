@@ -5,8 +5,8 @@ do projeto fica abaixo do marcador final.
 
 ## Papéis
 
-- **Elefante:** o agente raiz da sessão. Carrega o contexto, desenha com o dono,
-  dispara e monta tudo.
+- **Elefante:** o agente raiz da sessão. Carrega o contexto e desenha com o dono:
+  entrevista e spec. Entrega a execução ao `orquestrador`.
 - **Goldfish:** todo subagente. Nasce sem a conversa, entrega o trabalho e não
   valida o próprio resultado.
 - **Dono:** aprova a spec e faz o merge.
@@ -48,8 +48,10 @@ elas divergem, vale o que está aqui.
 - **Back:** módulos por área de negócio. Dentro de cada um: domínio, use cases, portas e
   adaptadores, com as dependências apontando para dentro (skill `hexagonal-architecture`).
   Um use case por comportamento, recebendo as portas por injeção, sem importar framework.
-- **Porta só em fronteira de entrada e saída** (banco, fila, serviço externo). Ali ela vale
-  mesmo com uma implementação só. Log, relógio e utilitário não viram porta.
+- **Porta só para o que sai do processo** (banco, fila, serviço externo). Ali ela vale mesmo
+  com uma implementação só. Log, relógio e utilitário não viram porta, e o use case não
+  precisa de interface de entrada: ele mesmo é a entrada.
+- **Cada módulo monta as próprias dependências,** dentro da pasta dele.
 - **Front:** Feature-Sliced Design puro (skill `feature-sliced-design`): o código nasce na
   página, cada fatia tem entrada pública, e só se importa de camada abaixo.
 - **Contrato:** o que front e back trocam fica num pacote comum, importado pelos dois. O
@@ -97,7 +99,7 @@ worktree da feature e usam o ambiente dela.
 
 - O ambiente só sobe quando a validação exige. Teste que roda sem infra não sobe nada.
 - `.harness/up` sobe a infra, `.harness/down` para, `.harness/destroy` remove e
-  apaga os dados. Os três perguntam ao dono antes de rodar. Só o orquestrador os chama.
+  apaga os dados. Só o `destroy` pergunta ao dono. Rodam sozinhos, sem `&&` nem `;`.
 - `.harness/prepare` roda migration e seed; `.harness/dev` roda o app
   (`--background` para deixar rodando). Os dois usam as portas da feature.
 - As portas estão no `.env` do worktree. Não se escolhe porta à mão.
@@ -116,7 +118,8 @@ Spec já mesclada é histórico. A verdade é o código, os testes e o históric
 
 - **Gerenciados, não edite:** `.harness/`, `.claude/settings.json`, `CLAUDE.md`,
   `docs/agents/` e esta região.
-- **Do projeto, só o dono edita:** `harness.conf` e `harness.d/`.
+- **Do projeto:** `harness.conf` muda por `.harness/conf-apply` ou pelo dono; `harness.d/` é
+  só do dono. `.claude/skills/` e `skills-lock.json` são das skills dos autores: não edite.
 - **Livres:** `CLAUDE.local.md`, o código, e o que está abaixo desta região.
 
 Mudança de padrão se faz no repositório do harness, não aqui.

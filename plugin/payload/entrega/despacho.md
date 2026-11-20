@@ -2,19 +2,14 @@
 
 ## Antes da primeira rodada
 
-**O `harness.conf`.** Sem `PROJECT` nele não há portas, nem ambiente, nem worktree de
-implementador. Se estiver vazio (projeto novo), proponha você: escreva o conteúdo em
-`.harness-run/harness.conf`, no formato do arquivo atual, com o que a spec decidiu, e rode
-exatamente `.harness/conf-apply`. O comando confere a proposta, grava o arquivo e as portas no
-`.env`, sem perguntar ao dono. Faça o commit do `harness.conf`: é pelo diff que os revisores o
-conferem. Nunca peça ao dono para colar o arquivo.
+**O `harness.conf`** já foi gravado antes de fatiar (`.harness/entrega/tickets.md`).
 
-**O ambiente.** Se os testes da entrega precisam de banco ou de outro serviço, suba antes:
-`.harness/up`, depois `.harness/prepare`. Ticket que depende do ambiente não é concluído com
-teste contra um substituto em memória: sem ambiente de verdade ele fica `claimed`.
-
-Rode `.harness/conf-apply` e `.harness/up` sozinhos, um por chamada, sem `&&` nem `;`. Só a
-forma exata sai do sandbox; encadeados, eles rodam dentro dele e falham.
+**O ambiente.** Se os testes da entrega precisam de banco ou de outro serviço, suba com
+`.harness/up` e depois `.harness/prepare`, cada um sozinho, sem `&&` nem `;`: só a forma exata
+sai do sandbox. Em projeto novo o compose chega com o ticket de contrato: integre-o primeiro, e
+só então suba o ambiente e despache os demais. Ticket que depende do ambiente não é concluído
+com teste contra um substituto em memória: sem ambiente de verdade ele fica `claimed`. O
+ambiente fica de pé até o envio.
 
 **Testes em paralelo.** Os implementadores de uma rodada dividem o ambiente da feature. Se os
 testes usam banco, a spec precisa dizer como cada um isola o seu (um banco de teste por ticket,
@@ -78,13 +73,21 @@ fronteira. Devolva-o a `Status: open`, faça o commit, e despache de novo.
 É uma lacuna da spec ou do ticket. Corrija o documento, faça o commit, devolva o ticket a
 `Status: open` e despache de novo. Não responda a lacuna no pedido.
 
+Se o que falta é algo comum (um tipo, um utilitário, uma dependência), ele pertence ao ticket
+de contrato: acrescente o item a esse ticket, devolva-o a `Status: open`, despache-o, integre,
+e só então reabra o ticket que relatou a falta.
+
 ## Rodada de correção
 
 Quando a checagem ou um revisor reprova:
 
 1. Grave o achado, como veio, em `docs/specs/<slug>/achados/<NN>-rodada-<n>.md` e faça o
    commit. O arquivo precisa estar versionado para o implementador enxergá-lo no worktree dele.
-2. Despache o ticket afetado de novo, com o achado apontado:
+2. Devolva o ticket afetado a `Status: open`, faça o commit, e despache-o de novo, com o
+   achado apontado. O implementador começa de uma cópia nova da feature: se a rodada veio de
+   uma recusa do `.harness/integrate`, o trabalho anterior não está nela, então diga no achado
+   o nome da branch recusada, para ele trazer o que serve com `git merge <branch>`. Integrado
+   o ticket refeito, jogue fora a branch recusada: `.harness/agents-clean --discard <branch>`.
 
 ```pedido harness:implementador
 spec: docs/specs/exemplo/spec.md
@@ -93,6 +96,10 @@ achado: docs/specs/exemplo/achados/01-rodada-1.md
 ```
 
 3. Junte o resultado e volte ao fechamento.
+
+**O que você corrige sem despachar ninguém,** porque não é de nenhum ticket: a spec, o
+glossário, os tickets e o `harness.conf` (por `.harness/conf-apply`). Tipo de commit errado
+apontado pelo revisor não se conserta com commit novo: devolva o relato, é decisão do dono.
 
 Conte as rodadas. Um ticket reprovado duas vezes passa a ser despachado com o modelo
 `opus`. A entrega inteira tem limite de 3 rodadas de correção: na quarta, pare e devolva o

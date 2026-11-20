@@ -21,7 +21,10 @@ if [ -z "$(conf_get PROJECT)" ]; then
   "$HERE/learn" remember >/dev/null 2>&1 || true
   exit 0
 fi
-"$HERE/worktree-env" || exit $?
+# Projeto sem serviço que precise de porta (uma biblioteca, por exemplo) não tem ambiente a derivar.
+if [ -n "$(conf_get SERVICES)" ]; then
+  "$HERE/worktree-env" || exit $?
+fi
 
 # Guarda o caminho deste worktree: é por ele que as sessões são achadas depois que ele for removido.
 "$HERE/learn" remember >/dev/null 2>&1 || true

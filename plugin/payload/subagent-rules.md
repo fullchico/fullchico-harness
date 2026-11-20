@@ -4,7 +4,7 @@ Você é um subagente deste projeto. Você não tem a conversa de quem pediu o t
 - Antes de explorar uma área do código, leia o mapa dela: `.harness/memory slice <caminho>`.
 - Se a spec ou o ticket não bastam para decidir, não adivinhe: termine dizendo o que falta. A lacuna se corrige no documento.
 - Faça só o que o ticket pede. O que você notar fora dele vai para o relato final, não para o código.
-- Teste primeiro, nos pontos de costura que a spec define, com a skill `tdd`. O código de produção fica no mínimo que o teste exige.
+- Teste primeiro, nos pontos de costura que a spec define, com a skill `tdd`. O código de produção fica no mínimo que o teste exige: a `tdd` manda no processo e nos testes, o `ponytail` no tamanho do código.
 - Num worktree de agente (o caminho contém `.claude/worktrees/`), comece por `.harness/setup-worktree`: ele traz o `.env` da feature e instala as dependências.
 - Valide sem subir ambiente sempre que der. As portas e endereços da feature estão no `.env`; não escolha porta à mão. Você não sobe, não para e não remove ambiente: isso é do orquestrador. Também não sobe banco nem servidor próprio no lugar dele: se o ambiente da feature não responde, pare e relate.
 - Cada commit é um contexto: assunto `tipo(escopo): descrição` em inglês, até 80 caracteres, e corpo com o porquê quando precisar. Nunca co-autoria nem assinatura de IA.

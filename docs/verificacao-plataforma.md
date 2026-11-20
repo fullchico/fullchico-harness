@@ -110,7 +110,7 @@ em `127.0.0.1:26379`, Docker 28.3.2, sessões `claude -p`. Conferido pelo estado
 
 Consequências:
 
-- O desenho do ambiente vale como planejado: `up` fora do sandbox com pergunta ao dono,
+- O desenho do ambiente valia como planejado na época (depois a pergunta do `up` foi retirada): `up` fora do sandbox com pergunta ao dono,
   `prepare` e `dev` dentro do sandbox falando com `localhost`.
 - O resumo do compose pode ir na pergunta, porque o hook roda antes do comando excluído.
 - As configurações geradas precisam liberar escrita nos caches dos gerenciadores de pacote,
@@ -155,3 +155,22 @@ A skill `entregar` depende de comportamentos da plataforma que nenhuma sessão r
 - Que `autoAllowBashIfSandboxed` e as regras `permissions.allow` evitam pergunta nos comandos
   de dentro do sandbox e em `fetch`, `push` e `pr`.
 - Que o sandbox protege o `.harness/` dentro de um worktree de agente.
+
+## Conferido em 2026-11-19, em sessões reais
+
+Duas entregas num projeto de teste e três sessões mínimas montadas para isolar um fato cada.
+
+| Fato | Como foi visto |
+|---|---|
+| O worktree de um subagente com `isolation: worktree` fica sob o checkout principal (`.claude/worktrees/agent-<id>`), mesmo com a sessão num worktree de feature aberto pelo Orca | segunda entrega: os implementadores herdaram as portas do checkout principal. Corrigido: a feature é achada pelo git |
+| O `claude plugin install` regrava o `.claude/settings.json` com as chaves em outra ordem | primeira instalação real. Corrigido: arquivo JSON gerenciado é comparado pelo conteúdo |
+| No `SubagentStop`, a transcrição do subagente ainda não tem a resposta final; ela vem em `last_assistant_message` | sessão mínima que gravou a entrada do hook. Corrigido no `gate_stamp` |
+| Um subagente dispara outros subagentes, com `isolation: worktree`, e `PreToolUse(Agent)`, `SubagentStart` e `SubagentStop` disparam nos dois níveis; a entrada do `PreToolUse` traz o `agent_type` de quem chama | sessão mínima com dois agentes de projeto. É a base da regra de cadeia do `dispatch_guard` |
+| Dois revisores reais gravam as duas aprovações, o `.harness/push` passa pelo portão e um commit novo sem revisão é barrado | `tests/smoke/real-session.sh` |
+| Comando do harness encadeado (`x && .harness/up`) não casa com a exclusão do sandbox e roda dentro dele | as duas entregas. Agora o `service_guard` nega com o motivo |
+| `next dev` (Turbopack) não sobe dentro do sandbox: não abre o fluxo de vigia de arquivos | primeira entrega. A validação é feita sobre o build de produção |
+| No modo sem interface (`claude -p`), subagentes em segundo plano são encerrados 10 minutos depois do último turno, salvo `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0` | terceira entrega, cortada no meio. É limite do método de teste, não do harness |
+
+Continua sem conferência: uma entrega inteira com o orquestrador em Sonnet até o pull request; a
+remoção de worktrees de agente feita de dentro do sandbox; `.harness/pr` contra o GitHub; e as
+skills `mapear`, `dream` e `aprender` num projeto de verdade.

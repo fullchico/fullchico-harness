@@ -35,8 +35,8 @@ OUTSIDE="$(git diff --name-only -z "$BASE" "$BRANCH" | python3 -I -c "$CHECK" "$
 if [ -n "$OUTSIDE" ]; then
   echo "integrate: a branch $BRANCH mexeu em arquivos que não são do ticket (Owns:):" >&2
   echo "$OUTSIDE" | sed 's/^/  /' >&2
-  echo "  Um dono por arquivo. Devolva ao implementador para desfazer isso; se o ticket precisa mesmo" >&2
-  echo "  desses arquivos, corrija a posse no ticket (e o grafo), faça o commit e despache de novo." >&2
+  echo "  Um dono por arquivo. Se o ticket precisa mesmo desses arquivos, corrija a posse no ticket" >&2
+  echo "  (e o grafo) e faça o commit. Depois é uma rodada de correção: veja .harness/entrega/despacho.md." >&2
   exit 1
 fi
 
@@ -44,7 +44,13 @@ HEAD_BEFORE="$(git rev-parse HEAD)"
 NAME="$(basename "$TICKET" .md)"
 if ! git merge --no-ff -q "$BRANCH" -m "Merge ticket $NAME" >/dev/null 2>&1; then
   git merge --abort 2>/dev/null
-  die "conflito ao juntar $BRANCH. Outro ticket já mexeu nos mesmos arquivos: o fatiamento está errado. Traga a branch da feature para dentro da do implementador, numa rodada de correção."
+  die "conflito ao juntar $BRANCH. Outro ticket já mexeu nos mesmos arquivos: o fatiamento está errado. Corrija a posse dos tickets; depois é uma rodada de correção (.harness/entrega/despacho.md)."
+fi
+# O ticket pode ter trazido dependência nova: sem instalar, a checagem falharia por ela.
+INSTALL="$(conf_get INSTALL_CMD)"
+if [ -n "$INSTALL" ] && ! bash -c "$INSTALL" >/dev/null 2>&1; then
+  git reset -q --hard "$HEAD_BEFORE"
+  die "a instalação de dependências ($INSTALL) falhou com o ticket $NAME integrado; a junção foi desfeita."
 fi
 if ! "$HERE/validate" --profile push; then
   git reset -q --hard "$HEAD_BEFORE"

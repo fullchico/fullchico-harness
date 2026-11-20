@@ -153,7 +153,8 @@ def ready_for_execution(prompt, root):
             if "harness.conf" not in f.read():
                 return ("Este projeto ainda não tem `harness.conf` preenchido, e a spec não diz o conteúdo dele. "
                         "Acrescente à spec uma seção `harness.conf` com as chaves (PROJECT, SERVICES, COMPOSE_FILE, "
-                        "INSTALL_CMD, AFTER_UP, DEV_CMD, VALIDATE_PUSH, VALIDATE_MERGE, ENV_*) e faça o commit.")
+                        "INSTALL_CMD, AFTER_UP, DEV_CMD, VALIDATE_PUSH, VALIDATE_MERGE, VALIDATE_ARCH, CONTRACT_PATHS, "
+                        "ENV_*) e faça o commit.")
     return None
 
 

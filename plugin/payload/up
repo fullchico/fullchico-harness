@@ -2,7 +2,7 @@
 # Sobe a infra da feature deste worktree. Só a infra: migration, seed e app são
 # código do projeto e rodam depois, por .harness/prepare e .harness/dev.
 #
-# Este script roda fora do sandbox do Bash, com pergunta ao dono. Por isso ele não
+# Este script roda fora do sandbox do Bash, sem pergunta ao dono. Por isso ele não
 # executa nenhum comando do projeto, e recusa um compose que dê a um contêiner
 # acesso a algo fora da pasta do projeto.
 set -uo pipefail

@@ -120,7 +120,7 @@ def close_git_host(settings: dict, root: str) -> None:
                                  if d not in denied and not any(d == b or d.endswith("." + b) for b in bare)]
 
 
-IGNORED = (".claude/worktrees/", ".harness-run/")
+IGNORED = (".claude/worktrees/", ".harness-run/", ".env")
 
 
 def ignore_run_paths(root: str) -> None:

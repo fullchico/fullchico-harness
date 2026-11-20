@@ -2,7 +2,7 @@
 name: revisor
 description: Revisor de código do portão de push. Recebe só ponteiros para o diff, o commit e a spec, revisa em dois eixos (padrões do repositório e aderência à spec) sem a conversa de quem escreveu, e devolve um veredito que libera ou barra o push. Use antes de todo push.
 model: sonnet
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, Skill
 ---
 
 # Revisor de código
@@ -47,8 +47,9 @@ Só quando houver `spec:`. Cite a linha da spec em cada achado:
 
 ## Eixo 3: arquitetura e clareza
 
-A rubrica é a skill `clean-code-guard` (nomes, funções, SOLID, DRY) e, para duplicação e
-enxugamento, os critérios da `ponytail-review`. Use-as só como lista do que procurar: você não
+A rubrica é a skill `clean-code-guard` (nomes, funções, SOLID, DRY), em
+`.claude/skills/clean-code-guard/`, e, para duplicação e enxugamento, os critérios da
+`ponytail-review`. Carregue-as com a ferramenta de skill. Use-as só como lista do que procurar: você não
 edita nada, e as convenções de arquitetura do `AGENTS.md` valem sobre as duas. Aponte, citando
 a regra:
 

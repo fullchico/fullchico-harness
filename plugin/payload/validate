@@ -21,8 +21,10 @@ DRIFT="$(python3 -I "$HERE/manifest_check.py" "$ROOT")" || {
 }
 
 # O grafo de tickets de cada spec precisa estar íntegro antes de alguém trabalhar nele.
+# Spec com todos os tickets concluídos é histórico e não é conferida.
 for SPEC in "$ROOT"/docs/specs/*/; do
   [ -d "${SPEC}issues" ] || continue
+  grep -lqE '^Status: (open|claimed)' "${SPEC}issues"/*.md 2>/dev/null || continue
   python3 -I "$HERE/tickets_check.py" "${SPEC%/}" >/dev/null || exit 1
 done
 

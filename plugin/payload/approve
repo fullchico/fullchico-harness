@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Carimbo manual do dono para um portão de push, sobre o commit atual.
 # Uso: .harness/approve <seguranca|revisao> "<resumo do que foi revisado>"
-# Agentes são negados pelo service_guard: quem revisa com IA não carimba.
+# Agentes são negados pelo sandbox e pela exigência de terminal: quem revisa com IA não carimba.
 set -euo pipefail
 
 GATE="${1:-}"

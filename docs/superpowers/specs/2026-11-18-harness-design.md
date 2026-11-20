@@ -103,7 +103,7 @@ Modelo de papéis tirado do Elephant-Goldfish, usado como princípio, sem instal
 dele. **[dono]**
 
 - **Elefante:** a sessão principal, seguindo a skill `entregar`. Carrega o contexto, desenha
-  com o dono, dispara e monta tudo. **[dono]** Não há agente `orquestrador` separado: a skill
+  com o dono, dispara e monta tudo. **[dono]** Até 2026-11-19 não havia agente `orquestrador` separado; hoje há (seção 5.3): a skill
   já é a orquestração, e definir o agente da sessão por plugin não foi confirmado. **[autor]**
 - **Goldfish:** todo subagente, de contexto novo, sem a conversa. Implementadores e
   revisores. Entregam o trabalho; não validam o próprio resultado. **[dono]**
@@ -160,7 +160,7 @@ do dono. Uma pergunta só se justifica quando a ação não tem volta.
 | 5. Validar o grafo | script, grátis | harness | — | sem ciclo, sem referência quebrada |
 | 6. Implementar | despacho do `entregar`; `tdd` | harness; autor | implementadores, em paralelo, cada um num worktree de agente dentro da feature | código e testes em commits de contexto |
 | 7. Integrar | despacho do `entregar` | harness | elefante | tudo na branch de integração |
-| 8. Checar | `.harness/validate`, grátis | harness | — | lint, tipos, testes, segredo, manifesto |
+| 8. Checar | `.harness/validate`, grátis | harness | — | o comando do projeto (lint, tipos, testes), fronteiras de arquitetura, grafo de tickets, manifesto |
 | 9. Revisar | `seguranca` e `revisor` | harness | goldfish, em paralelo | dois vereditos |
 | 10. Enviar e abrir PR | `pr` | autor | elefante | push liberado pelos vereditos; PR |
 
@@ -310,7 +310,7 @@ relatório intermediário do elefante. Também confere: **[autor]**
 - termo de domínio novo fora do glossário, ou sinônimo de termo existente.
 
 A skill `code-review` do autor fica disponível para uso à mão; não entra no portão porque
-dispara subagentes, e subagente não dispara subagente.
+dispara subagentes. (Um subagente pode disparar outros: conferido em 2026-11-19, ver seção 5.3.)
 
 ### 6.2 Trava de spec **[dono]**
 
@@ -504,7 +504,7 @@ skill `entregar`, e os portões (caminho da spec e dos tickets).
 
 Peças próprias do harness e o motivo: especificar, fatiar e despachar (o autor as reserva ao
 usuário); `revisor-spec` (o autor não tem revisão de spec); `seguranca` e `revisor` (o
-portão precisa de um agente com nome, e subagente não dispara subagente).
+portão precisa de um agente com nome).
 
 `docs/agents/` é gerado pelo harness para as skills do autor que leem configuração de lá. O
 instalador do autor (`/setup-matt-pocock-skills`) não é rodado.
@@ -590,10 +590,10 @@ shell para a infra; os scripts são invólucros bash.
 |---|---|---|
 | `setup-worktree` | prepara um worktree novo: copia o `.env` do checkout principal, grava as portas, roda `INSTALL_CMD`, instala os plugins declarados | terminal, Orca ou Conductor |
 | `worktree-env` | deriva projeto Docker e bloco de portas da feature e grava só essas chaves no `.env` | dentro do sandbox |
-| `up` | confere o compose e sobe só a infra | fora do sandbox, com pergunta ao dono |
+| `up` | confere o compose e sobe só a infra | fora do sandbox, sem pergunta |
 | `prepare` | roda `AFTER_UP`: migration e seed | dentro do sandbox |
 | `dev` | roda `DEV_CMD`: o app. `--background` grava PID e log em `.harness-run/` | dentro do sandbox |
-| `down` | para o app em segundo plano e os contêineres; mantém dados | fora do sandbox, com pergunta |
+| `down` | para o app em segundo plano e os contêineres; mantém dados | fora do sandbox, sem pergunta |
 | `destroy` | remove contêineres, volumes e imagens da feature; recusa no checkout principal | fora do sandbox, com pergunta |
 | `validate` | manifesto e o perfil `push` ou `merge` do projeto | dentro do sandbox |
 | `push` | portão e envio da branch atual; `--force` depois de reescrever commits | fora do sandbox |
@@ -675,7 +675,7 @@ Conferidos na documentação do Claude Code:
 - `PreToolUse` dispara em subagentes e traz `agent_type`.
 - `permissions.deny` com `Edit(/caminho)` nega Edit e Write.
 - Memória por projeto em `~/.claude/projects/<projeto>/memory/`, compartilhada entre worktrees.
-- Subagente não dispara subagente.
+- Subagente dispara subagente, até três níveis (documentado e conferido em 2026-11-19).
 - O sandbox do Bash nega escrita em caminhos dentro do projeto para qualquer processo filho,
   protege `~/.claude`, `.git/config` e `.git/hooks` por padrão, vale para subagentes, e os
   hooks rodam fora dele. O diretório temporário do usuário é gravável dentro do sandbox.

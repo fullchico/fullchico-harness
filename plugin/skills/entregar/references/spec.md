@@ -31,7 +31,10 @@ mais é comum a mais de um módulo. É daqui que sai a posse de cada ticket.
 os serviços de que os testes dependem (banco, fila) e como cada implementador isola o seu
 quando vários rodam ao mesmo tempo no mesmo ambiente (um banco de teste por ticket, por
 exemplo); e, se o projeto ainda não tem `harness.conf` preenchido, uma subseção `harness.conf`
-com o conteúdo do arquivo. Sem ela o orquestrador não é despachado.
+com o conteúdo do arquivo, incluindo `CONTRACT_PATHS` (os caminhos do contrato e do que é
+comum) e `VALIDATE_ARCH` (o comando que confere as fronteiras). Sem ela o orquestrador não é
+despachado. O sandbox só alcança o registro do npm: se o projeto instala dependências de outro
+lugar, diga ao dono já na entrevista, porque liberar um domínio é dele (`harness.d/settings.json`).
 
 **Fora de escopo.** O que não entra, dito com todas as letras.
 

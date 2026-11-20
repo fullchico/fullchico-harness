@@ -37,7 +37,8 @@ leitura: GLOSSARY.md
 Leia cada roteiro na hora de usá-lo, não todos de uma vez:
 
 1. Fatiar a spec em tickets: `.harness/entrega/tickets.md`. O grafo precisa passar no
-   validador antes do próximo passo.
+   validador antes do próximo passo. Se os tickets já existem, é uma retomada: não refatie,
+   continue da fronteira e conte as rodadas que os arquivos de achado já registram.
 2. Implementar: `.harness/entrega/despacho.md`. Implementadores em paralelo, cada um num
    worktree de agente, até a fronteira do grafo esvaziar.
 3. Checar, revisar e enviar: `.harness/entrega/fechamento.md`.

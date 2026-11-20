@@ -22,15 +22,15 @@ que falta conferir depende do conjunto funcionando:
 .harness/dev --background
 ```
 
-Rode cada um sozinho, sem encadear. Confira o comportamento pelas portas do `.env`. Ao
-terminar, `.harness/down`.
+Rode cada um sozinho, sem encadear. Confira o comportamento pelas portas do `.env`. Deixe o
+ambiente de pé: uma rodada de correção ainda pode precisar dele. `.harness/down` só depois do
+envio.
 
 O app roda dentro do sandbox. Um servidor de desenvolvimento que vigia arquivos pode não
 subir ali (o `next dev` é um caso). Não é defeito do código: pare o `.harness/dev`, gere o
 build de produção e suba os processos compilados nas mesmas portas do `.env`. Diga no relato
 que a validação foi feita sobre o build.
 
-Antes de revisar, rode `.harness/agents-clean`: nenhum worktree de agente integrado deve sobrar.
 
 ## 3. Revisão
 
@@ -96,4 +96,5 @@ Grave o corpo em `.harness-run/pr-body.md` e abra o pull request:
 ```
 
 O título segue o formato dos commits e carrega o tipo mais alto da mudança: `feat` manda
-sobre `fix`. Os commits são preservados no merge, sem squash.
+sobre `fix`. Use só letras, números, espaço e pontuação simples: `&`, `$`, crase, `<`, `>`,
+`;` e `|` fazem o comando ser negado. Depois do envio, `.harness/down`. Os commits são preservados no merge, sem squash.

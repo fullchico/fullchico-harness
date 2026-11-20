@@ -2,10 +2,23 @@
 # Remove os worktrees de agente cujo trabalho já foi integrado na branch atual, e as
 # branches deles. O que ainda não foi integrado, ou está em uso, fica e é listado.
 # Uso: .harness/agents-clean
+#      .harness/agents-clean --discard <branch>   joga fora o worktree de agente dessa branch,
+#                                                 mesmo sem integrar (trabalho recusado e refeito)
 set -uo pipefail
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || { echo "agents-clean: fora de um repositório git." >&2; exit 2; }
 cd "$ROOT" || exit 1
+
+if [ "${1:-}" = "--discard" ]; then
+  TARGET="${2:-}"
+  FOUND="$(git worktree list --porcelain | awk -v b="refs/heads/$TARGET" '/^worktree /{p=substr($0,10)} $0=="branch " b {print p}')"
+  case "$FOUND" in
+    */.claude/worktrees/*) ;;
+    *) echo "agents-clean: $TARGET não é a branch de um worktree de agente." >&2; exit 1 ;;
+  esac
+  git worktree remove --force "$FOUND" && git branch -q -D "$TARGET" && echo "descartado: $FOUND"
+  exit $?
+fi
 
 PATH_="" HEAD_="" BRANCH="" LOCKED=""
 finish() {

@@ -40,7 +40,8 @@ achado: docs/specs/exemplo/achados/01-rodada-1.md
    do `AGENTS.md` valem sobre as duas.
 5. Fique dentro do que o ticket possui (linha `Owns:`). Arquivo fora da posse faz a integração
    ser recusada, inclusive manifesto de dependências e contrato. Se precisar de algo comum que
-   não existe (um tipo, um utilitário, uma dependência), não crie nem copie: pare e relate.
+   não existe (um tipo, um utilitário, uma dependência), não o crie fora da sua posse: pare e
+   relate. O commit que fecha o ticket roda a checagem do projeto e é recusado se ela falhar.
 6. Havendo `achado`, corrija o que ele aponta e nada além.
 7. Marque o ticket como `Status: done` no mesmo conjunto de commits, e só depois de ver os
    testes dele passarem no ambiente da feature. Se não conseguiu rodá-los, não marque: termine

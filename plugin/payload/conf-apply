@@ -15,5 +15,8 @@ cp "$APPROVED" "$ROOT/harness.conf.$$.tmp" && mv "$ROOT/harness.conf.$$.tmp" "$R
 rm -f "$APPROVED"
 echo "harness.conf gravado."
 
-"$HERE/worktree-env" || exit $?
-echo "Portas gravadas no .env. Faça o commit do harness.conf."
+if [ -n "$(conf_get SERVICES)" ]; then
+  "$HERE/worktree-env" || exit $?
+  echo "Portas gravadas no .env."
+fi
+echo "Faça o commit do harness.conf."

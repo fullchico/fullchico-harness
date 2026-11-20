@@ -10,18 +10,8 @@ TICKETS_GLOB='docs/specs/*/issues/*.md'
 
 git diff --cached -U0 -- "$TICKETS_GLOB" | grep -q '^+Status: done' || exit 0
 
-CMD="$(python3 -I - "$H/hooks" "$ROOT/harness.conf" <<'PY'
-import sys
-sys.dont_write_bytecode = True
-sys.path.insert(0, sys.argv[1])
-import common
-print(common.read_conf(sys.argv[2]).get("VALIDATE_PUSH", ""))
-PY
-)"
-[ -n "$CMD" ] || exit 0
-
-echo "Este commit fecha um ticket (Status: done): rodando a checagem do projeto ($CMD)."
-if ! (cd "$ROOT" && bash -c "$CMD" </dev/null); then
+echo "Este commit fecha um ticket (Status: done): rodando a checagem do projeto."
+if ! "$H/validate" --profile push </dev/null; then
   echo "commit recusado: um ticket só vira Status: done com a checagem do projeto passando." >&2
   echo "  Corrija o que falhou. Se o ambiente da feature não responde, não feche o ticket: relate." >&2
   exit 1

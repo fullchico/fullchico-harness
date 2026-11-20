@@ -38,11 +38,12 @@ Leia o repositório e proponha, mostrando ao dono antes de gravar:
 - no `AGENTS.md`, abaixo da região gerenciada: **Produto** (o que é, para quem)
   e **Onde olhar** (os arquivos que explicam o domínio). Não copie stack nem
   comandos para lá: eles vivem nos arquivos de build e no `harness.conf`.
-- no `harness.conf`: `PROJECT`, `INSTALL_CMD`, `VALIDATE_PUSH` e
-  `VALIDATE_MERGE`, tirados dos scripts que o projeto já tem.
+- no `harness.conf`: `PROJECT`, `SERVICES` e `COMPOSE_FILE` se houver serviços,
+  `INSTALL_CMD`, `VALIDATE_PUSH`, `VALIDATE_MERGE`, `VALIDATE_ARCH` e `CONTRACT_PATHS`,
+  tirados dos scripts e da estrutura que o projeto já tem.
 
-O `harness.conf` é negado a agentes. Entregue o conteúdo proposto para o dono
-colar, em vez de tentar editar.
+O `harness.conf` não se edita direto. Escreva a proposta em `.harness-run/harness.conf`
+e rode exatamente `.harness/conf-apply`, sozinho: ele confere e grava.
 
 ## 4. Instalar os plugins declarados
 
