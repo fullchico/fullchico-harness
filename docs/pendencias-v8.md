@@ -38,15 +38,27 @@ primeiro ticket ficou 1h27 com o implementador, com pausas de até 40 minutos se
    `MODULE_ROOTS`, `CONTRACT_PATHS`) é recusada, ou pede o dono; e o push é recusado se uma
    checagem que a spec declarou não estiver no `harness.conf`.
 
+6. **A entrega encheu o disco.** A v7 parou em 8 de 18 tickets com o disco cheio. Os worktrees
+   de agente já integrados não são removidos durante a entrega: o Claude Code os mantém
+   travados enquanto a sessão vive, o `agents-clean` pula worktree travado, e o sandbox não
+   deixa os agentes apagarem. Cada um carrega dependências e build. Trilho: ao integrar um
+   ticket, apagar ao menos o que é regenerável (dependências, build) do worktree dele, mesmo
+   travado; e a entrega conferir o espaço livre antes de cada onda, parando com aviso claro.
+7. **`.harness/down` deixa processos órfãos.** Ele encerra o processo principal do aplicativo,
+   mas os filhos (o servidor do front e o da API) continuam segurando as portas.
+8. **`agents-clean` apagou trabalho em andamento.** Rodado à mão depois da parada, removeu
+   também os worktrees dos três tickets que estavam no meio da correção, sem commit. Deve
+   poupar worktree com alteração não commitada, ou avisar antes.
+
 ## Vindas das listas anteriores, ainda não feitas
 
-5. Entrevista de verdade, em sessão interativa, com o dono respondendo.
-6. Linha de base sem harness: o mesmo pedido, só com as skills e um prompt bom.
-7. Reprovação de contrato subindo de modelo, contada por máquina.
-8. Versão fixada dos plugins de terceiros; aviso quando uma skill fixada mudar na origem.
-9. Teste por propriedade exigido por máquina nas regras com borda.
-10. Decisão sobre a skill `shadcn`, que executa `npx shadcn@latest` ao carregar.
-11. A suíte da lib travou uma vez sem causa encontrada; os testes deixam resíduo em
+9. Entrevista de verdade, em sessão interativa, com o dono respondendo.
+10. Linha de base sem harness: o mesmo pedido, só com as skills e um prompt bom.
+11. Reprovação de contrato subindo de modelo, contada por máquina.
+12. Versão fixada dos plugins de terceiros; aviso quando uma skill fixada mudar na origem.
+13. Teste por propriedade exigido por máquina nas regras com borda.
+14. Decisão sobre a skill `shadcn`, que executa `npx shadcn@latest` ao carregar.
+15. A suíte da lib travou uma vez sem causa encontrada; os testes deixam resíduo em
     `~/.claude/harness/`.
-12. Os passos novos do roteiro (ambiente provado depois da base, checagem completa a cada onda
+16. Os passos novos do roteiro (ambiente provado depois da base, checagem completa a cada onda
     com tela, aplicativo de pé no fim) são instrução, não trilho.
