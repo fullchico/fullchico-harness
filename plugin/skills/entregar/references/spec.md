@@ -38,8 +38,9 @@ exemplo); e, se o projeto ainda não tem `harness.conf` preenchido, uma subseç�
 com o conteúdo do arquivo, incluindo `CONTRACT_PATHS` (os caminhos do contrato e do que é
 comum), `VALIDATE_ARCH` (o comando que confere as fronteiras), o serviço `playwright` em
 `SERVICES` com o endereço dele em `ENV_PW_TEST_CONNECT_WS_ENDPOINT`, e os testes de ponta a
-ponta só no `VALIDATE_MERGE`. Sem ela o orquestrador não é despachado. O que vale para a
-stack está em `docs/agents/stack.md`: leia antes de escrever esta seção. O sandbox só alcança o registro do npm: se o projeto instala dependências de outro
+ponta só no `VALIDATE_MERGE`. Sem ela o orquestrador não é despachado. Se existir
+`docs/agents/stack.md`, ele diz o que vale para a stack: leia antes de escrever esta seção. No
+perfil de stack livre, é a spec que escolhe a stack, e diz por quê. O sandbox só alcança o registro do npm: se o projeto instala dependências de outro
 lugar, diga ao dono já na entrevista, porque liberar um domínio é dele (`harness.d/settings.json`).
 
 **Fora de escopo.** O que não entra, dito com todas as letras.

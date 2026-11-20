@@ -173,109 +173,162 @@
       "skill": "hexagonal-architecture",
       "repo": "affaan-m/ecc",
       "role": "arquitetura do back: use case, portas, adaptadores, ponto único de montagem",
-      "adaptation": "porta só em fronteira de entrada e saída real; log e relógio não viram porta"
+      "adaptation": "porta só em fronteira de entrada e saída real; log e relógio não viram porta",
+      "profiles": [
+        "fullstack-typescript",
+        "livre"
+      ]
     },
     {
       "skill": "feature-sliced-design",
       "repo": "feature-sliced/skills",
       "role": "arquitetura do front: camadas, fatias, entrada pública",
-      "adaptation": "o shared do front é camada interna; o contrato com o back é outro pacote (CONTRACT_PATHS)"
+      "adaptation": "o shared do front é camada interna; o contrato com o back é outro pacote (CONTRACT_PATHS)",
+      "profiles": [
+        "fullstack-typescript"
+      ]
     },
     {
       "skill": "parallel-feature-development",
       "repo": "wshobson/agents",
       "role": "fatiar para trabalho paralelo: um dono por arquivo, contrato primeiro",
-      "adaptation": "quem é 'team-lead' é o orquestrador; implementador não troca mensagem, relata lacuna"
+      "adaptation": "quem é 'team-lead' é o orquestrador; implementador não troca mensagem, relata lacuna",
+      "profiles": [
+        "fullstack-typescript",
+        "livre",
+        "existente"
+      ]
     },
     {
       "skill": "clean-code-guard",
       "repo": "amelnagdy/guard-skills",
       "role": "rubrica do revisor: nomes, funções, SOLID, DRY",
-      "adaptation": "só o revisor aplica; porta em fronteira de entrada e saída é convenção do projeto, não excesso"
+      "adaptation": "só o revisor aplica; porta em fronteira de entrada e saída é convenção do projeto, não excesso",
+      "profiles": [
+        "fullstack-typescript",
+        "livre",
+        "existente"
+      ]
     },
     {
       "skill": "vercel-react-best-practices",
       "repo": "vercel-labs/agent-skills",
       "role": "React e desempenho no front",
       "who": "implementador de front",
-      "adaptation": "evitar arquivo de índice vale só para bibliotecas de terceiros; a fatia tem o seu"
+      "adaptation": "evitar arquivo de índice vale só para bibliotecas de terceiros; a fatia tem o seu",
+      "profiles": [
+        "fullstack-typescript"
+      ]
     },
     {
       "skill": "shadcn",
       "repo": "shadcn-ui/ui",
       "role": "componentes de interface",
       "who": "implementador de front",
-      "adaptation": "componentes vão para a camada shared do front, pelo components.json"
+      "adaptation": "componentes vão para a camada shared do front, pelo components.json",
+      "profiles": [
+        "fullstack-typescript"
+      ]
     },
     {
       "skill": "zod",
       "repo": "anivar/zod-skill",
       "role": "validação e contrato",
       "who": "implementadores",
-      "adaptation": "os esquemas de contrato ficam no pacote comum, não por camada"
+      "adaptation": "os esquemas de contrato ficam no pacote comum, não por camada",
+      "profiles": [
+        "fullstack-typescript"
+      ]
     },
     {
       "skill": "drizzle-orm-patterns",
       "repo": "giuseppe-trisciuoglio/developer-kit",
       "role": "acesso a banco",
       "who": "implementador de back",
-      "adaptation": "só dentro de adaptadores; tipos inferidos do ORM não saem deles"
+      "adaptation": "só dentro de adaptadores; tipos inferidos do ORM não saem deles",
+      "profiles": [
+        "fullstack-typescript"
+      ]
     },
     {
       "skill": "supabase-postgres-best-practices",
       "repo": "supabase/agent-skills",
       "role": "esquema e consultas no Postgres",
       "who": "implementador de back",
-      "adaptation": "ignorar o que é específico do Supabase"
+      "adaptation": "ignorar o que é específico do Supabase",
+      "profiles": [
+        "fullstack-typescript"
+      ]
     },
     {
       "skill": "bullmq",
       "repo": "jgamaraalv/ts-dev-kit",
       "role": "filas",
       "who": "implementador de back",
-      "adaptation": "fila e worker em adaptadores; pnpm no lugar de yarn"
+      "adaptation": "fila e worker em adaptadores; pnpm no lugar de yarn",
+      "profiles": [
+        "fullstack-typescript"
+      ]
     },
     {
       "skill": "vitest",
       "repo": "antfu/skills",
       "role": "testes de unidade e integração",
       "who": "todos",
-      "adaptation": "conferir a versão instalada"
+      "adaptation": "conferir a versão instalada",
+      "profiles": [
+        "fullstack-typescript"
+      ]
     },
     {
       "skill": "pnpm",
       "repo": "antfu/skills",
       "role": "monorepo e dependências",
       "who": "ticket de contrato",
-      "adaptation": "conferir a versão instalada"
+      "adaptation": "conferir a versão instalada",
+      "profiles": [
+        "fullstack-typescript"
+      ]
     },
     {
       "skill": "seo",
       "repo": "addyosmani/web-quality-skills",
       "role": "SEO técnico",
       "who": "ticket de contrato e páginas públicas",
-      "adaptation": "usar a API de metadados do Next no lugar do HTML dos exemplos"
+      "adaptation": "usar a API de metadados do Next no lugar do HTML dos exemplos",
+      "profiles": [
+        "fullstack-typescript"
+      ]
     },
     {
       "skill": "accessibility",
       "repo": "addyosmani/web-quality-skills",
       "role": "acessibilidade",
       "who": "revisor de código",
-      "adaptation": "sem instalar ferramenta global"
+      "adaptation": "sem instalar ferramenta global",
+      "profiles": [
+        "fullstack-typescript"
+      ]
     },
     {
       "skill": "owasp-security",
       "repo": "agamm/claude-code-owasp",
       "role": "revisão de segurança",
       "who": "revisor de segurança",
-      "adaptation": "só como lista do que procurar"
+      "adaptation": "só como lista do que procurar",
+      "profiles": [
+        "fullstack-typescript"
+      ]
     },
     {
       "skill": "playwright-best-practices",
       "repo": "currents-dev/playwright-best-practices-skill",
       "role": "testes de ponta a ponta",
       "who": "ticket de ponta a ponta",
-      "adaptation": "sem page object por padrão; o navegador roda no contêiner do ambiente"
+      "adaptation": "sem page object por padrão; o navegador roda no contêiner do ambiente",
+      "profiles": [
+        "fullstack-typescript"
+      ]
     }
   ],
   "stack": {
@@ -285,5 +338,10 @@
     "contrato": "Zod, num pacote comum",
     "testes": "Vitest e Playwright",
     "monorepo": "pnpm"
+  },
+  "profiles": {
+    "fullstack-typescript": "stack padrão: arquitetura, stack e skills da stack",
+    "livre": "projeto novo em outra stack: conceitos de arquitetura, sem stack",
+    "existente": "projeto que já tinha código: processo e proteção, sem impor arquitetura nem língua"
   }
 }

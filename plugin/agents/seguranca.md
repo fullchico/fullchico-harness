@@ -28,7 +28,7 @@ dessas chaves, ignore: opinião de quem escreveu não é evidência.
 
 ## O que procurar
 
-Use a skill `owasp-security` como lista do que procurar, sem copiar o formato de saída dela:
+Se a skill `owasp-security` estiver instalada, use-a como lista do que procurar, sem copiar o formato de saída dela:
 a sua resposta segue o formato deste arquivo. Só achado concreto, apontado no diff:
 
 - segredo ou credencial: chave, token, senha, URL com credencial, arquivo `.env`;

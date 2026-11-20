@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Adota o harness num projeto, num comando só.
-# Uso: <pasta do harness>/install [pasta do projeto] [--force]
+# Uso: <pasta do harness>/install [pasta do projeto] [--profile <perfil>] [--force]
+#
+# Perfis: fullstack-typescript (padrão; a stack e as skills dela), livre (projeto novo em
+# outra stack) e existente (projeto que já tinha código; não impõe arquitetura nem língua).
 #
 # Grava os arquivos gerenciados, registra os marketplaces, instala os plugins no
 # escopo do projeto e prepara o worktree. Pode ser rodado de novo sem dano.
@@ -8,11 +11,14 @@
 set -uo pipefail
 
 HARNESS="$(cd "$(dirname "$0")" && pwd -P)"
-PROJECT="." FORCE=""
+PROJECT="." FORCE="" PROFILE="" WANT_PROFILE=""
 for ARG in "$@"; do
+  if [ -n "$WANT_PROFILE" ]; then PROFILE="$ARG"; WANT_PROFILE=""; continue; fi
   case "$ARG" in
     --force) FORCE="--force" ;;
-    -*) echo "uso: install [pasta do projeto] [--force]" >&2; exit 2 ;;
+    --profile) WANT_PROFILE=1 ;;
+    --profile=*) PROFILE="${ARG#--profile=}" ;;
+    -*) echo "uso: install [pasta do projeto] [--profile fullstack-typescript|livre|existente] [--force]" >&2; exit 2 ;;
     *) PROJECT="$ARG" ;;
   esac
 done
@@ -25,7 +31,10 @@ VERSION="v$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["
   "$HARNESS/plugin/.claude-plugin/plugin.json")" || exit 1
 
 # shellcheck disable=SC2086
-python3 -I "$HARNESS/plugin/bin/sync" "$ROOT" --version "$VERSION" $FORCE || exit $?
+python3 -I "$HARNESS/plugin/bin/sync" "$ROOT" --version "$VERSION" $FORCE ${PROFILE:+--profile "$PROFILE"} || exit $?
+# O perfil que vale é o que ficou no harness.conf: o pedido agora, ou o de uma instalação anterior.
+PROFILE="$(sed -n 's/^PROFILE=//p' "$ROOT/harness.conf" | tr -d "\"'" | sed -n 1p)"
+PROFILE="${PROFILE:-fullstack-typescript}"
 
 if [ -z "${HARNESS_SKIP_PLUGIN:-}" ] && command -v claude >/dev/null 2>&1; then
   warn() { echo "install: não consegui $1; rode à mão: $2" >&2; }
@@ -57,7 +66,8 @@ fi
 if [ -z "${HARNESS_SKIP_PLUGIN:-}" ] && command -v npx >/dev/null 2>&1; then
   python3 -I -c 'import json,sys
 for s in json.load(open(sys.argv[1])).get("project_skills", []):
-    print(s["repo"], s["skill"])' "$HARNESS/plugin/map.json" | while read -r REPO SKILL; do
+    if sys.argv[2] in s.get("profiles", []):
+        print(s["repo"], s["skill"])' "$HARNESS/plugin/map.json" "$PROFILE" | while read -r REPO SKILL; do
     [ -d "$ROOT/.claude/skills/$SKILL" ] && continue
     (cd "$ROOT" && npx -y skills add "$REPO" -s "$SKILL" -a claude-code -y --copy </dev/null >/dev/null 2>&1) \
       || echo "install: não instalei a skill $SKILL; rode à mão: npx skills add $REPO -s $SKILL -a claude-code -y --copy" >&2
@@ -73,7 +83,7 @@ fi
 
 cat <<EOT
 
-Harness $VERSION instalado em $ROOT.
+Harness $VERSION instalado em $ROOT, no perfil $PROFILE.
 $NEXT
 Depois faça o commit do que foi gerado e envie a branch padrão ao remoto. Esse primeiro envio é
 seu, no terminal: os portões valem para ele também (.harness/approve em cada um).

@@ -137,7 +137,7 @@ def ignore_run_paths(root: str) -> None:
             f.write(current + ("" if current.endswith("\n") or not current else "\n") + "\n".join(missing) + "\n")
 
 
-def planned_files(root: str, version: str) -> dict:
+def planned_files(root: str, version: str, profile: str) -> dict:
     """Caminho relativo -> (conteúdo, executável) de tudo que é inteiramente gerenciado."""
     plan = {}
     for folder, dirs, files in os.walk(PAYLOAD):
@@ -176,12 +176,32 @@ def planned_files(root: str, version: str) -> dict:
         plan[os.path.join(".conductor", "settings.toml")] = (read(os.path.join(TEMPLATES, "conductor.toml")), False)
     agents_docs = os.path.join(TEMPLATES, "docs", "agents")
     for name in sorted(os.listdir(agents_docs)):
+        if name == "stack.md" and profile != "fullstack-typescript":
+            continue  # a stack padrão só é descrita no perfil que a adota
         plan[os.path.join("docs", "agents", name)] = (read(os.path.join(agents_docs, name)), False)
     return plan
 
 
-def managed_region() -> str:
-    body = read(os.path.join(TEMPLATES, "AGENTS.managed.md")).decode("utf-8").strip()
+PROFILES = ("fullstack-typescript", "livre", "existente")
+_PROFILE_BLOCK = re.compile(r"<!-- perfil: ([^>]*?) -->\n(.*?)<!-- /perfil -->\n", re.S)
+
+
+def profile_of(root: str, asked=None) -> str:
+    """Perfil do projeto: o pedido na linha de comando, senão o PROFILE do harness.conf, senão o padrão."""
+    chosen = asked or common.read_conf(os.path.join(root, "harness.conf")).get("PROFILE") or PROFILES[0]
+    if chosen not in PROFILES:
+        raise SystemExit(f"sync: PROFILE `{chosen}` não existe. Os perfis são: {', '.join(PROFILES)}.")
+    return chosen
+
+
+def for_profile(text: str, profile: str) -> str:
+    """Mantém os trechos marcados para o perfil e tira os marcadores."""
+    keep = lambda m: m.group(2) if profile in [p.strip() for p in m.group(1).split(",")] else ""
+    return _PROFILE_BLOCK.sub(keep, text)
+
+
+def managed_region(profile: str) -> str:
+    body = for_profile(read(os.path.join(TEMPLATES, "AGENTS.managed.md")).decode("utf-8"), profile).strip()
     return f"{BEGIN}\n{body}\n{END}"
 
 
@@ -228,6 +248,7 @@ def main() -> int:
     parser.add_argument("project")
     parser.add_argument("--version", required=True)
     parser.add_argument("--force", action="store_true")
+    parser.add_argument("--profile", choices=PROFILES)
     try:
         args = parser.parse_args()
     except SystemExit:
@@ -240,7 +261,8 @@ def main() -> int:
         return 2
     root = top.stdout.strip()
 
-    plan = planned_files(root, args.version)
+    profile = profile_of(root, args.profile)
+    plan = planned_files(root, args.version, profile)
     manifest = load_manifest(root)
     agents_path = os.path.join(root, "AGENTS.md")
     current_agents = read(agents_path).decode("utf-8") if os.path.exists(agents_path) else None
@@ -269,7 +291,7 @@ def main() -> int:
     for rel, (content, executable) in plan.items():
         write_atomic(os.path.join(root, rel), content, executable)
 
-    managed = managed_region()
+    managed = managed_region(profile)
     with open(agents_path, "w", encoding="utf-8") as f:
         f.write(new_agents_md(current_agents, managed))
 
@@ -277,6 +299,10 @@ def main() -> int:
     if not os.path.exists(conf):
         with open(conf, "wb") as f:
             f.write(read(os.path.join(TEMPLATES, "harness.conf")))
+    # O perfil pedido na instalação fica escrito: as próximas sincronizações o leem dali.
+    if args.profile and not common.read_conf(conf).get("PROFILE"):
+        with open(conf, "a", encoding="utf-8") as f:
+            f.write(f"\nPROFILE={args.profile}\n")
 
     install_hook_dispatchers(root)
     ignore_run_paths(root)

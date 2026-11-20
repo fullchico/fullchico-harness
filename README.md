@@ -68,6 +68,19 @@ Num projeto novo falta um passo, numa sessão do Claude Code aberta nele:
 Ele propõe o `harness.conf` a partir do que encontra no projeto. Faça o commit do que foi
 gerado e reinicie a sessão.
 
+### Perfis
+
+O instalador aceita `--profile`, e a escolha fica no `harness.conf`:
+
+| Perfil | Para quê | O que traz além do núcleo |
+|---|---|---|
+| `fullstack-typescript` (padrão) | projeto novo na stack padrão: NestJS, Next.js, Drizzle, Zod | a arquitetura, o arquivo da stack e as skills dela |
+| `livre` | projeto novo em outra stack | os conceitos de arquitetura; a stack é escolhida na spec |
+| `existente` | projeto que já tinha código | nada de arquitetura nem de língua: vale o que o projeto já usa |
+
+O núcleo vale nos três: sandbox, os três portões do push, tickets com posse de arquivo,
+contrato primeiro e paralelismo.
+
 O que é só do projeto (hooks, permissões, servidores MCP, sites liberados) vai em
 `harness.d/settings.json`, que é somado na geração.
 

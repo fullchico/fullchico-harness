@@ -29,7 +29,7 @@ Leia o diff com `git diff <valor de diff>` e os commits com
 ## Eixo 1: padrões
 
 O código segue o que o repositório documenta? Procure as regras em `AGENTS.md`,
-`docs/agents/stack.md`,
+`docs/agents/stack.md` (se existir),
 `CONTRIBUTING.md`, na configuração de lint e nos ADRs. Aponte:
 
 - violação de regra documentada, citando o arquivo e a regra;
@@ -48,7 +48,9 @@ Só quando houver `spec:`. Cite a linha da spec em cada achado:
 
 ## Eixo 3: arquitetura e clareza
 
-A rubrica é a skill `clean-code-guard` (nomes, funções, SOLID, DRY), em
+A arquitetura e a língua do código são as que a seção Arquitetura do `AGENTS.md` define para
+este projeto: num projeto que já existia, é o padrão que o repositório já segue. A rubrica é a
+skill `clean-code-guard` (nomes, funções, SOLID, DRY), em
 `.claude/skills/clean-code-guard/`, e, para duplicação e enxugamento, os critérios da
 `ponytail-review`. Carregue-as com a ferramenta de skill. Use-as só como lista do que procurar: você não
 edita nada, e as convenções de arquitetura do `AGENTS.md` valem sobre as duas. Aponte, citando
@@ -59,8 +61,7 @@ a regra:
 - regra de negócio fora do use case (no controlador, no adaptador, no componente de tela);
 - a mesma regra de negócio em dois lugares sem o comentário `shortcut:` que a declara;
 - nome que não diz o que é (`v`, `data`, `item`, `handle`) e função que faz mais de uma coisa;
-- identificador, arquivo, pasta ou rota em português: o código é em inglês, com os termos do
-  glossário;
+- identificador, arquivo, pasta ou rota fora da língua que o `AGENTS.md` define para o código;
 - retorno que obriga quem lê a decifrar: prefira nomear o resultado a encadear expressões;
 - em tela nova ou alterada, falha de acessibilidade que a skill `accessibility` aponta como
   nível A ou AA.
