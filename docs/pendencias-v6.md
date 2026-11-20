@@ -54,6 +54,20 @@ pedido das anteriores.
    `teste-v4`, no worktree ao lado, e reaproveitou regras e critérios. Para medir um loop do
    zero, a versão nova não pode enxergar as antigas.
 
+10. **A entrega termina com o app de pé e o link na última mensagem.** A visão do dono
+    (2026-11-20): "quero um app de barbearia", a entrevista pergunta, e sai pronto, lembrando
+    Replit e Lovable, mas com o código no repositório dele, na arquitetura dele. Hoje a entrega
+    termina numa branch enviada. O ambiente (`.harness/up`) já existe: falta o fechamento subir
+    o app e informar o endereço.
+11. **Entrevista de verdade.** Em todas as versões o pedido foi "não me pergunte nada", então o
+    grill-me nunca rodou com o dono respondendo. Testar uma versão em sessão interativa.
+12. **Linha de base sem harness.** O mesmo pedido, em worktree limpo, só com as 20 skills e um
+    prompt bom, auditado pela régua da v4 e da v5. Sem isso, "o harness entrega mais qualidade"
+    é suposição.
+
+Ainda fora do alcance, para a experiência de "pronto": ver a tela (imagem ou preview),
+iterar conversando sobre o que já existe, e publicar.
+
 ## Já listadas antes, ainda não feitas
 
 4. Reabertura e reprovação de contrato contadas, subindo para Opus na segunda.
