@@ -51,7 +51,7 @@ class TestPrePush(unittest.TestCase):
         return subprocess.run(["git", "push", "-q", "origin", ref], cwd=self.repo, capture_output=True, text=True)
 
     def approve_both(self):
-        for g in ("seguranca", "revisao"):
+        for g in ("seguranca", "revisao", "qualidade"):
             self.assertEqual(owner_approve(self.repo, g).returncode, 0)
 
     def test_push_without_approvals_is_denied(self):
@@ -152,7 +152,7 @@ class TestPrePush(unittest.TestCase):
         commit_file(self.repo, "a.txt", "fix: a")
         wt = self.repo.parent / "wt two"
         git(self.repo, "worktree", "add", "-q", "--detach", str(wt))
-        for g in ("seguranca", "revisao"):
+        for g in ("seguranca", "revisao", "qualidade"):
             self.assertEqual(owner_approve(wt, g).returncode, 0)
         self.assertEqual(self.push().returncode, 0)
 

@@ -28,6 +28,11 @@ só dele: um módulo do back, ou uma fatia do front. Não é uma camada técnica
   status ou formato.
 - Com o contrato fechado, o módulo do back e a fatia do front do mesmo recurso são tickets
   separados e rodam juntos: cada lado testa contra o contrato.
+- O último ticket é o de ponta a ponta: transforma os critérios de aceite da spec em testes que
+  exercitam o sistema inteiro, numa pasta só dele, e é bloqueado por todos os outros. É ele
+  que protege o que já funciona quando alguém mexer em outra parte. O navegador roda num
+  contêiner do ambiente (o serviço entra no compose pelo ticket de contrato), porque dentro
+  do sandbox ele não abre; os testes se conectam a ele pelo endereço do `.env`.
 - Dois tickets que não se bloqueiam serão feitos ao mesmo tempo. Se precisam do mesmo arquivo,
   um bloqueia o outro.
 

@@ -29,6 +29,7 @@ Leia o diff com `git diff <valor de diff>` e os commits com
 ## Eixo 1: padrões
 
 O código segue o que o repositório documenta? Procure as regras em `AGENTS.md`,
+`docs/agents/stack.md`,
 `CONTRIBUTING.md`, na configuração de lint e nos ADRs. Aponte:
 
 - violação de regra documentada, citando o arquivo e a regra;

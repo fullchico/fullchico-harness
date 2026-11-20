@@ -113,7 +113,7 @@ class TestPushBypasses(unittest.TestCase):
         commit_file(self.repo, "a.txt", "fix: a")
         git(self.repo, "tag", "-a", "rel", "-m", "release")
         self.assertNotEqual(self.push("rel").returncode, 0)
-        for g in ("seguranca", "revisao"):
+        for g in ("seguranca", "revisao", "qualidade"):
             owner_approve(self.repo, g)
         self.assertEqual(self.push("rel").returncode, 0)
 
@@ -144,7 +144,7 @@ class TestDefaultBranch(unittest.TestCase):
     def test_master_is_found_without_origin_head(self):
         repo = self.repo_with_default("master")
         commit_file(repo, "a.txt", "fix: typo")
-        for g in ("seguranca", "revisao"):
+        for g in ("seguranca", "revisao", "qualidade"):
             owner_approve(repo, g)
         r = subprocess.run(["git", "push", "-q", "origin", "fix/typo"], cwd=repo, capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -152,7 +152,7 @@ class TestDefaultBranch(unittest.TestCase):
     def test_any_default_branch_name_works_because_the_remote_tells(self):
         repo = self.repo_with_default("trunk")
         commit_file(repo, "a.txt", "fix: typo")
-        for g in ("seguranca", "revisao"):
+        for g in ("seguranca", "revisao", "qualidade"):
             owner_approve(repo, g)
         r = subprocess.run(["git", "push", "-q", "origin", "fix/typo"], cwd=repo, capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)

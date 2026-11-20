@@ -28,6 +28,14 @@ def reviewer_stops(repo, agent, verdict="APPROVED"):
         "last_assistant_message": f"Conferi o diff.\n\nVEREDITO: {verdict}\nCOMMIT: {sha}\nRESUMO: revisado"})
 
 
+def quality_passes(repo):
+    """O portão de qualidade atesta a checagem completa no commit atual."""
+    sha = git(repo, "rev-parse", "HEAD")
+    return hook(repo, "gate_stamp.py", {
+        "hook_event_name": "SubagentStop", "agent_type": "harness:qualidade", "cwd": str(repo),
+        "last_assistant_message": f"VEREDITO: APPROVED\nCOMMIT: {sha}\nRESUMO: checagem passou"})
+
+
 class TestEndToEnd(unittest.TestCase):
     def test_gate_flow(self):
         origin = make_repo("origin dir")
@@ -63,8 +71,10 @@ class TestEndToEnd(unittest.TestCase):
         self.assertEqual(reviewer_stops(repo, "general-purpose"), 0)
         self.assertNotEqual(push().returncode, 0)
 
-        # os dois vereditos liberam
+        # os dois revisores sem a qualidade não bastam; com os três, libera
         reviewer_stops(repo, "harness:revisor")
+        self.assertNotEqual(push().returncode, 0)
+        quality_passes(repo)
         r = push()
         self.assertEqual(r.returncode, 0, r.stderr)
 
@@ -73,6 +83,7 @@ class TestEndToEnd(unittest.TestCase):
         self.assertNotEqual(push().returncode, 0)
         reviewer_stops(repo, "harness:seguranca")
         reviewer_stops(repo, "harness:revisor", verdict="REJECTED")
+        quality_passes(repo)
         self.assertNotEqual(push().returncode, 0)
         reviewer_stops(repo, "harness:revisor")
         self.assertEqual(push().returncode, 0)
@@ -93,6 +104,7 @@ class TestEndToEnd(unittest.TestCase):
         commit_all(repo, "chore: weaken hook")
         reviewer_stops(repo, "harness:seguranca")
         reviewer_stops(repo, "harness:revisor")
+        quality_passes(repo)
         r = push()
         self.assertNotEqual(r.returncode, 0)
         self.assertIn(".harness/git-hooks/commit-msg", r.stderr)

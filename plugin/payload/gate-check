@@ -98,6 +98,13 @@ while read -r LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
       FAIL=1
     fi
   done
+  # A qualidade é do commit, não de um intervalo: a checagem completa do projeto rodou nele.
+  if ! approved qualidade "$TIP" ""; then
+    echo "push negado: falta a aprovação de qualidade para o commit $TIP." >&2
+    echo "  Ela nasce do veredito do agente harness:qualidade, que roda a checagem completa do projeto" >&2
+    echo "  (testes, fronteiras, ponta a ponta) nesse commit. Commit novo pede checagem nova." >&2
+    FAIL=1
+  fi
 
   if [ -n "$BASE" ]; then
     SUBJECTS="$(git log --format=%s "$BASE..$TIP")"

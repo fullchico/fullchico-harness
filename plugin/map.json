@@ -17,6 +17,9 @@
     "rtk": {
       "binary": "rtk",
       "hook": "rtk hook claude"
+    },
+    "frontend-design": {
+      "plugin": "frontend-design@claude-plugins-official"
     }
   },
   "steps": [
@@ -157,6 +160,12 @@
       "skill": "ponytail-review",
       "source": "ponytail",
       "adaptation": "critérios de duplicação e enxugamento"
+    },
+    {
+      "step": "implementar",
+      "skill": "frontend-design",
+      "source": "frontend-design",
+      "adaptation": "direção visual das telas"
     }
   ],
   "project_skills": [
@@ -183,6 +192,98 @@
       "repo": "amelnagdy/guard-skills",
       "role": "rubrica do revisor: nomes, funções, SOLID, DRY",
       "adaptation": "só o revisor aplica; porta em fronteira de entrada e saída é convenção do projeto, não excesso"
+    },
+    {
+      "skill": "vercel-react-best-practices",
+      "repo": "vercel-labs/agent-skills",
+      "role": "React e desempenho no front",
+      "who": "implementador de front",
+      "adaptation": "evitar arquivo de índice vale só para bibliotecas de terceiros; a fatia tem o seu"
+    },
+    {
+      "skill": "shadcn",
+      "repo": "shadcn-ui/ui",
+      "role": "componentes de interface",
+      "who": "implementador de front",
+      "adaptation": "componentes vão para a camada shared do front, pelo components.json"
+    },
+    {
+      "skill": "zod",
+      "repo": "anivar/zod-skill",
+      "role": "validação e contrato",
+      "who": "implementadores",
+      "adaptation": "os esquemas de contrato ficam no pacote comum, não por camada"
+    },
+    {
+      "skill": "drizzle-orm-patterns",
+      "repo": "giuseppe-trisciuoglio/developer-kit",
+      "role": "acesso a banco",
+      "who": "implementador de back",
+      "adaptation": "só dentro de adaptadores; tipos inferidos do ORM não saem deles"
+    },
+    {
+      "skill": "supabase-postgres-best-practices",
+      "repo": "supabase/agent-skills",
+      "role": "esquema e consultas no Postgres",
+      "who": "implementador de back",
+      "adaptation": "ignorar o que é específico do Supabase"
+    },
+    {
+      "skill": "bullmq",
+      "repo": "jgamaraalv/ts-dev-kit",
+      "role": "filas",
+      "who": "implementador de back",
+      "adaptation": "fila e worker em adaptadores; pnpm no lugar de yarn"
+    },
+    {
+      "skill": "vitest",
+      "repo": "antfu/skills",
+      "role": "testes de unidade e integração",
+      "who": "todos",
+      "adaptation": "conferir a versão instalada"
+    },
+    {
+      "skill": "pnpm",
+      "repo": "antfu/skills",
+      "role": "monorepo e dependências",
+      "who": "ticket de contrato",
+      "adaptation": "conferir a versão instalada"
+    },
+    {
+      "skill": "seo",
+      "repo": "addyosmani/web-quality-skills",
+      "role": "SEO técnico",
+      "who": "ticket de contrato e páginas públicas",
+      "adaptation": "usar a API de metadados do Next no lugar do HTML dos exemplos"
+    },
+    {
+      "skill": "accessibility",
+      "repo": "addyosmani/web-quality-skills",
+      "role": "acessibilidade",
+      "who": "revisor de código",
+      "adaptation": "sem instalar ferramenta global"
+    },
+    {
+      "skill": "owasp-security",
+      "repo": "agamm/claude-code-owasp",
+      "role": "revisão de segurança",
+      "who": "revisor de segurança",
+      "adaptation": "só como lista do que procurar"
+    },
+    {
+      "skill": "playwright-best-practices",
+      "repo": "currents-dev/playwright-best-practices-skill",
+      "role": "testes de ponta a ponta",
+      "who": "ticket de ponta a ponta",
+      "adaptation": "sem page object por padrão; o navegador roda no contêiner do ambiente"
     }
-  ]
+  ],
+  "stack": {
+    "name": "fullstack-typescript",
+    "back": "NestJS, Drizzle, Postgres, BullMQ sobre Redis",
+    "front": "Next.js (App Router), shadcn, Tailwind",
+    "contrato": "Zod, num pacote comum",
+    "testes": "Vitest e Playwright",
+    "monorepo": "pnpm"
+  }
 }

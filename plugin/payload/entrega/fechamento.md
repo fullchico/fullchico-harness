@@ -42,7 +42,7 @@ git rev-parse HEAD
 python3 -I .harness/hooks/common.py branch-base "$(git rev-parse HEAD)"
 ```
 
-Dispare os dois revisores na mesma mensagem. O intervalo cobre a branch inteira, da base
+O pedido aos dois revisores é o mesmo. O intervalo cobre a branch inteira, da base
 ao topo:
 
 ```pedido harness:seguranca
@@ -61,7 +61,15 @@ No lugar de `BASE` e de `HASH_DO_COMMIT` vão os dois hashes que você acabou de
 linha `leitura` é opcional e só lista arquivos que existem. Sem spec, como numa correção de
 bug, o pedido ao `revisor` vai sem a linha `spec:`.
 
-Dispare os dois na mesma mensagem, com `run_in_background` como `false`, e espere os dois voltarem.
+Junto com os dois revisores, dispare o portão de qualidade, que roda a checagem completa do
+projeto naquele commit, com o ambiente de pé:
+
+```pedido harness:qualidade
+commit: HASH_DO_COMMIT
+```
+
+Dispare os três na mesma mensagem, com `run_in_background` como `false`, e espere os três
+voltarem. O push exige os três vereditos sobre o mesmo commit.
 
 Cada revisor termina com `VEREDITO: APPROVED` ou `VEREDITO: REJECTED`. A aprovação é
 gravada por um hook a partir dessa resposta. Você não grava aprovação e não tem como.

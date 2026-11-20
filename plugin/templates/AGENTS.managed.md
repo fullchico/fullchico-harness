@@ -43,7 +43,8 @@ mesclada é histórico: a verdade é o código, os testes e o histórico do git.
 ## Arquitetura
 
 Vale em todo projeto, em qualquer linguagem. As skills dos autores ensinam o como; onde
-elas divergem, vale o que está aqui.
+elas divergem, vale o que está aqui. A stack padrão e a skill de cada papel estão em
+`docs/agents/stack.md`.
 
 - **Back:** módulos por área de negócio. Dentro de cada um: domínio, use cases, portas e
   adaptadores, com as dependências apontando para dentro (skill `hexagonal-architecture`).
@@ -70,8 +71,9 @@ elas divergem, vale o que está aqui.
 
 ## Portões de push
 
-Nada sai da máquina sem dois vereditos sobre o commit do topo da branch:
-`seguranca` e `revisor`. Commit local é livre. Entrou commit novo, a validação
+Nada sai da máquina sem três vereditos sobre o commit do topo da branch:
+`seguranca`, `revisor` e `qualidade` (a checagem completa do projeto, com os testes de
+ponta a ponta, rodou e passou naquele commit). Commit local é livre. Entrou commit novo, a validação
 é refeita.
 
 - Branch com commit `feat` precisa trazer a spec em `docs/specs/<slug>/spec.md`.

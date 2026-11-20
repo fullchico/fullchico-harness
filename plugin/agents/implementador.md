@@ -36,8 +36,9 @@ achado: docs/specs/exemplo/achados/01-rodada-1.md
 3. Se o ticket não dá para ser feito só com esses documentos, pare e diga o que falta.
    Não preencha a lacuna por conta própria.
 4. Implemente só o ticket, com a skill `tdd`, nos pontos de costura que a spec define. No back
-   siga a skill `hexagonal-architecture`; no front, a `feature-sliced-design`. As convenções
-   do `AGENTS.md` valem sobre as duas.
+   siga a skill `hexagonal-architecture`; no front, a `feature-sliced-design`. As outras
+   skills do seu papel, e o que vale quando elas divergem, estão em `docs/agents/stack.md`:
+   leia antes de escrever. As convenções do `AGENTS.md` valem sobre todas.
 5. Fique dentro do que o ticket possui (linha `Owns:`). Arquivo fora da posse faz a integração
    ser recusada, inclusive manifesto de dependências e contrato. Se precisar de algo comum que
    não existe (um tipo, um utilitário, uma dependência), não o crie fora da sua posse: pare e

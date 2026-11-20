@@ -127,7 +127,7 @@ class TestPushCleansIntegratedAgents(unittest.TestCase):
         git(repo, "worktree", "add", "-q", "-b", "worktree-agent-a", str(agent), "HEAD")
         commit_file(agent, "a.txt", "fix: a")
         git(repo, "merge", "-q", "--no-ff", "worktree-agent-a", "-m", "Merge a")
-        for gate in ("seguranca", "revisao"):
+        for gate in ("seguranca", "revisao", "qualidade"):
             owner_approve(repo, gate)
         r = subprocess.run([str(repo / ".harness/push")], cwd=repo, capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)

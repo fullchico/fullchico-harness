@@ -53,6 +53,8 @@ class TestFreshRemote(unittest.TestCase):
             self.assertEqual(rc, 0, err)
             run_hook("gate_stamp.py", {"hook_event_name": "SubagentStop", "agent_type": agent, "cwd": str(repo),
                                        "last_assistant_message": f"VEREDITO: APPROVED\nCOMMIT: {sha}\nRESUMO: ok"})
+        run_hook("gate_stamp.py", {"hook_event_name": "SubagentStop", "agent_type": "harness:qualidade", "cwd": str(repo),
+                                   "last_assistant_message": f"VEREDITO: APPROVED\nCOMMIT: {sha}\nRESUMO: ok"})
         r = subprocess.run([str(repo / ".harness/push")], cwd=repo, capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
 

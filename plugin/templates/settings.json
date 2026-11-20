@@ -18,7 +18,8 @@
   "enabledPlugins": {
     "harness@fullchico": true,
     "mattpocock-skills@claude-plugins-official": true,
-    "ponytail@ponytail": true
+    "ponytail@ponytail": true,
+    "frontend-design@claude-plugins-official": true
   },
   "worktree": {
     "baseRef": "head"
@@ -65,7 +66,7 @@
     ],
     "SubagentStop": [
       {
-        "matcher": "^harness:(seguranca|revisor)$",
+        "matcher": "^harness:(seguranca|revisor|qualidade)$",
         "hooks": [
           {
             "type": "command",

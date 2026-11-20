@@ -16,7 +16,7 @@ sys.dont_write_bytecode = True  # não deixa __pycache__ dentro de .harness/ do 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common  # noqa: E402
 
-AGENT_GATE = {"harness:seguranca": "seguranca", "harness:revisor": "revisao"}
+AGENT_GATE = {"harness:seguranca": "seguranca", "harness:revisor": "revisao", "harness:qualidade": "qualidade"}
 HANDBACK_TOOL = "SubagentHandback"
 _VERDICT = re.compile(r"^VEREDITO: (APPROVED|REJECTED)$")
 _COMMIT = re.compile(r"^COMMIT: ([0-9a-f]{40})$")

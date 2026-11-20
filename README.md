@@ -26,7 +26,8 @@ O que foi conferido em sessões reais, e o que ainda não foi, está em
   os revisores também são Sonnet, e o trabalho bruto é Haiku.
 - **Não deixa código sem revisão chegar ao remoto.** O shell do agente roda no sandbox do
   Claude Code, sem rede para o servidor de git. O único caminho é `.harness/push`, que
-  exige duas aprovações sobre o commit e, para uma `feat`, a spec da mudança.
+  exige três aprovações sobre o commit (segurança, revisão de código e qualidade: a checagem
+  completa do projeto passou nele) e, para uma `feat`, a spec da mudança.
 - **Nenhum agente aprova o próprio trabalho.** A aprovação nasce do veredito de um revisor
   de contexto novo, gravada por um hook, num lugar onde o agente não escreve.
 - **Dá a cada feature o próprio ambiente Docker,** com portas e projeto isolados, levantado
@@ -110,7 +111,7 @@ fragmento do projeto (`harness.d/settings.json`); pergunta vence liberação.
 2. Na sessão do Claude Code, dentro do worktree: `/harness:entregar`.
 3. Responda a entrevista. Leia os achados do revisor da spec e aprove a spec.
 4. Acompanhe: os tickets são criados, os implementadores trabalham em paralelo, a
-   checagem roda, os dois revisores dão o veredito, a branch é enviada e o pull request é aberto.
+   checagem roda, os dois revisores e o portão de qualidade dão o veredito, a branch é enviada e o pull request é aberto.
 5. Faça o merge, preservando os commits.
 
 ## Seguir sem você

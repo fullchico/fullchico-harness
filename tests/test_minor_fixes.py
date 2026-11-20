@@ -21,7 +21,7 @@ class TestSpecLock(unittest.TestCase):
         git(repo, "checkout", "-q", "-b", "feat/x")
         git(repo, "rm", "-q", "docs/specs/old/spec.md")
         commit_all(repo, "feat: add booking")
-        for gate in ("seguranca", "revisao"):
+        for gate in ("seguranca", "revisao", "qualidade"):
             owner_approve(repo, gate)
         r = subprocess.run([str(repo / ".harness/push")], cwd=repo,
                            capture_output=True, text=True)

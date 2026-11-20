@@ -21,7 +21,7 @@ class RemoteCase(unittest.TestCase):
                               env=dict(os.environ, **extra), capture_output=True, text=True)
 
     def approve(self):
-        for gate in ("seguranca", "revisao"):
+        for gate in ("seguranca", "revisao", "qualidade"):
             self.assertEqual(owner_approve(self.repo, gate).returncode, 0)
 
     def remote_tip(self, branch="feat/x"):
