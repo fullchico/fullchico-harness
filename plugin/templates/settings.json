@@ -139,6 +139,12 @@
       ".harness/fetch",
       "./.harness/fetch",
       ".harness/pr *",
+      ".harness/skills-search *",
+      "./.harness/skills-search *",
+      ".harness/skills-show *",
+      "./.harness/skills-show *",
+      ".harness/skills-add *",
+      "./.harness/skills-add *",
       "./.harness/pr *"
     ],
     "network": {
@@ -167,7 +173,9 @@
     ],
     "ask": [
       "Bash(.harness/destroy)",
-      "Bash(./.harness/destroy)"
+      "Bash(./.harness/destroy)",
+      "Bash(.harness/skills-add *)",
+      "Bash(./.harness/skills-add *)"
     ],
     "allow": [
       "Bash(.harness/up)",
@@ -183,6 +191,10 @@
       "Bash(.harness/push --force)",
       "Bash(./.harness/push --force)",
       "Bash(.harness/pr *)",
+      "Bash(.harness/skills-search *)",
+      "Bash(./.harness/skills-search *)",
+      "Bash(.harness/skills-show *)",
+      "Bash(./.harness/skills-show *)",
       "Bash(./.harness/pr *)"
     ]
   }

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Consulta pública de skills. Roda fora do sandbox, só lê, e devolve texto de terceiros.
+# Uso: .harness/skills-show <dono/repositório> <skill>
+set -uo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd -P)"
+exec python3 -I "$HERE/skills_remote.py" show "$@"
