@@ -21,6 +21,11 @@ só dele: um módulo do back, ou uma fatia do front. Não é uma camada técnica
 - O primeiro ticket é o de contrato: o que front e back trocam, o que é comum, as dependências,
   o compose do ambiente e o que liga os módulos ao aplicativo. Ele bloqueia todos os outros e
   não tem teste que dependa do ambiente, porque é ele que o traz.
+- O ticket de contrato também entrega as duas provas de que o resto pode confiar:
+  a checagem de fronteira (`VALIDATE_ARCH`), com um caso de teste que viola cada regra e
+  precisa ser recusado (inclusive importação só de tipo, e a direção entre domínio, use case
+  e adaptador); e um teste de contrato, que falha se front e back divergirem em rota, método,
+  status ou formato.
 - Com o contrato fechado, o módulo do back e a fatia do front do mesmo recurso são tickets
   separados e rodam juntos: cada lado testa contra o contrato.
 - Dois tickets que não se bloqueiam serão feitos ao mesmo tempo. Se precisam do mesmo arquivo,

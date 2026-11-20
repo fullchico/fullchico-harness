@@ -96,7 +96,7 @@ class TestImplementerFilesMustBeCommitted(unittest.TestCase):
             (repo / path).write_text("x")
         ask = lambda extra="": run_hook("dispatch_guard.py", {"tool_name": "Agent", "cwd": str(repo),
                                                              "agent_type": "harness:orquestrador", "tool_input": {
-            "subagent_type": "harness:implementador",
+            "subagent_type": "harness:implementador", "run_in_background": False,
             "prompt": "spec: docs/specs/x/spec.md\nticket: docs/specs/x/issues/01-a.md" + extra}})
         rc, _, err = ask()
         self.assertEqual(rc, 2)

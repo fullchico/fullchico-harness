@@ -1,7 +1,7 @@
 ---
 name: implementador
 description: Implementa um ticket de uma spec, em contexto novo, a partir só da spec e do ticket. Usado pela entrega quando o projeto não tem agente próprio para a área.
-model: sonnet
+model: haiku
 tools: Read, Grep, Glob, Edit, Write, Bash, Skill
 ---
 

@@ -39,7 +39,10 @@ podem ser feitos agora, em paralelo.
      ticket, se houver; senão `harness:implementador`;
    - `isolation` como `worktree`, para cada um trabalhar na própria cópia, mesmo quando a
      rodada tem um ticket só;
-   - o modelo: `sonnet`;
+   - o modelo: `haiku`. O ticket de contrato vai em `sonnet`: é ele que define o que todos
+     os outros seguem;
+   - `run_in_background` como `false`: você espera os implementadores no mesmo turno. Em
+     segundo plano o aviso de término iria para a sessão do dono, não para você;
    - o pedido, só com ponteiros:
 
 ```pedido harness:implementador
@@ -97,10 +100,14 @@ achado: docs/specs/exemplo/achados/01-rodada-1.md
 
 3. Junte o resultado e volte ao fechamento.
 
+**A posse não muda calada.** Se um ticket precisar de um caminho que não possuía, corrija o
+`Owns:` antes de integrar e registre na spec, em "Decisões tomadas sem o dono", o que mudou e
+por quê. Você não faz commit de código: o que não é documento entra por um ticket.
+
 **O que você corrige sem despachar ninguém,** porque não é de nenhum ticket: a spec, o
 glossário, os tickets e o `harness.conf` (por `.harness/conf-apply`). Tipo de commit errado
 apontado pelo revisor não se conserta com commit novo: devolva o relato, é decisão do dono.
 
-Conte as rodadas. Um ticket reprovado duas vezes passa a ser despachado com o modelo
-`opus`. A entrega inteira tem limite de 3 rodadas de correção: na quarta, pare e devolva o
+Conte as rodadas. A rodada de correção de um ticket vai em `sonnet`; reprovado duas vezes,
+em `opus`. A entrega inteira tem limite de 3 rodadas de correção: na quarta, pare e devolva o
 relato do que travou.

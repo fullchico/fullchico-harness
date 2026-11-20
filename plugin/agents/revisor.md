@@ -58,6 +58,8 @@ a regra:
 - regra de negócio fora do use case (no controlador, no adaptador, no componente de tela);
 - a mesma regra de negócio em dois lugares sem o comentário `shortcut:` que a declara;
 - nome que não diz o que é (`v`, `data`, `item`, `handle`) e função que faz mais de uma coisa;
+- identificador, arquivo, pasta ou rota em português: o código é em inglês, com os termos do
+  glossário;
 - retorno que obriga quem lê a decifrar: prefira nomear o resultado a encadear expressões.
 
 Porta em fronteira de entrada e saída não é excesso, mesmo com uma implementação só.

@@ -59,6 +59,9 @@ elas divergem, vale o que está aqui.
 - **DRY é conhecimento num lugar só.** No front a cópia temporária de uma regra entre páginas
   é aceita, marcada com `shortcut: cópia de <caminho>; extrair quando divergir`. "Reutilize o
   que existe" vale para o que já está numa camada abaixo, nunca para importar do vizinho.
+- **Código em inglês:** identificadores, arquivos, pastas, rotas e mensagens de commit. Em
+  português ficam o texto que o usuário vê, a spec, os tickets e o glossário, que traz o
+  nome em inglês de cada termo de domínio.
 - **Clareza:** nome que diz o que é, função que faz uma coisa, retorno nomeado.
 - **Um dono por arquivo.** Cada ticket possui pastas (`Owns:`) e não mexe fora delas. O que é
   comum, as dependências e o contrato são do ticket de contrato; faltou algo, relate.

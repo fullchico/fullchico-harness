@@ -61,6 +61,8 @@ No lugar de `BASE` e de `HASH_DO_COMMIT` vão os dois hashes que você acabou de
 linha `leitura` é opcional e só lista arquivos que existem. Sem spec, como numa correção de
 bug, o pedido ao `revisor` vai sem a linha `spec:`.
 
+Dispare os dois na mesma mensagem, com `run_in_background` como `false`, e espere os dois voltarem.
+
 Cada revisor termina com `VEREDITO: APPROVED` ou `VEREDITO: REJECTED`. A aprovação é
 gravada por um hook a partir dessa resposta. Você não grava aprovação e não tem como.
 

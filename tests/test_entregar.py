@@ -33,7 +33,7 @@ def frontmatter(path):
 class TestEntregar(unittest.TestCase):
     def test_agents_frontmatter(self):
         impl = frontmatter(ROOT / "plugin/agents/implementador.md")
-        self.assertEqual((impl["name"], impl["model"]), ("implementador", "sonnet"))
+        self.assertEqual((impl["name"], impl["model"]), ("implementador", "haiku"))
         rev = frontmatter(ROOT / "plugin/agents/revisor-spec.md")
         self.assertEqual((rev["name"], rev["model"]), ("revisor-spec", "inherit"))
         self.assertNotIn("Edit", rev["tools"])
@@ -103,6 +103,7 @@ class TestEntregar(unittest.TestCase):
                 payload = {"tool_name": "Agent", "cwd": str(repo), "tool_input": {"subagent_type": agent, "prompt": prompt}}
                 if agent == "harness:implementador":
                     payload["agent_type"] = "harness:orquestrador"
+                    payload["tool_input"]["run_in_background"] = False
                 rc, _, err = run_hook("dispatch_guard.py", payload)
                 self.assertEqual(rc, 0, f"{name} ({agent}): {err}")
         self.assertGreaterEqual(found, 6)

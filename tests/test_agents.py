@@ -17,7 +17,7 @@ class TestAgents(unittest.TestCase):
         for n in ("seguranca", "revisor"):
             fm, _ = load(n)
             self.assertEqual(fm["name"], n)
-            self.assertEqual(fm["model"], "sonnet")
+            self.assertEqual(fm["model"], "haiku" if fm["name"] == "implementador" else "sonnet")
             self.assertTrue(fm["description"])
             self.assertNotIn("Edit", fm["tools"])
             self.assertNotIn("Write", fm["tools"])

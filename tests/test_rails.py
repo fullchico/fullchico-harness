@@ -50,6 +50,7 @@ class TestOnlyTheOrchestratorDispatchesImplementers(unittest.TestCase):
         payload = {"tool_name": "Agent", "cwd": str(self.repo), "tool_input": {"subagent_type": agent, "prompt": prompt}}
         if caller:
             payload["agent_type"] = caller
+            payload["tool_input"]["run_in_background"] = False
         return run_hook("dispatch_guard.py", payload)
 
     def test_main_session_cannot_dispatch_an_implementer(self):
@@ -146,3 +147,35 @@ class TestSetupWorktreeOnANewProject(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestOrchestratorWaitsForItsAgents(unittest.TestCase):
+    """Subagente em segundo plano avisa a sessão do dono, não quem o despachou: o modelo caro
+    virava carteiro entre o orquestrador e os implementadores."""
+
+    def setUp(self):
+        self.repo = make_repo()
+        for path in ("docs/specs/x/spec.md", "docs/specs/x/issues/01-a.md"):
+            (self.repo / path).parent.mkdir(parents=True, exist_ok=True)
+            (self.repo / path).write_text("x")
+        (self.repo / "harness.conf").write_text("PROJECT=p\n")
+        commit_all(self.repo, "docs: add spec")
+
+    def dispatch(self, background, caller="harness:orquestrador", agent="harness:implementador"):
+        tool_input = {"subagent_type": agent, "prompt": "spec: docs/specs/x/spec.md\nticket: docs/specs/x/issues/01-a.md"}
+        if background is not None:
+            tool_input["run_in_background"] = background
+        return run_hook("dispatch_guard.py", {"tool_name": "Agent", "cwd": str(self.repo), "agent_type": caller,
+                                              "tool_input": tool_input})
+
+    def test_orchestrator_must_dispatch_in_the_foreground(self):
+        self.assertEqual(self.dispatch(False)[0], 0)
+        for background in (True, None):
+            rc, _, err = self.dispatch(background)
+            self.assertEqual(rc, 2, background)
+            self.assertIn("run_in_background", err)
+
+    def test_the_owner_session_may_still_run_the_orchestrator_in_the_background(self):
+        rc = run_hook("dispatch_guard.py", {"tool_name": "Agent", "cwd": str(self.repo), "tool_input": {
+            "subagent_type": "harness:orquestrador", "prompt": "spec: docs/specs/x/spec.md", "run_in_background": True}})[0]
+        self.assertEqual(rc, 0)

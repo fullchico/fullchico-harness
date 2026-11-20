@@ -16,6 +16,7 @@ class TestDispatchGuard(unittest.TestCase):
         payload = {"tool_name": tool, "cwd": str(self.repo), "tool_input": {"subagent_type": agent, "prompt": prompt}}
         if agent == "harness:implementador":
             payload["agent_type"] = "harness:orquestrador"
+            payload["tool_input"]["run_in_background"] = False
         return run_hook("dispatch_guard.py", payload)[0]
 
     def test_fixed_format_passes(self):

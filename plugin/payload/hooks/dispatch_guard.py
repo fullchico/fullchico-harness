@@ -141,6 +141,18 @@ def chain(agent, caller):
     return None
 
 
+def foreground(caller, tool_input):
+    """O orquestrador espera os subagentes que dispara.
+
+    Subagente em segundo plano avisa a sessão do dono, e não quem o despachou. O modelo caro
+    passava a receber cada término e a repassar, por mensagem, ao orquestrador.
+    """
+    if caller == "harness:orquestrador" and tool_input.get("run_in_background") is not False:
+        return ("O orquestrador despacha em primeiro plano: passe `run_in_background: false`. Dispare os "
+                "tickets da rodada na mesma mensagem, que eles rodam juntos, e espere todos voltarem.")
+    return None
+
+
 def ready_for_execution(prompt, root):
     """O orquestrador não tem a quem perguntar: o que ele precisa tem de estar na spec, em commit."""
     fields = dict(m.groups() for m in map(_LINE.match, (l.strip() for l in prompt.splitlines())) if m)
@@ -171,7 +183,9 @@ def main():
     cwd = payload.get("cwd")
     root = common.repo_root(cwd) if isinstance(cwd, str) else None
     agent = tool_input.get("subagent_type")
-    reason = chain(agent, payload.get("agent_type")) or check(agent, tool_input.get("prompt"), root)
+    reason = (chain(agent, payload.get("agent_type"))
+              or foreground(payload.get("agent_type"), tool_input)
+              or check(agent, tool_input.get("prompt"), root))
     if not reason and agent == "harness:orquestrador":
         reason = ready_for_execution(tool_input.get("prompt"), root)
     if reason:

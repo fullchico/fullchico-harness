@@ -222,7 +222,8 @@ recusa a branch que mexeu fora da posse, que conflita ou que quebra a checagem;
 | elefante: entrevista, vocabulário e spec | Opus |
 | `revisor-spec` | o mesmo do elefante |
 | `orquestrador`: tickets, despacho, integração, fechamento | Sonnet |
-| implementadores, `seguranca`, `revisor` | Sonnet |
+| implementadores | Haiku; o ticket de contrato e as rodadas de correção em Sonnet **[dono]**, 2026-11-20 |
+| `seguranca`, `revisor` | Sonnet |
 | trabalho bruto: mapa, verificação de memória, resumo de log, `dream` | Haiku |
 
 - **Opus só no desenho. [dono], 2026-11-19.** Na primeira entrega real o elefante em Opus fez
