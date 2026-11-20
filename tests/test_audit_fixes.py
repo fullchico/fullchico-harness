@@ -173,7 +173,8 @@ class TestSecondAudit(unittest.TestCase):
         closing = (run / "fechamento.md").read_text()
         self.assertIn("Os quatro aprovaram", closing)
         self.assertNotIn("Os dois aprovaram", closing)
-        self.assertNotIn(".harness/dev --background", closing)
+        self.assertNotIn(".harness/dev --background", closing[:closing.index("## 7.")],
+                         "antes do envio quem sobe o aplicativo são os testes; só o último passo o deixa de pé")
         tickets = (run / "tickets.md").read_text()
         for portuguese in ("modules/arquivos", "pages/perfil"):
             self.assertNotIn(portuguese, tickets)

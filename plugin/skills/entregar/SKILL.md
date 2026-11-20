@@ -100,8 +100,8 @@ de novo.
 
 ## 5. Relatar
 
-Diga ao dono o que o orquestrador devolveu: o link do pull request, como abrir o que foi
-entregue (comando, endereços e usuário de teste), o que entrou, o que ficou
+Diga ao dono o que o orquestrador devolveu: o link do pull request, o endereço do aplicativo
+que ficou de pé (com o usuário de teste e como parar), o que entrou, o que ficou
 de fora, quantas rodadas de correção houve, as decisões tomadas sem ele (que estão na spec), e
 qualquer coisa que os subagentes relataram fora do escopo.
 

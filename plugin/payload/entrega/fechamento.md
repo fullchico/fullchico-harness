@@ -8,8 +8,10 @@ O ambiente da feature (banco, fila, contêiner do navegador) já está de pé de
 fica assim até o envio. Confira com `.harness/up`, sozinho: se já está no ar, ele só avisa.
 Depois de integrar um ticket que mudou o schema, rode `.harness/prepare` de novo.
 
-Você não sobe o aplicativo à mão. Os testes de ponta a ponta compilam e sobem o aplicativo
-do commit atual por conta própria (o `webServer` do Playwright), e o derrubam ao terminar.
+Você não sobe o aplicativo à mão antes do envio. Os testes de ponta a ponta compilam e sobem
+o aplicativo do commit atual por conta própria (o `webServer` do Playwright), e o derrubam ao
+terminar. Se o aplicativo ficou de pé de uma execução anterior, ele ocupa as portas de que os
+testes precisam: rode `.harness/down` e depois `.harness/up`.
 
 ## 2. Checagem
 
@@ -151,16 +153,23 @@ Grave o corpo em `.harness-run/pr-body.md` e abra o pull request:
 
 O título segue o formato dos commits e carrega o tipo mais alto da mudança: `feat` manda
 sobre `fix`. Use só letras, números, espaço e pontuação simples: `&`, `$`, crase, `<`, `>`,
-`;` e `|` fazem o comando ser negado. Depois do envio, `.harness/down`. Os commits são preservados no merge, sem squash.
+`;` e `|` fazem o comando ser negado. Os commits são preservados no merge, sem squash.
 
-## 7. Como o dono abre o que foi entregue
+## 7. Deixar o aplicativo de pé e dizer onde
 
-A entrega só termina quando o dono consegue ver o resultado. No relato final, depois do link
-do pull request, diga em três linhas:
+A entrega só termina quando o dono consegue ver o resultado, sem ter de montar nada. Depois
+do envio, cada comando sozinho:
 
-- os comandos que sobem o ambiente e o aplicativo: `.harness/up` e depois `.harness/dev`;
-- os endereços, com as portas do `.env` desta feature (o front, a API, e a caixa de e-mail de
-  teste se houver);
-- o usuário e a senha de teste, se o sistema tem login.
+1. `.harness/up` e `.harness/prepare`: o ambiente está de pé e o banco, pronto.
+2. `.harness/dev --background`: o aplicativo sobe.
+3. Confira que ele responde: o front e a API nos endereços do `.env` desta feature
+   (`curl -s -o /dev/null -w "%{http_code}"`). Se uma porta estiver ocupada, `.harness/ports-free`.
 
-Não deixe o aplicativo rodando: quem sobe é o dono.
+No relato final, logo depois do link do pull request:
+
+- o endereço do aplicativo, e o da caixa de e-mail de teste se houver;
+- o usuário e a senha de teste, se o sistema tem login;
+- como parar: `.harness/down`.
+
+Se o aplicativo não respondeu, diga isso com a última linha de `.harness-run/dev.log`, em vez
+do endereço. Não diga que está de pé sem ter conferido.

@@ -12,6 +12,26 @@ com teste contra um substituto em memória: sem ambiente de verdade ele fica `cl
 ambiente fica de pé até o envio. Integrado um ticket que muda o schema do banco, rode
 `.harness/prepare` de novo.
 
+**A base prova que roda.** Logo depois de integrar o ticket de contrato (e o de fundação, se
+foram separados), e antes de despachar qualquer outro, confira o que os revisores não têm
+como ver, porque rodam antes de o ambiente existir. Cada comando sozinho:
+
+1. `.harness/up`: os serviços sobem.
+2. `.harness/prepare`: as migrations e o seed rodam.
+3. `.harness/dev --background`: o aplicativo sobe. Espere e confira que o front e a API
+   respondem nos endereços do `.env` (`curl -s -o /dev/null -w "%{http_code}"`); o log fica
+   em `.harness-run/dev.log`.
+4. `.harness/down` encerra o aplicativo que você subiu; depois `.harness/up` de novo, porque
+   os implementadores precisam dos serviços.
+
+Falhou qualquer um: reabra o ticket dono com o erro como achado. É ajuste de ambiente, e
+não conta como reprovação de revisor no teto de rodadas. Só despache a primeira onda com os
+quatro passos passando.
+
+**A tela é exercitada desde a primeira.** Depois de integrar uma onda que tem ticket de tela,
+rode `.harness/validate --profile merge` uma vez: ele compila o aplicativo e roda os testes de
+navegador que já existem. Falhou: rodada de correção para o ticket dono do teste que falhou.
+
 **Testes em paralelo.** Os implementadores de uma rodada dividem o ambiente da feature. Se os
 testes usam banco, a spec precisa dizer como cada um isola o seu (um banco de teste por ticket,
 por exemplo). Isso se escreve na spec, antes de despachar: o pedido só leva ponteiros.

@@ -43,8 +43,13 @@ só dele: um módulo do back, ou uma fatia do front. Não é uma camada técnica
   ligados: é ele que acusa uma porta que não bate dos dois lados.
 - Com o contrato fechado, o módulo do back e a fatia do front do mesmo recurso são tickets
   separados e rodam juntos: cada lado testa contra o contrato.
+- Os testes de navegador não esperam o fim. A base (o ticket de contrato, ou o de fundação)
+  entrega a configuração deles e um teste de fumaça: o aplicativo sobe e a página inicial
+  responde. Daí em diante cada ticket de tela entrega, na pasta dele, um teste de navegador
+  do caminho principal daquela tela.
 - O último ticket é o de ponta a ponta: transforma os critérios de aceite da spec em testes que
-  exercitam o sistema inteiro, numa pasta só dele, e é bloqueado por todos os outros. Os testes
+  atravessam várias telas e exercitam o sistema inteiro, numa pasta só dele, e é bloqueado
+  por todos os outros. Os testes
   sobem o aplicativo sozinhos e entram só na checagem de merge (`VALIDATE_MERGE`), nunca na de
   cada ticket. É ele
   que protege o que já funciona quando alguém mexer em outra parte. O navegador roda num

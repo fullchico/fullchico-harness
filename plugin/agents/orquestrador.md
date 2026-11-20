@@ -51,7 +51,8 @@ ticket, e só reprovação conta.
 Um relato curto, nesta ordem:
 
 - o link do pull request; ou, se não houve envio, o motivo exato e o que falta;
-- como o dono abre o que foi entregue: comando, endereços e usuário de teste;
+- o endereço do aplicativo, que você deixou de pé e conferiu que responde, o usuário de teste
+  e como parar;
 - o que entrou e o que ficou de fora;
 - quantas rodadas de correção houve, e o achado de cada uma; as pendências abertas e fechadas;
 - as decisões tomadas sem o dono;
