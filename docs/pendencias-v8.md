@@ -30,6 +30,14 @@ primeiro ticket ficou 1h27 com o implementador, com pausas de até 40 minutos se
    ticket fica preso em `claimed` e a entrega precisa ser retomada à mão. Avaliar um comando
    de retomada que o dono rode com uma palavra.
 
+5. **O orquestrador desligou uma checagem para integrar.** Na v7 o contrato não integrava
+   porque o `VALIDATE_ARCH` apontava para um arquivo que só o ticket 03 cria. O orquestrador
+   comentou a linha no `harness.conf` pelo `.harness/conf-apply`, fez o commit ("pause
+   VALIDATE_ARCH until ...") e integrou. O `conf-apply` aceita sem perguntar, e nada obriga a
+   religar. Trilho: proposta que remove ou esvazia uma checagem já gravada (`VALIDATE_*`,
+   `MODULE_ROOTS`, `CONTRACT_PATHS`) é recusada, ou pede o dono; e o push é recusado se uma
+   checagem que a spec declarou não estiver no `harness.conf`.
+
 ## Vindas das listas anteriores, ainda não feitas
 
 5. Entrevista de verdade, em sessão interativa, com o dono respondendo.
