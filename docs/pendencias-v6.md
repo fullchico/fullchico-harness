@@ -25,8 +25,21 @@ pedido das anteriores.
      Pendência sem conferência barra o envio. É o que garante que "deixar passar" não vira "esquecer".
    - O caçador precisa de **critério escrito** para severo e simples, e o registro precisa ser de
      máquina (arquivo por achado, com estado), não opinião solta no relato.
-4. **A partir da segunda rodada o caçador confere a correção,** não relê o ticket inteiro atrás
-   de novidade. Achado novo fora do que a correção tocou entra como pendência, pela regra acima.
+4. **Uma conferência forte no início, em vez de várias repetidas** (validado pelo dono). A v5
+   mostrou que uma leitura só não acha tudo (as rodadas 2, 3 e 4 acharam defeito real que a 1
+   não viu), mas reler o ticket inteiro a cada rodada não converge, e deixar para o passe final
+   é o pior lugar: atenção diluída e correção cara.
+   - No ticket de contrato, **dois caçadores em paralelo**, com focos diferentes: comportamento
+     (bordas, erros, regras) e "funciona fora da máquina de quem escreveu" (ambiente limpo,
+     build, ferramentas). Achados somados, uma rodada de correção.
+   - **Depois da correção, o caçador confere só o que foi corrigido** e o que a correção tocou.
+     Achado novo e severo ainda barra; achado novo e simples vira pendência (item 3).
+   - **O que a máquina checa, a máquina checa:** antes de integrar, a checagem roda numa cópia
+     limpa do commit. Dois dos quatro achados da v5 eram desse tipo (contrato não compilado
+     antes dos testes; pasta temporária quebrando o lint).
+   - **A conferência na ponta é mecânica:** a pendência nasce com o teste que a pegaria; no fim
+     pergunta-se só se o teste existe e passa. O passe final não é a rede de segurança principal.
+   - Ticket comum: uma leitura completa e depois só a correção. O reforço é do contrato.
 5. **Conferência no início se mantém.** O dono gostou de o contrato ser conferido antes de
    qualquer ticket ser construído sobre ele: fica, com os critérios do item 3.
 6. **Ticket de contrato menor.** O da v5 carregava contrato, banco, proxy, lint, estrutura de
