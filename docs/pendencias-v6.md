@@ -11,12 +11,7 @@ pedido das anteriores.
    cairia fora da branch, e revisores em paralelo trocariam o checkout um do outro. Trilho:
    negar a troca de checkout a revisor; para rodar código de outra branch, um worktree
    descartável.
-2. **Achado no contrato que só muda a implementação não bloqueia a primeira onda.** O caçador
-   classifica cada achado do ticket de contrato como "muda a interface" (tipo, porta, tabela de
-   erros da spec) ou "só implementação". Só com achados do segundo tipo, o contrato é integrado,
-   a primeira onda começa e a correção vira um ticket próprio, que precisa fechar antes do push.
-   Na v5 isso teria evitado a terceira rodada do contrato.
-3. **Confiança da pasta do projeto.** Em pasta nunca aberta em modo interativo, o Claude Code
+2. **Confiança da pasta do projeto.** Em pasta nunca aberta em modo interativo, o Claude Code
    ignora as permissões `allow` do projeto. O instalador ou o `setup` deve avisar o dono.
 
 ## Já listadas antes, ainda não feitas
@@ -30,6 +25,9 @@ pedido das anteriores.
 
 ## Adiadas por decisão do dono
 
+- Achado no contrato que "só muda a implementação" seguir sem bloquear a primeira onda. Recusado
+  enquanto o foco for qualidade: quem classifica é um modelo, o formato de erro é copiado por
+  todos os módulos, e correção no fim é a menos testada. Só volta com classificação por máquina.
 - Custo e tempo da entrega (medição da v4 em tokens por papel já feita).
 - Vídeo do teste de ponta a ponta no PR.
 - Segunda entrega sobre código existente, perfis `livre` e `existente`, memória e aprendizado.
