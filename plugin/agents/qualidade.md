@@ -40,4 +40,5 @@ COMMIT: <o hash completo do commit>
 RESUMO: <uma frase: o que rodou e o resultado, ou o que falhou>
 ```
 
-`APPROVED` só se o comando saiu com código zero. Qualquer outra coisa é `REJECTED`.
+`APPROVED` só se a última linha da saída for `validate: passou (perfil merge)`. Qualquer outra
+coisa é `REJECTED`. Saída curta não é defeito: um projeto pequeno tem checagem pequena.

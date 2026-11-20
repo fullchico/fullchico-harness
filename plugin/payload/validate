@@ -50,5 +50,14 @@ import common
 print(common.read_conf(sys.argv[2]).get(sys.argv[3], ""))
 PY
 )"
-[ -n "$CMD" ] || exit 0
-cd "$ROOT" && bash -c "$CMD"
+# A última linha diz o resultado com todas as letras: quem lê a saída não tem de adivinhar
+# pelo silêncio se a checagem passou.
+if [ -n "$CMD" ]; then
+  (cd "$ROOT" && bash -c "$CMD")
+  RC=$?
+  if [ "$RC" -ne 0 ]; then
+    echo "validate: FALHOU (perfil $2): $CMD" >&2
+    exit "$RC"
+  fi
+fi
+echo "validate: passou (perfil $2)"

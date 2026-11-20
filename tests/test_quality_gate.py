@@ -70,6 +70,15 @@ class TestQualityGate(unittest.TestCase):
         self.assertIn("qualidade", common.GATES)
         body = (ROOT / "plugin/agents/qualidade.md").read_text()
         self.assertIn(".harness/validate --profile merge", body)
+        self.assertIn("validate: passou (perfil merge)", body)
+        r = subprocess.run([str(self.repo / ".harness/validate"), "--profile", "merge"], cwd=self.repo,
+                           capture_output=True, text=True)
+        self.assertEqual((r.returncode, r.stdout.strip().splitlines()[-1]), (0, "validate: passou (perfil merge)"))
+        (self.repo / "harness.conf").write_text('VALIDATE_MERGE="exit 3"\n')
+        r = subprocess.run([str(self.repo / ".harness/validate"), "--profile", "merge"], cwd=self.repo,
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 3)
+        self.assertNotIn("validate: passou", r.stdout)
         self.assertIn("harness:qualidade", (ROOT / "plugin/payload/entrega/fechamento.md").read_text())
 
 
