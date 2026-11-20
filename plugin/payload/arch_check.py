@@ -5,7 +5,7 @@ Uso: arch_check.py <raiz do projeto>
 
 Lê MODULE_ROOTS e CONTRACT_PATHS do harness.conf. Cada pasta logo abaixo de uma raiz de
 módulos é um módulo. Arquivo de um módulo só importa de dentro do próprio módulo, do que é
-comum (CONTRACT_PATHS) e de pacotes. Todo o resto é recusado: importação de tipo, reexportação,
+comum (CONTRACT_PATHS), de pacotes e da entrada pública (index) de outro módulo. Todo o resto é recusado: importação de tipo, reexportação,
 require e import dinâmico contam igual.
 """
 import os
@@ -20,6 +20,15 @@ SOURCES = (".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs")
 # ponytail: casa por texto, então um import dentro de comentário também conta. Trocar por
 # um analisador da linguagem se isso der falso positivo de verdade.
 SPECIFIER = re.compile(r"""(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["']([^"']+)["']""")
+
+
+INSIDE = ('entra por dentro do módulo "{other}" ({specifier}). De outro módulo só se importa a entrada '
+          "pública dele (o index); o que ele não exporta ali não é para uso de fora.")
+
+
+def _is_entry(rest: list) -> bool:
+    """O que sobra do caminho depois do nome do módulo: nada, ou o index dele."""
+    return not rest or (len(rest) == 1 and rest[0].split(".")[0] == "index")
 
 
 def _inside(path: str, folder: str) -> bool:
@@ -60,13 +69,14 @@ def _reason(specifier, folder, own, modules_dir, others, shared):
         if _inside(target, own) or any(_inside(target, s) for s in shared):
             return ""
         if _inside(target, modules_dir):
-            other = os.path.relpath(target, modules_dir).split(os.sep)[0]
-            return f'importa do módulo "{other}" ({specifier}). Um módulo fala com outro pela porta definida no contrato.'
+            parts = os.path.relpath(target, modules_dir).split(os.sep)
+            return "" if _is_entry(parts[1:]) else INSIDE.format(other=parts[0], specifier=specifier)
         return f"importa de fora do módulo e fora do que é comum ({specifier}). O que mais de um módulo usa fica num caminho de CONTRACT_PATHS."
     marker = os.path.basename(modules_dir) + "/"
     for other in others:
-        if (marker + other + "/") in specifier + "/":
-            return f'importa do módulo "{other}" ({specifier}). Um módulo fala com outro pela porta definida no contrato.'
+        head, found, rest = (specifier + "/").partition(marker + other + "/")
+        if found and not _is_entry([p for p in rest.split("/") if p]):
+            return INSIDE.format(other=other, specifier=specifier)
     return ""
 
 

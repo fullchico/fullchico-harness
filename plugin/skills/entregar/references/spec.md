@@ -49,7 +49,7 @@ os serviços de que os testes dependem (banco, fila) e como cada implementador i
 quando vários rodam ao mesmo tempo no mesmo ambiente (um banco de teste por ticket, por
 exemplo); e, se o projeto ainda não tem `harness.conf` preenchido, uma subseção `harness.conf`
 com o conteúdo do arquivo, incluindo `CONTRACT_PATHS` (os caminhos do contrato e do que é
-comum), `MODULE_ROOTS` (a pasta dos módulos do back: o harness recusa a importação de um módulo por outro), `VALIDATE_ARCH` (o comando que confere as demais fronteiras), o serviço `playwright` em
+comum), `MODULE_ROOTS` (a pasta dos módulos do back: de outro módulo só se importa a entrada pública, e o harness recusa o resto), `VALIDATE_ARCH` (o comando que confere as demais fronteiras), o serviço `playwright` em
 `SERVICES` com o endereço dele em `ENV_PW_TEST_CONNECT_WS_ENDPOINT`, e os testes de ponta a
 ponta só no `VALIDATE_MERGE`. Sem ela o orquestrador não é despachado. Se existir
 `docs/agents/stack.md`, ele diz o que vale para a stack: leia antes de escrever esta seção. No

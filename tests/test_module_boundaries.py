@@ -39,7 +39,17 @@ class TestModuleBoundaries(unittest.TestCase):
         r = self.validate()
         self.assertEqual(r.returncode, 0, r.stderr)
 
-    def test_another_module_is_refused_in_every_form(self):
+    def test_another_module_is_reached_only_through_its_public_entry(self):
+        write(self.repo, "apps/api/src/modules/billing/index.ts", "export {};\n")
+        self.booking(
+            'import { BillingModule } from "../../billing/index.js";\n'
+            'import { BillingPort } from "../../billing";\n'
+            'import { Guard } from "@/modules/billing";\n'
+        )
+        r = self.validate()
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_the_inside_of_another_module_is_refused_in_every_form(self):
         for source in (
             'import { Invoice } from "../../billing/domain/invoice";\n',
             'import type { Invoice } from "../../billing/domain/invoice";\n',

@@ -96,7 +96,7 @@ def conf_check(cwd: str) -> None:
     if profile == "fullstack-typescript" and not proposed.get("MODULE_ROOTS"):
         common.deny("conf-apply: a proposta precisa trazer MODULE_ROOTS, a pasta dos módulos do back "
                     '(por exemplo MODULE_ROOTS="apps/api/src/modules"). É por ela que o harness confere que um '
-                    "módulo não importa de outro.")
+                    "módulo não entra por dentro de outro.")
     target = common.conf_approval_path(root)
     os.makedirs(os.path.dirname(target), exist_ok=True)
     tmp = f"{target}.{os.getpid()}.tmp"
