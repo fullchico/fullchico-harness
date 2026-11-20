@@ -2,6 +2,7 @@
 # Remove os worktrees de agente cujo trabalho já foi integrado na branch atual, e as
 # branches deles. O que ainda não foi integrado, ou está em uso, fica e é listado.
 # Uso: .harness/agents-clean
+#      .harness/agents-clean --superseded         depois do envio: o que saiu desta feature e não entrou
 #      .harness/agents-clean --discard <branch>   joga fora o worktree de agente dessa branch,
 #                                                 mesmo sem integrar (trabalho recusado e refeito)
 set -uo pipefail
@@ -18,6 +19,24 @@ if [ "${1:-}" = "--discard" ]; then
   esac
   git worktree remove --force "$FOUND" && git branch -q -D "$TARGET" && echo "descartado: $FOUND"
   exit $?
+fi
+
+if [ "${1:-}" = "--superseded" ]; then
+  # Depois do envio: worktrees de agente que saíram desta feature e não entraram nela (tentativa
+  # recusada e refeita). Os de outra feature, que saíram da branch padrão, não são tocados.
+  HERE="$(cd "$(dirname "$0")" && pwd -P)"
+  BASE="$(python3 -I "$HERE/hooks/common.py" branch-base "$(git rev-parse HEAD)" 2>/dev/null)" || BASE=""
+  [ -n "$BASE" ] || exit 0
+  git worktree list --porcelain | awk '/^worktree /{p=substr($0,10)} /^HEAD /{h=$2} /^branch /{b=substr($0,19)} /^locked/{l=1} /^$/{if(p!="")print p"\t"h"\t"b"\t"l; p="";h="";b="";l=""} END{if(p!="")print p"\t"h"\t"b"\t"l}' \
+  | while IFS="$(printf '\t')" read -r P H B L; do
+      case "$P" in */.claude/worktrees/*) ;; *) continue ;; esac
+      [ -z "$L" ] || continue
+      MB="$(git merge-base "$H" HEAD 2>/dev/null)" || continue
+      [ "$MB" != "$BASE" ] && git merge-base --is-ancestor "$BASE" "$MB" 2>/dev/null || continue
+      git worktree remove --force "$P" 2>/dev/null && { [ -n "$B" ] && git branch -q -D "$B" 2>/dev/null; echo "descartado: $P"; }
+    done
+  git worktree prune
+  exit 0
 fi
 
 PATH_="" HEAD_="" BRANCH="" LOCKED=""

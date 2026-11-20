@@ -20,6 +20,23 @@ BASE="$(git merge-base HEAD "$BRANCH")" || die "a branch $BRANCH não tem histó
 git show "$BRANCH:$TICKET" 2>/dev/null | grep -q '^Status: done' \
   || die "o ticket não está como Status: done na branch $BRANCH. O implementador fecha o ticket; quem integra não."
 
+# Só entra o que o caçador de bugs aprovou, naquele commit exato. Diff de um ticket é pequeno:
+# é aqui que revisão funda funciona, e o defeito não chega aos tickets que dependem deste.
+TIP="$(git rev-parse "refs/heads/$BRANCH")"
+STATE="$(python3 -I "$HERE/hooks/common.py" state-dir)" || die "não achei o estado do harness."
+python3 -I -c 'import json, sys
+try:
+    d = json.load(open(sys.argv[1], encoding="utf-8"))
+except (OSError, ValueError):
+    sys.exit(1)
+sys.exit(0 if d.get("status") == "PASS" and d.get("gate") == "bugs" and d.get("sha") == sys.argv[2] else 1)' \
+  "$STATE/approvals/bugs/$TIP.json" "$TIP" || {
+  echo "integrate: falta a caça a bugs do ticket, no commit $TIP." >&2
+  echo "  Dispare o harness:revisor-bugs com spec, ticket, diff (<branch da feature>...$TIP) e commit ($TIP)." >&2
+  echo "  Se ele reprovou, é rodada de correção para este ticket; commit novo pede revisão nova." >&2
+  exit 1
+}
+
 # O programa vai por -c: a entrada padrão é a lista de arquivos alterados.
 CHECK='import sys
 sys.dont_write_bytecode = True

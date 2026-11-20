@@ -38,6 +38,9 @@ ficam definidas aqui, antes de qualquer implementação:
   "oferece" correspondente. Liste também o que os testes de todos precisam em comum (como
   isolar banco e fila entre implementadores que rodam juntos).
 
+Defina também o que todos os módulos fazem igual: a resposta para identificador inválido, para
+corpo malformado e para erro não previsto, e o formato do erro.
+
 O que ficar de fora daqui vira um ticket reaberto no meio da entrega, e uma rodada perdida
 para todos os que dependem dele.
 

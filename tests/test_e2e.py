@@ -31,9 +31,11 @@ def reviewer_stops(repo, agent, verdict="APPROVED"):
 def quality_passes(repo):
     """O portão de qualidade atesta a checagem completa no commit atual."""
     sha = git(repo, "rev-parse", "HEAD")
-    return hook(repo, "gate_stamp.py", {
-        "hook_event_name": "SubagentStop", "agent_type": "harness:qualidade", "cwd": str(repo),
-        "last_assistant_message": f"VEREDITO: APPROVED\nCOMMIT: {sha}\nRESUMO: checagem passou"})
+    for agent in ("harness:revisor-bugs", "harness:qualidade"):  # a caça a bugs final e a checagem completa
+        done = hook(repo, "gate_stamp.py", {
+            "hook_event_name": "SubagentStop", "agent_type": agent, "cwd": str(repo),
+            "last_assistant_message": f"VEREDITO: APPROVED\nCOMMIT: {sha}\nRESUMO: checagem passou"})
+    return done
 
 
 class TestEndToEnd(unittest.TestCase):

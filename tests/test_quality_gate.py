@@ -29,7 +29,7 @@ class TestQualityGate(unittest.TestCase):
         return subprocess.run([str(self.repo / ".harness/push")], cwd=self.repo, capture_output=True, text=True)
 
     def test_push_needs_the_quality_verdict_too(self):
-        for gate in ("seguranca", "revisao"):
+        for gate in ("seguranca", "revisao", "bugs"):
             owner_approve(self.repo, gate)
         r = self.push()
         self.assertNotEqual(r.returncode, 0)
@@ -38,13 +38,13 @@ class TestQualityGate(unittest.TestCase):
         self.assertEqual(self.push().returncode, 0)
 
     def test_rejected_quality_blocks_and_a_new_commit_needs_it_again(self):
-        for gate in ("seguranca", "revisao"):
+        for gate in ("seguranca", "revisao", "bugs"):
             owner_approve(self.repo, gate)
         stop(self.repo, "harness:qualidade", "REJECTED", self.sha)
         self.assertNotEqual(self.push().returncode, 0)
         stop(self.repo, "harness:qualidade", "APPROVED", self.sha)
         new = commit_file(self.repo, "b.txt", "fix: b")
-        for gate in ("seguranca", "revisao"):
+        for gate in ("seguranca", "revisao", "bugs"):
             owner_approve(self.repo, gate)
         self.assertNotEqual(self.push().returncode, 0, "a aprovação de qualidade é do commit anterior")
         stop(self.repo, "harness:qualidade", "APPROVED", new)
@@ -61,7 +61,7 @@ class TestQualityGate(unittest.TestCase):
     def test_settings_and_agent_definition(self):
         s = json.loads((self.repo / ".claude/settings.json").read_text())
         matchers = [h["matcher"] for h in s["hooks"]["SubagentStop"]]
-        self.assertIn("^harness:(seguranca|revisor|qualidade)$", matchers)
+        self.assertIn("^harness:(seguranca|revisor|qualidade|revisor-bugs)$", matchers)
         head = (ROOT / "plugin/agents/qualidade.md").read_text().split("---")[1]
         self.assertIn("name: qualidade", head)
         self.assertIn("model: haiku", head)

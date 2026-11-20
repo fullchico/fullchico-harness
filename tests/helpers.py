@@ -131,3 +131,11 @@ def owner_approve(repo, gate, resumo="ok"):
     finally:
         os.close(master)
         os.close(slave)
+
+
+def bug_review_passes(repo, ref):
+    """O caçador de bugs aprovou o commit de `ref` (a ponta da branch de um implementador, ou o HEAD)."""
+    sha = git(repo, "rev-parse", ref)
+    return run_hook("gate_stamp.py", {"hook_event_name": "SubagentStop", "agent_type": "harness:revisor-bugs",
+                                      "cwd": str(repo),
+                                      "last_assistant_message": f"VEREDITO: APPROVED\nCOMMIT: {sha}\nRESUMO: sem defeito"})

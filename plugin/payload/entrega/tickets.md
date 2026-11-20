@@ -24,11 +24,16 @@ só dele: um módulo do back, ou uma fatia do front. Não é uma camada técnica
   cada porta que um módulo consome está definida nele. Porta que falta aqui reabre este ticket
   no meio da entrega. Ele bloqueia todos os outros e
   não tem teste que dependa do ambiente, porque é ele que o traz.
+- O ticket de contrato fixa também o que todos os módulos fazem igual, para não sair um de cada
+  jeito: a resposta para identificador inválido, para corpo malformado e para erro não
+  previsto; o formato do erro; como se ordena e se pagina. E toda constante de regra que back
+  e front usam (uma janela de dias, um tamanho de grade) fica nele, uma vez.
 - O ticket de contrato também entrega as duas provas de que o resto pode confiar:
   a checagem de fronteira (`VALIDATE_ARCH`), com um caso de teste que viola cada regra e
   precisa ser recusado (inclusive importação só de tipo, e a direção entre domínio, use case
   e adaptador); e um teste de contrato, que falha se front e back divergirem em rota, método,
-  status ou formato.
+  status ou formato. Entrega ainda um teste que sobe a aplicação inteira, com todos os módulos
+  ligados: é ele que acusa uma porta que não bate dos dois lados.
 - Com o contrato fechado, o módulo do back e a fatia do front do mesmo recurso são tickets
   separados e rodam juntos: cada lado testa contra o contrato.
 - O último ticket é o de ponta a ponta: transforma os critérios de aceite da spec em testes que

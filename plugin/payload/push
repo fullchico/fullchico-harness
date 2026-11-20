@@ -31,3 +31,5 @@ printf 'refs/heads/%s %s refs/heads/%s 0000000000000000000000000000000000000000\
 # shellcheck disable=SC2086
 git push --no-verify $FORCE origin "HEAD:refs/heads/$BRANCH" || die "o remoto recusou o envio. Veja a saída do git acima."
 echo "Branch $BRANCH enviada ($SHA)."
+# A entrega saiu: as tentativas recusadas e refeitas desta feature não servem mais.
+"$HERE/agents-clean" --superseded >/dev/null 2>&1 || true

@@ -34,7 +34,7 @@ entrega a execução ao `orquestrador`, em modelo mais barato (passos 4 em diant
 | 5. Implementar | goldfish em paralelo, um worktree cada, com `tdd` |
 | 6. Integrar | o orquestrador junta tudo na branch da feature |
 | 7. Checar | `.harness/validate`, sem custo de IA |
-| 8. Revisar | goldfish `seguranca`, `revisor` e `qualidade`, em paralelo |
+| 8. Revisar | goldfish `seguranca`, `revisor`, `revisor-bugs` e `qualidade`, em paralelo |
 | 9. Enviar | push e PR |
 
 Toda `feat` passa pelo ciclo inteiro. Bug entra por `diagnosing-bugs`. Spec já
@@ -99,9 +99,9 @@ então a mudança é o assunto da spec, não um efeito colateral.
 
 ## Portões de push
 
-Nada sai da máquina sem três vereditos sobre o commit do topo da branch:
-`seguranca`, `revisor` e `qualidade` (a checagem completa do projeto, com os testes de
-ponta a ponta, rodou e passou naquele commit). Commit local é livre. Entrou commit novo, a validação
+Nada sai da máquina sem quatro vereditos sobre o commit do topo da branch: `seguranca`,
+`revisor`, `revisor-bugs` (caça a defeito, por ticket antes de integrar e na branch inteira
+no fim) e `qualidade` (a checagem completa, com os testes de ponta a ponta, passou nele). Commit local é livre. Entrou commit novo, a validação
 é refeita.
 
 - Branch com commit `feat` precisa trazer a spec em `docs/specs/<slug>/spec.md`.

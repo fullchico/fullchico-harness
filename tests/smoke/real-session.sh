@@ -27,11 +27,11 @@ printf '# Projeto\n\nUm projeto de teste do harness.\n' > README.md
 git commit -qam "docs: say what the project tests"
 SHA="$(git rev-parse HEAD)" BASE="$(git rev-parse main)"
 
-claude -p "Faça exatamente isto e nada mais: (1) dispare, na mesma mensagem, três subagentes: harness:seguranca e harness:revisor, cada um com o pedido de duas linhas, sem mais nada: 'diff: $BASE...$SHA' e 'commit: $SHA'; e harness:qualidade, com o pedido de uma linha só: 'commit: $SHA'. (2) Espere os três terminarem. (3) Rode o comando .harness/push sozinho, sem encadear. (4) Responda com o veredito de cada revisor e a saída do push." \
+claude -p "Faça exatamente isto e nada mais: (1) dispare, na mesma mensagem, quatro subagentes: harness:seguranca, harness:revisor e harness:revisor-bugs, cada um com o pedido de duas linhas, sem mais nada: 'diff: $BASE...$SHA' e 'commit: $SHA'; e harness:qualidade, com o pedido de uma linha só: 'commit: $SHA'. (2) Espere os quatro terminarem. (3) Rode o comando .harness/push sozinho, sem encadear. (4) Responda com o veredito de cada revisor e a saída do push." \
   --plugin-dir "$HARNESS/plugin" --model sonnet --permission-mode bypassPermissions > "$WORK/session.log" 2>&1 || true
 
 fail() { echo "FALHOU: $1" >&2; tail -20 "$WORK/session.log" >&2; exit 1; }
-for GATE in seguranca revisao qualidade; do
+for GATE in seguranca revisao qualidade bugs; do
   [ -f "$STATE/approvals/$GATE/$SHA.json" ] || fail "a aprovação de $GATE não foi gravada"
 done
 git ls-remote origin refs/heads/fix/typo | grep -q "$SHA" || fail "o push não chegou ao remoto"

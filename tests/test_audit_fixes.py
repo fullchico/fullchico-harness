@@ -4,7 +4,7 @@ import os
 import subprocess
 import unittest
 
-from tests.helpers import ROOT, _tmpdir, commit_all, commit_file, git, make_repo, run_hook, sync
+from tests.helpers import ROOT, _tmpdir, bug_review_passes, commit_all, commit_file, git, make_repo, run_hook, sync
 
 
 def ticket(repo, text, name="01-agenda"):
@@ -31,6 +31,7 @@ class TestIntegrateInstallsBeforeChecking(unittest.TestCase):
         path = agent / "docs/specs/x/issues/01-agenda.md"
         path.write_text(path.read_text().replace("claimed", "done"))
         commit_all(agent, "feat: add dependency")
+        bug_review_passes(repo, "worktree-agent-a")
         r = subprocess.run([str(repo / ".harness/integrate"), "docs/specs/x/issues/01-agenda.md", "worktree-agent-a"],
                            cwd=repo, capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
@@ -55,6 +56,7 @@ class TestFreshRemote(unittest.TestCase):
                                        "last_assistant_message": f"VEREDITO: APPROVED\nCOMMIT: {sha}\nRESUMO: ok"})
         run_hook("gate_stamp.py", {"hook_event_name": "SubagentStop", "agent_type": "harness:qualidade", "cwd": str(repo),
                                    "last_assistant_message": f"VEREDITO: APPROVED\nCOMMIT: {sha}\nRESUMO: ok"})
+        bug_review_passes(repo, "HEAD")
         r = subprocess.run([str(repo / ".harness/push")], cwd=repo, capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
 
@@ -169,7 +171,7 @@ class TestSecondAudit(unittest.TestCase):
     def test_texts_agree_on_three_gates_english_examples_and_who_runs_the_app(self):
         run = ROOT / "plugin/payload/entrega"
         closing = (run / "fechamento.md").read_text()
-        self.assertIn("Os três aprovaram", closing)
+        self.assertIn("Os quatro aprovaram", closing)
         self.assertNotIn("Os dois aprovaram", closing)
         self.assertNotIn(".harness/dev --background", closing)
         tickets = (run / "tickets.md").read_text()

@@ -67,7 +67,7 @@ class TestSync(unittest.TestCase):
         for name in ["service_guard.py", "dispatch_guard.py", "managed_guard.py", "gate_stamp.py", "rtk hook claude"]:
             self.assertIn(name, text)
         stops = settings(self.repo)["hooks"]["SubagentStop"]
-        self.assertEqual(stops[0]["matcher"], "^harness:(seguranca|revisor|qualidade)$")
+        self.assertEqual(stops[0]["matcher"], "^harness:(seguranca|revisor|qualidade|revisor-bugs)$")
 
     def test_template_conf_has_no_active_keys(self):
         import common

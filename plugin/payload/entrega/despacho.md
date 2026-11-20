@@ -55,15 +55,31 @@ leitura: GLOSSARY.md
    A linha `leitura` é opcional e só lista arquivos que existem. A spec e o ticket precisam
    estar em commit: o implementador trabalha numa cópia que só tem o que foi commitado.
 
-4. Quando todos voltarem, cada um diz em que branch ficaram os commits. Junte cada branch na da
-   feature com `.harness/integrate <arquivo do ticket> <branch>`, um ticket por vez. O comando
+4. Quando todos voltarem, cada um diz em que branch ficaram os commits. Antes de integrar,
+   cada ticket passa pela caça a bugs: dispare um `harness:revisor-bugs` por ticket, todos na
+   mesma mensagem, com `run_in_background` como `false`:
+
+```pedido harness:revisor-bugs
+spec: docs/specs/exemplo/spec.md
+ticket: docs/specs/exemplo/issues/01-nome.md
+diff: BASE...HASH_DO_COMMIT
+commit: HASH_DO_COMMIT
+```
+
+   `HASH_DO_COMMIT` é a ponta da branch do implementador (`git rev-parse <branch>`), e `BASE` é
+   o commit de onde ela saiu (`git merge-base HEAD <branch>`). Reprovou: é rodada de correção
+   para aquele ticket, com a resposta como achado, e cada caso apontado entra como teste junto
+   com a correção. Os que passaram seguem.
+5. Junte cada branch aprovada na da feature com
+   `.harness/integrate <arquivo do ticket> <branch>`, um ticket por vez. Ele recusa a branch
+   que não passou pela caça a bugs naquele commit. O comando
    confere que a branch só mexeu no que o ticket possui, junta, roda a checagem e desfaz a
    junção se ela falhar; no fim apaga os worktrees de agente já integrados. Não junte com
    `git merge` à mão.
    Recusa por posse, conflito ou checagem é uma rodada de correção para aquele ticket: o
    comando diz o motivo. Não resolva conflito à mão: ele mostra que o fatiamento está errado.
-5. Ticket integrado está `Status: done` e com a checagem passando: o comando garante os dois.
-6. Peça a fronteira de novo. Repita até ela vir vazia e todo ticket estar concluído.
+6. Ticket integrado está `Status: done` e com a checagem passando: o comando garante os dois.
+7. Peça a fronteira de novo. Repita até ela vir vazia e todo ticket estar concluído.
 
 Os worktrees de agente usam o ambiente da feature. Nenhum implementador sobe ambiente. Cada
 um prepara a própria cópia com `.harness/setup-worktree`, que traz o `.env` da feature e

@@ -127,10 +127,11 @@ class TestPushUsesTheRealRemote(unittest.TestCase):
             self.assertEqual(ask_review(self.repo, agent), 0)
             reviewer_approves(self.repo, agent)
         reviewer_approves(self.repo, "harness:qualidade")
+        reviewer_approves(self.repo, "harness:revisor-bugs")
 
     def test_default_branch_comes_from_the_remote(self):
         commit_file(self.repo, "a.txt", "fix: a")
-        for g in ("seguranca", "revisao", "qualidade"):
+        for g in ("seguranca", "revisao", "qualidade", "bugs"):
             owner_approve(self.repo, g)
         r = self.push()
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -155,7 +156,7 @@ class TestPushUsesTheRealRemote(unittest.TestCase):
 
     def test_forged_default_branch_does_not_empty_the_spec_lock(self):
         commit_file(self.repo, "a.txt", "feat: no spec")
-        for g in ("seguranca", "revisao", "qualidade"):
+        for g in ("seguranca", "revisao", "qualidade", "bugs"):
             owner_approve(self.repo, g)
         git(self.repo, "update-ref", "refs/remotes/origin/trunk", "HEAD")
         git(self.repo, "update-ref", "refs/remotes/origin/HEAD", "HEAD")

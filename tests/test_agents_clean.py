@@ -52,3 +52,29 @@ class TestAgentsClean(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSupersededAfterDelivery(unittest.TestCase):
+    """Depois do envio, a branch recusada e refeita não serve mais: sobrava no repositório."""
+
+    def test_only_this_features_leftovers_are_removed(self):
+        repo = make_repo()
+        self.assertEqual(sync(repo).returncode, 0)
+        commit_all(repo, "chore: adopt harness")
+        feature = repo.parent / "feat dir"
+        git(repo, "worktree", "add", "-q", "-b", "feat/x", str(feature))
+        (feature / "a.txt").write_text("a\n")
+        commit_all(feature, "feat: a")
+        mine = repo / ".claude/worktrees/agent-mine"
+        git(feature, "worktree", "add", "-q", "-b", "worktree-agent-mine", str(mine), "HEAD")
+        (mine / "recusado.txt").write_text("x\n")
+        commit_all(mine, "feat: refused attempt")
+        other = repo / ".claude/worktrees/agent-other"  # de outra feature, saída direto da branch padrão
+        git(repo, "worktree", "add", "-q", "-b", "worktree-agent-other", str(other), "HEAD")
+        (other / "outro.txt").write_text("y\n")
+        commit_all(other, "feat: other feature work")
+        r = subprocess.run([str(feature / ".harness/agents-clean"), "--superseded"], cwd=feature, capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse(mine.exists())
+        self.assertTrue(other.exists(), "worktree de agente de outra feature não é desta entrega")
+        self.assertTrue(feature.exists())

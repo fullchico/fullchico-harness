@@ -3,7 +3,7 @@ import subprocess
 import sys
 import unittest
 
-from tests.helpers import ROOT, commit_all, git, make_repo, sync
+from tests.helpers import ROOT, bug_review_passes, commit_all, git, make_repo, sync
 
 sys.path.insert(0, str(ROOT / "plugin/payload"))
 import tickets_check  # noqa: E402
@@ -97,6 +97,7 @@ class TestIntegrate(unittest.TestCase):
         commit_all(self.agent, "feat: agenda")
 
     def integrate(self, branch="worktree-agent-a"):
+        bug_review_passes(self.repo, branch)
         return subprocess.run([str(self.repo / ".harness/integrate"), "docs/specs/x/issues/01-agenda.md", branch],
                               cwd=self.repo, capture_output=True, text=True)
 

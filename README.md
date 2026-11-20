@@ -26,8 +26,8 @@ O que foi conferido em sessões reais, e o que ainda não foi, está em
   os revisores também são Sonnet, e os implementadores e o trabalho bruto são Haiku.
 - **Não deixa código sem revisão chegar ao remoto.** O shell do agente roda no sandbox do
   Claude Code, sem rede para o servidor de git. O único caminho é `.harness/push`, que
-  exige três aprovações sobre o commit (segurança, revisão de código e qualidade: a checagem
-  completa do projeto passou nele) e, para uma `feat`, a spec da mudança.
+  exige quatro aprovações sobre o commit (segurança, revisão de código, caça a bugs e
+  qualidade: a checagem completa do projeto passou nele) e, para uma `feat`, a spec da mudança.
 - **Nenhum agente aprova o próprio trabalho.** A aprovação nasce do veredito de um revisor
   de contexto novo, gravada por um hook, num lugar onde o agente não escreve.
 - **Dá a cada feature o próprio ambiente Docker,** com portas e projeto isolados, levantado

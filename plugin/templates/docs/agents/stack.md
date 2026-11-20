@@ -64,6 +64,12 @@ que vem com o próprio pacote instalado.
 - **Next com Feature-Sliced Design.** A pasta `app/` do Next fica na raiz do aplicativo, com um
   `pages/` vazio ao lado, e as camadas do padrão ficam em `src/`. Sem isso o Next trata
   `src/pages` como roteador.
+- **Substituto e adaptador passam nos mesmos testes.** Para cada porta, os testes de
+  comportamento (filtro, ordenação, limite, erro) são escritos uma vez e rodam contra o
+  substituto em memória e contra o adaptador real. Um substituto que se comporta diferente do
+  banco esconde defeito.
+- **Corrida tem teste de verdade:** onde dois pedidos ao mesmo tempo não podem os dois
+  vencer, há um teste que dispara os dois juntos contra o banco real.
 - **Os testes leem o `.env` da raiz** do worktree (portas e endereços). A checagem do harness
   já o exporta.
 - **Instalação reproduzível:** `pnpm install --frozen-lockfile` na checagem; quem muda o

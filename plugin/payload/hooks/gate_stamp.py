@@ -16,7 +16,8 @@ sys.dont_write_bytecode = True  # não deixa __pycache__ dentro de .harness/ do 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common  # noqa: E402
 
-AGENT_GATE = {"harness:seguranca": "seguranca", "harness:revisor": "revisao", "harness:qualidade": "qualidade"}
+AGENT_GATE = {"harness:seguranca": "seguranca", "harness:revisor": "revisao", "harness:qualidade": "qualidade",
+              "harness:revisor-bugs": "bugs"}
 HANDBACK_TOOL = "SubagentHandback"
 _VERDICT = re.compile(r"^VEREDITO: (APPROVED|REJECTED)$")
 _COMMIT = re.compile(r"^COMMIT: ([0-9a-f]{40})$")
@@ -115,7 +116,14 @@ def main():
     if not gate or not verdict or not isinstance(cwd, str):
         return
     state = common.state_dir(cwd)
-    if not state or verdict["commit"] != common.head_sha(cwd):
+    if not state:
+        return
+    if gate == "bugs":
+        # A caça a bugs também revisa a ponta da branch de um implementador, antes de integrar:
+        # o commit não precisa ser o HEAD, mas precisa existir neste repositório.
+        if common._git(cwd, "cat-file", "-t", verdict["commit"]) != "commit":
+            return
+    elif verdict["commit"] != common.head_sha(cwd):
         return
     path = common.approval_path(state, gate, verdict["commit"])
     if verdict["verdict"] == "REJECTED":

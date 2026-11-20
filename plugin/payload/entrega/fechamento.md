@@ -58,17 +58,28 @@ projeto naquele commit, com o ambiente de pé:
 commit: HASH_DO_COMMIT
 ```
 
-Dispare os três na mesma mensagem, com `run_in_background` como `false`, e espere os três
-voltarem. O push exige os três vereditos sobre o mesmo commit.
+E a caça a bugs final, sobre a branch inteira, que procura o que só aparece olhando os módulos
+juntos. O pedido é o dos revisores, sem a linha `ticket:`:
+
+```pedido harness:revisor-bugs
+spec: docs/specs/exemplo/spec.md
+diff: BASE...HASH_DO_COMMIT
+commit: HASH_DO_COMMIT
+```
+
+Dispare os quatro na mesma mensagem, com `run_in_background` como `false`, e espere todos
+voltarem. O push exige os quatro vereditos sobre o mesmo commit.
 
 Cada revisor termina com `VEREDITO: APPROVED` ou `VEREDITO: REJECTED`. A aprovação é
 gravada por um hook a partir dessa resposta. Você não grava aprovação e não tem como.
 
 - **Um revisor reprovou:** é uma rodada de correção, com a resposta dele como achado. Depois
-  dela, volte ao passo 2: commit novo pede os três vereditos de novo.
+  dela, volte ao passo 2: commit novo pede os quatro vereditos de novo.
 - **A qualidade reprovou:** leia o resumo. Se foi o ambiente que não respondeu, conserte-o e
   dispare só a qualidade de novo. Se foi teste ou build, é rodada de correção.
-- **Os três aprovaram:** siga.
+- **O caçador de bugs reprovou:** é rodada de correção para os tickets donos dos arquivos
+  apontados; cada caso entra como teste junto com a correção.
+- **Os quatro aprovaram:** siga.
 
 ## 4. Enviar
 

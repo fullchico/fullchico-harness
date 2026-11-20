@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# O portão de push: três vereditos sobre o commit do topo (segurança, revisão, qualidade) e a trava de spec.
+# O portão de push: quatro vereditos sobre o commit do topo (segurança, revisão, caça a bugs, qualidade) e a trava de spec.
 #
 # Uso: gate-check <url do remoto>   com as linhas de ref no stdin, no formato do git:
 #      <ref local> <sha local> <ref remoto> <sha remoto>
@@ -98,6 +98,12 @@ while read -r LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
       FAIL=1
     fi
   done
+  # A caça a bugs final: o passe entre módulos sobre a branch inteira, nesse commit.
+  if ! approved bugs "$TIP" ""; then
+    echo "push negado: falta a aprovação de bugs para o commit $TIP." >&2
+    echo "  Ela nasce do veredito do agente harness:revisor-bugs sobre a branch inteira, nesse commit." >&2
+    FAIL=1
+  fi
   # A qualidade é do commit, não de um intervalo: a checagem completa do projeto rodou nele.
   if ! approved qualidade "$TIP" ""; then
     echo "push negado: falta a aprovação de qualidade para o commit $TIP." >&2

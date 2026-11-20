@@ -9,7 +9,7 @@ import sys
 
 sys.dont_write_bytecode = True
 
-GATES = ("seguranca", "revisao", "qualidade")
+GATES = ("seguranca", "revisao", "qualidade", "bugs")
 _CONF_LINE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$")
 
 

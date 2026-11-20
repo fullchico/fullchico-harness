@@ -22,6 +22,7 @@ REQUIRED = {
     "harness:implementador": ("spec", "ticket"),
     "harness:orquestrador": ("spec",),
     "harness:qualidade": ("commit",),
+    "harness:revisor-bugs": ("diff", "commit"),
 }
 # O que cada um pode receber. O implementador recebe a spec e o ticket, e numa rodada
 # de correção o arquivo com o achado; quem revisa recebe o que vai ler, e mais nada.
@@ -34,6 +35,9 @@ ALLOWED = {
     "harness:orquestrador": ("spec", "leitura"),
     # Quem atesta a qualidade recebe o commit e mais nada: nenhuma explicação muda o resultado da checagem.
     "harness:qualidade": ("commit",),
+    # Quem caça bug recebe o que vai ler: o intervalo, o commit, e a spec e o ticket que dizem
+    # o que o código deveria fazer. Com `ticket`, revisa a branch de um implementador.
+    "harness:revisor-bugs": ("diff", "commit", "spec", "ticket", "leitura"),
 }
 _LINE = re.compile(r"^(spec|ticket|diff|commit|leitura|achado): (\S.*)$")
 _SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -103,10 +107,22 @@ def check(agent: str, prompt, root):
         return f"{FORMAT} `commit` precisa ser o hash completo."
     if "diff" in seen and not _DIFF.match(seen["diff"]):
         return f"{FORMAT} `diff` precisa ser um intervalo, como main...HEAD."
+    if agent == "harness:revisor-bugs" and "ticket" in seen:
+        return ticket_range(seen["diff"], seen["commit"], root)
     if "commit" in seen and "diff" in seen:
         return bound(seen["diff"], seen["commit"], root)
     if agent == "harness:qualidade" and seen["commit"] != common.head_sha(root):
         return "`commit` precisa ser o commit atual (HEAD): é nele que a checagem roda."
+    return None
+
+
+def ticket_range(diff: str, commit: str, root: str):
+    """Caça a bugs num ticket: o commit é a ponta da branch do implementador, e o intervalo termina nele."""
+    if common._git(root, "cat-file", "-t", commit) != "commit":
+        return "`commit` precisa ser um commit deste repositório: a ponta da branch do implementador."
+    right = re.split(r"\.\.\.?", diff, maxsplit=1)[1]
+    if common._git(root, "rev-parse", "-q", "--verify", right + "^{commit}") != commit:
+        return "`diff` precisa terminar no commit revisado (a ponta da branch do implementador)."
     return None
 
 
