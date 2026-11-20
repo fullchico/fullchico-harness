@@ -27,16 +27,24 @@ O tempo da v6 não entra na comparação: a internet estava fraca durante a exec
 6. **Testes da lib deixam estado em `~/.claude/harness/`** (pastas de pendências de repositórios
    temporários). Limpar ao fim de cada teste.
 
+7. **Critério de gravidade frouxo.** Na v6 o caçador registrou como pendência (simples)
+   corrida entre dois pedidos, perda de alteração entre dois administradores e suíte de porta
+   que não roda contra o substituto. Na v5 o mesmo tipo de achado reprovava. Trocamos "tudo
+   reprova" por "quase nada reprova", e a correção fica para o fim. Fixar por regra, sem
+   exemplo de projeto: corrida, perda de dado e substituto divergente são sempre severos.
+8. **Teto de pendências por ticket.** Acima de um número pequeno, o ticket volta para correção
+   em vez de seguir: pendência é exceção, não o caminho normal.
+
 ## Vindas da lista da v6, ainda não feitas
 
-7. A entrega termina com o app de pé e o link na última mensagem (na v6 o relato só diz como
+9. A entrega termina com o app de pé e o link na última mensagem (na v6 o relato só diz como
    abrir).
-8. Entrevista de verdade, em sessão interativa, com o dono respondendo.
-9. Linha de base sem harness: o mesmo pedido, só com as skills e um prompt bom.
-10. Reprovação de contrato subindo de modelo, contada por máquina.
-11. Versão fixada dos plugins de terceiros; aviso quando uma skill fixada mudar na origem.
-12. Teste por propriedade exigido por máquina nas regras com borda.
-13. Decisão sobre a skill `shadcn`, que executa `npx shadcn@latest` ao carregar.
+10. Entrevista de verdade, em sessão interativa, com o dono respondendo.
+11. Linha de base sem harness: o mesmo pedido, só com as skills e um prompt bom.
+12. Reprovação de contrato subindo de modelo, contada por máquina.
+13. Versão fixada dos plugins de terceiros; aviso quando uma skill fixada mudar na origem.
+14. Teste por propriedade exigido por máquina nas regras com borda.
+15. Decisão sobre a skill `shadcn`, que executa `npx shadcn@latest` ao carregar.
 
 ## Regras para a v7, do dono
 
