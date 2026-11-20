@@ -107,6 +107,8 @@
         ".harness",
         "harness.conf",
         "harness.d",
+        ".claude/skills",
+        "skills-lock.json",
         "CLAUDE.md",
         "docs/agents",
         "orca.yaml",
@@ -158,6 +160,8 @@
       "Edit(/CLAUDE.md)",
       "Edit(/docs/agents/**)",
       "Edit(/harness.conf)",
+      "Edit(/.claude/skills/**)",
+      "Edit(/skills-lock.json)",
       "Edit(/harness.d/**)"
     ],
     "ask": [

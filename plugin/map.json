@@ -8,7 +8,10 @@
     },
     "ponytail": {
       "plugin": "ponytail@ponytail",
-      "marketplace": { "source": "github", "repo": "DietrichGebert/ponytail" },
+      "marketplace": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail"
+      },
       "ref": "4.8.4"
     },
     "rtk": {
@@ -17,23 +20,169 @@
     }
   },
   "steps": [
-    { "step": "entrevistar", "skill": "grilling", "source": "mattpocock-skills", "adaptation": "nenhuma" },
-    { "step": "entrevistar", "skill": "domain-modeling", "source": "mattpocock-skills", "adaptation": "docs/agents/domain.md gerado: glossário e ADRs" },
-    { "step": "implementar", "skill": "tdd", "source": "mattpocock-skills", "adaptation": "instrução: testes nos pontos de costura da spec" },
-    { "step": "bug", "skill": "diagnosing-bugs", "source": "mattpocock-skills", "adaptation": "nenhuma" },
-    { "step": "abrir-pr", "skill": "pr", "source": "mattpocock-skills", "adaptation": "instrução: corpo em português, sem assinatura de IA" },
-    { "step": "sempre-ligado", "skill": "ponytail", "source": "ponytail", "adaptation": "nenhuma" },
-    { "step": "sempre-ligado", "skill": "rtk", "source": "rtk", "adaptation": "hook no settings.json gerado" },
-    { "step": "avulsa", "skill": "code-review", "source": "mattpocock-skills", "adaptation": "nenhuma" },
-    { "step": "avulsa", "skill": "prototype", "source": "mattpocock-skills", "adaptation": "nenhuma" },
-    { "step": "avulsa", "skill": "research", "source": "mattpocock-skills", "adaptation": "nenhuma" },
-    { "step": "avulsa", "skill": "codebase-design", "source": "mattpocock-skills", "adaptation": "nenhuma" },
-    { "step": "avulsa-dono", "skill": "grill-with-docs", "source": "mattpocock-skills", "adaptation": "nenhuma" },
-    { "step": "avulsa-dono", "skill": "to-spec", "source": "mattpocock-skills", "adaptation": "nenhuma" },
-    { "step": "avulsa-dono", "skill": "to-tickets", "source": "mattpocock-skills", "adaptation": "nenhuma" },
-    { "step": "avulsa-dono", "skill": "implement-spec", "source": "mattpocock-skills", "adaptation": "nenhuma" },
-    { "step": "avulsa-dono", "skill": "retro", "source": "mattpocock-skills", "adaptation": "nenhuma" },
-    { "step": "avulsa-dono", "skill": "wayfinder", "source": "mattpocock-skills", "adaptation": "nenhuma" },
-    { "step": "avulsa-dono", "skill": "handoff", "source": "mattpocock-skills", "adaptation": "nenhuma" }
+    {
+      "step": "entrevistar",
+      "skill": "grilling",
+      "source": "mattpocock-skills",
+      "adaptation": "nenhuma"
+    },
+    {
+      "step": "entrevistar",
+      "skill": "domain-modeling",
+      "source": "mattpocock-skills",
+      "adaptation": "docs/agents/domain.md gerado: glossário e ADRs"
+    },
+    {
+      "step": "implementar",
+      "skill": "tdd",
+      "source": "mattpocock-skills",
+      "adaptation": "instrução: testes nos pontos de costura da spec"
+    },
+    {
+      "step": "bug",
+      "skill": "diagnosing-bugs",
+      "source": "mattpocock-skills",
+      "adaptation": "nenhuma"
+    },
+    {
+      "step": "abrir-pr",
+      "skill": "pr",
+      "source": "mattpocock-skills",
+      "adaptation": "instrução: corpo em português, sem assinatura de IA"
+    },
+    {
+      "step": "sempre-ligado",
+      "skill": "ponytail",
+      "source": "ponytail",
+      "adaptation": "nenhuma"
+    },
+    {
+      "step": "sempre-ligado",
+      "skill": "rtk",
+      "source": "rtk",
+      "adaptation": "hook no settings.json gerado"
+    },
+    {
+      "step": "avulsa",
+      "skill": "code-review",
+      "source": "mattpocock-skills",
+      "adaptation": "nenhuma"
+    },
+    {
+      "step": "avulsa",
+      "skill": "prototype",
+      "source": "mattpocock-skills",
+      "adaptation": "nenhuma"
+    },
+    {
+      "step": "avulsa",
+      "skill": "research",
+      "source": "mattpocock-skills",
+      "adaptation": "nenhuma"
+    },
+    {
+      "step": "avulsa",
+      "skill": "codebase-design",
+      "source": "mattpocock-skills",
+      "adaptation": "nenhuma"
+    },
+    {
+      "step": "avulsa-dono",
+      "skill": "grill-with-docs",
+      "source": "mattpocock-skills",
+      "adaptation": "nenhuma"
+    },
+    {
+      "step": "avulsa-dono",
+      "skill": "to-spec",
+      "source": "mattpocock-skills",
+      "adaptation": "nenhuma"
+    },
+    {
+      "step": "avulsa-dono",
+      "skill": "to-tickets",
+      "source": "mattpocock-skills",
+      "adaptation": "nenhuma"
+    },
+    {
+      "step": "avulsa-dono",
+      "skill": "implement-spec",
+      "source": "mattpocock-skills",
+      "adaptation": "nenhuma"
+    },
+    {
+      "step": "avulsa-dono",
+      "skill": "retro",
+      "source": "mattpocock-skills",
+      "adaptation": "nenhuma"
+    },
+    {
+      "step": "avulsa-dono",
+      "skill": "wayfinder",
+      "source": "mattpocock-skills",
+      "adaptation": "nenhuma"
+    },
+    {
+      "step": "avulsa-dono",
+      "skill": "handoff",
+      "source": "mattpocock-skills",
+      "adaptation": "nenhuma"
+    },
+    {
+      "step": "fatiar",
+      "skill": "parallel-feature-development",
+      "source": "project_skills",
+      "adaptation": "ver project_skills"
+    },
+    {
+      "step": "implementar",
+      "skill": "hexagonal-architecture",
+      "source": "project_skills",
+      "adaptation": "ver project_skills"
+    },
+    {
+      "step": "implementar",
+      "skill": "feature-sliced-design",
+      "source": "project_skills",
+      "adaptation": "ver project_skills"
+    },
+    {
+      "step": "revisar",
+      "skill": "clean-code-guard",
+      "source": "project_skills",
+      "adaptation": "ver project_skills"
+    },
+    {
+      "step": "revisar",
+      "skill": "ponytail-review",
+      "source": "ponytail",
+      "adaptation": "critérios de duplicação e enxugamento"
+    }
+  ],
+  "project_skills": [
+    {
+      "skill": "hexagonal-architecture",
+      "repo": "affaan-m/ecc",
+      "role": "arquitetura do back: use case, portas, adaptadores, ponto único de montagem",
+      "adaptation": "porta só em fronteira de entrada e saída real; log e relógio não viram porta"
+    },
+    {
+      "skill": "feature-sliced-design",
+      "repo": "feature-sliced/skills",
+      "role": "arquitetura do front: camadas, fatias, entrada pública",
+      "adaptation": "o shared do front é camada interna; o contrato com o back é outro pacote (CONTRACT_PATHS)"
+    },
+    {
+      "skill": "parallel-feature-development",
+      "repo": "wshobson/agents",
+      "role": "fatiar para trabalho paralelo: um dono por arquivo, contrato primeiro",
+      "adaptation": "quem é 'team-lead' é o orquestrador; implementador não troca mensagem, relata lacuna"
+    },
+    {
+      "skill": "clean-code-guard",
+      "repo": "amelnagdy/guard-skills",
+      "role": "rubrica do revisor: nomes, funções, SOLID, DRY",
+      "adaptation": "só o revisor aplica; porta em fronteira de entrada e saída é convenção do projeto, não excesso"
+    }
   ]
 }

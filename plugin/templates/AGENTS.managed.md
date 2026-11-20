@@ -40,6 +40,29 @@ entrega a execução ao `orquestrador`, em modelo mais barato (passos 4 em diant
 Toda `feat` passa pelo ciclo inteiro. Bug entra por `diagnosing-bugs`. Spec já
 mesclada é histórico: a verdade é o código, os testes e o histórico do git.
 
+## Arquitetura
+
+Vale em todo projeto, em qualquer linguagem. As skills dos autores ensinam o como; onde
+elas divergem, vale o que está aqui.
+
+- **Back:** módulos por área de negócio. Dentro de cada um: domínio, use cases, portas e
+  adaptadores, com as dependências apontando para dentro (skill `hexagonal-architecture`).
+  Um use case por comportamento, recebendo as portas por injeção, sem importar framework.
+- **Porta só em fronteira de entrada e saída** (banco, fila, serviço externo). Ali ela vale
+  mesmo com uma implementação só. Log, relógio e utilitário não viram porta.
+- **Front:** Feature-Sliced Design puro (skill `feature-sliced-design`): o código nasce na
+  página, cada fatia tem entrada pública, e só se importa de camada abaixo.
+- **Contrato:** o que front e back trocam fica num pacote comum, importado pelos dois. O
+  `shared` do front é outra coisa: a camada interna dele, sem regra de negócio.
+- **DRY é conhecimento num lugar só.** No front a cópia temporária de uma regra entre páginas
+  é aceita, marcada com `shortcut: cópia de <caminho>; extrair quando divergir`. "Reutilize o
+  que existe" vale para o que já está numa camada abaixo, nunca para importar do vizinho.
+- **Clareza:** nome que diz o que é, função que faz uma coisa, retorno nomeado.
+- **Um dono por arquivo.** Cada ticket possui pastas (`Owns:`) e não mexe fora delas. O que é
+  comum, as dependências e o contrato são do ticket de contrato; faltou algo, relate.
+- `clean-code-guard` é a rubrica do revisor. Não a aplique por conta própria nem emita a
+  linha de fechamento dela.
+
 ## Portões de push
 
 Nada sai da máquina sem dois vereditos sobre o commit do topo da branch:

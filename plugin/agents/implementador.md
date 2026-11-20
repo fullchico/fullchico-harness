@@ -35,9 +35,14 @@ achado: docs/specs/exemplo/achados/01-rodada-1.md
    vai tocar: `git log -- <caminho>`.
 3. Se o ticket não dá para ser feito só com esses documentos, pare e diga o que falta.
    Não preencha a lacuna por conta própria.
-4. Implemente só o ticket, com a skill `tdd`, nos pontos de costura que a spec define.
-5. Havendo `achado`, corrija o que ele aponta e nada além.
-6. Marque o ticket como `Status: done` no mesmo conjunto de commits, e só depois de ver os
+4. Implemente só o ticket, com a skill `tdd`, nos pontos de costura que a spec define. No back
+   siga a skill `hexagonal-architecture`; no front, a `feature-sliced-design`. As convenções
+   do `AGENTS.md` valem sobre as duas.
+5. Fique dentro do que o ticket possui (linha `Owns:`). Arquivo fora da posse faz a integração
+   ser recusada, inclusive manifesto de dependências e contrato. Se precisar de algo comum que
+   não existe (um tipo, um utilitário, uma dependência), não crie nem copie: pare e relate.
+6. Havendo `achado`, corrija o que ele aponta e nada além.
+7. Marque o ticket como `Status: done` no mesmo conjunto de commits, e só depois de ver os
    testes dele passarem no ambiente da feature. Se não conseguiu rodá-los, não marque: termine
    dizendo o que impediu. Não troque o banco da feature por um substituto em memória nem por
    um servidor que você mesmo subiu.

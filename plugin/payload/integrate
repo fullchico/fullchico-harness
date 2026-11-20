@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Integra o trabalho de um implementador na branch da feature, um ticket por vez.
+# Uso: .harness/integrate <arquivo do ticket> <branch do implementador>
+#
+# Em ordem: confere que a branch só mexeu no que o ticket possui (`Owns:`), junta com
+# `git merge --no-ff`, roda a checagem do projeto e, se ela falhar, desfaz a junção.
+# No fim remove os worktrees de agente já integrados. Conflito de texto é recusado: com
+# um dono por arquivo ele não deveria existir, e resolver à mão esconde o erro de fatiamento.
+set -uo pipefail
+. "$(dirname "$0")/env-common.sh"
+
+[ "$#" -eq 2 ] || { echo "uso: integrate <arquivo do ticket> <branch do implementador>" >&2; exit 2; }
+TICKET="$1" BRANCH="$2"
+cd "$ROOT" || exit 1
+[ -f "$TICKET" ] || die "o ticket $TICKET não existe."
+git rev-parse -q --verify "refs/heads/$BRANCH" >/dev/null || die "a branch $BRANCH não existe."
+[ -z "$(git status --porcelain --untracked-files=no)" ] || die "há alteração sem commit neste worktree; faça o commit antes de integrar."
+
+BASE="$(git merge-base HEAD "$BRANCH")" || die "a branch $BRANCH não tem histórico em comum com esta."
+git show "$BRANCH:$TICKET" 2>/dev/null | grep -q '^Status: done' \
+  || die "o ticket não está como Status: done na branch $BRANCH. O implementador fecha o ticket; quem integra não."
+
+# O programa vai por -c: a entrada padrão é a lista de arquivos alterados.
+CHECK='import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, sys.argv[1])
+import tickets_check
+ticket = sys.argv[2]
+owns = tickets_check.owned(ticket)
+for name in filter(None, sys.stdin.read().split("\0")):
+    if name != ticket and not any(name == p or name.startswith(p + "/") for p in owns):
+        print(name)'
+OUTSIDE="$(git diff --name-only -z "$BASE" "$BRANCH" | python3 -I -c "$CHECK" "$HERE" "$TICKET")" \
+  || die "não consegui ler a posse do ticket (linha Owns:)."
+if [ -n "$OUTSIDE" ]; then
+  echo "integrate: a branch $BRANCH mexeu em arquivos que não são do ticket (Owns:):" >&2
+  echo "$OUTSIDE" | sed 's/^/  /' >&2
+  echo "  Um dono por arquivo. Devolva ao implementador para desfazer isso; se o ticket precisa mesmo" >&2
+  echo "  desses arquivos, corrija a posse no ticket (e o grafo), faça o commit e despache de novo." >&2
+  exit 1
+fi
+
+HEAD_BEFORE="$(git rev-parse HEAD)"
+NAME="$(basename "$TICKET" .md)"
+if ! git merge --no-ff -q "$BRANCH" -m "Merge ticket $NAME" >/dev/null 2>&1; then
+  git merge --abort 2>/dev/null
+  die "conflito ao juntar $BRANCH. Outro ticket já mexeu nos mesmos arquivos: o fatiamento está errado. Traga a branch da feature para dentro da do implementador, numa rodada de correção."
+fi
+if ! "$HERE/validate" --profile push; then
+  git reset -q --hard "$HEAD_BEFORE"
+  die "a checagem do projeto falhou com o ticket $NAME integrado; a junção foi desfeita. É uma rodada de correção para esse ticket."
+fi
+"$HERE/agents-clean" >/dev/null 2>&1 || true
+echo "Ticket $NAME integrado ($(git rev-parse --short HEAD)); checagem passou."

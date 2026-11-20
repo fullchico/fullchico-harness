@@ -57,11 +57,13 @@ leitura: GLOSSARY.md
    estar em commit: o implementador trabalha numa cópia que só tem o que foi commitado.
 
 4. Quando cada um voltar, ele diz em que branch ficaram os commits. Junte essa branch na da
-   feature com `git merge --no-ff`, e depois rode `.harness/agents-clean`, que apaga os
-   worktrees de agente já integrados e as branches deles.
-   Conflito pequeno você resolve; conflito que muda o sentido do que foi feito volta para
-   o implementador, numa rodada de correção.
-5. Confira que o ticket ficou `Status: done`. Rode `.harness/validate --profile push`.
+   feature com `.harness/integrate <arquivo do ticket> <branch>`, um ticket por vez. O comando
+   confere que a branch só mexeu no que o ticket possui, junta, roda a checagem e desfaz a
+   junção se ela falhar; no fim apaga os worktrees de agente já integrados. Não junte com
+   `git merge` à mão.
+   Recusa por posse, conflito ou checagem é uma rodada de correção para aquele ticket: o
+   comando diz o motivo. Não resolva conflito à mão: ele mostra que o fatiamento está errado.
+5. Ticket integrado está `Status: done` e com a checagem passando: o comando garante os dois.
 6. Peça a fronteira de novo. Repita até ela vir vazia e todo ticket estar concluído.
 
 Os worktrees de agente usam o ambiente da feature. Nenhum implementador sobe ambiente. Cada

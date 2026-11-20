@@ -53,6 +53,17 @@ else
   echo "install: sem o comando claude; os plugins ficam para depois." >&2
 fi
 
+# Skills de arquitetura, dos autores, copiadas para o projeto e fixadas no skills-lock.json.
+if [ -z "${HARNESS_SKIP_PLUGIN:-}" ] && command -v npx >/dev/null 2>&1; then
+  python3 -I -c 'import json,sys
+for s in json.load(open(sys.argv[1])).get("project_skills", []):
+    print(s["repo"], s["skill"])' "$HARNESS/plugin/map.json" | while read -r REPO SKILL; do
+    [ -d "$ROOT/.claude/skills/$SKILL" ] && continue
+    (cd "$ROOT" && npx -y skills add "$REPO" -s "$SKILL" -a claude-code -y --copy >/dev/null 2>&1) \
+      || echo "install: não instalei a skill $SKILL; rode à mão: npx skills add $REPO -s $SKILL -a claude-code -y --copy" >&2
+  done
+fi
+
 # Com o harness.conf já preenchido, deixa o worktree pronto: portas no .env e dependências.
 NEXT="Falta, numa sessão do Claude Code aberta no projeto: /harness:setup, que propõe o harness.conf."
 if grep -Eq '^PROJECT="?[^"[:space:]]' "$ROOT/harness.conf" 2>/dev/null; then

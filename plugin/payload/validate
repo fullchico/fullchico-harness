@@ -26,6 +26,20 @@ for SPEC in "$ROOT"/docs/specs/*/; do
   python3 -I "$HERE/tickets_check.py" "${SPEC%/}" >/dev/null || exit 1
 done
 
+# Fronteiras da arquitetura, pela ferramenta que o projeto escolheu (direção das dependências,
+# entrada pública dos módulos). Roda nos dois perfis: arquitetura não espera o merge.
+ARCH="$(python3 -I - "$HERE/hooks" "$ROOT/harness.conf" VALIDATE_ARCH <<'PY'
+import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, sys.argv[1])
+import common
+print(common.read_conf(sys.argv[2]).get(sys.argv[3], ""))
+PY
+)"
+if [ -n "$ARCH" ]; then
+  (cd "$ROOT" && bash -c "$ARCH") || { echo "validate: a checagem de arquitetura falhou ($ARCH)." >&2; exit 1; }
+fi
+
 CMD="$(python3 -I - "$HERE/hooks" "$ROOT/harness.conf" "$KEY" <<'PY'
 import sys
 sys.dont_write_bytecode = True

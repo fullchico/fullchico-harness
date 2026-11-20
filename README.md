@@ -14,6 +14,13 @@ O que foi conferido em sessões reais, e o que ainda não foi, está em
 - **Conduz uma mudança da entrevista ao pull request,** com `/harness:entregar`: entrevista,
   spec, revisão da spec, tickets em grafo, implementação em paralelo por subagentes,
   checagem, revisão de segurança e de código, envio.
+- **Traz a arquitetura junto.** Back em módulos com use cases, portas e adaptadores; front em
+  Feature-Sliced Design; contrato entre os dois num pacote comum. O ofício vem de skills dos
+  autores, copiadas para o projeto e fixadas no `skills-lock.json`; as convenções que resolvem
+  os atritos entre elas estão no `AGENTS.md`.
+- **Paraleliza por contrato.** Cada ticket é dono de pastas (`Owns:`). Dois tickets paralelos
+  nunca possuem o mesmo caminho, o contrato fecha antes dos demais começarem, e a integração
+  recusa a branch que mexer fora da posse ou quebrar a checagem.
 - **Gasta o modelo caro só onde ele paga.** A sua sessão (Opus) faz a entrevista e a spec. A
   execução inteira é de um orquestrador em Sonnet, que recebe só a spec; os implementadores e
   os revisores também são Sonnet, e o trabalho bruto é Haiku.
@@ -78,6 +85,7 @@ o servidor de git e só acessa os sites liberados. Para você, no terminal, nada
 | `.harness/down` | para o ambiente, mantém os dados | você ou o agente |
 | `.harness/destroy` | remove o ambiente da feature | você ou o agente, com a sua permissão |
 | `.harness/conf-apply` | grava o `harness.conf` que o agente propôs | o agente |
+| `.harness/integrate <ticket> <branch>` | junta o trabalho de um implementador: posse, merge, checagem | o agente |
 | `.harness/agents-clean` | remove os worktrees de agente já integrados | o agente |
 | `.harness/fetch` | atualiza as referências do remoto | o agente |
 | `.harness/push` | envia a branch, depois do portão | o agente |

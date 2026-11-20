@@ -191,6 +191,30 @@ A spec segue as seções: problema, solução, histórias, decisões de implemen
 teste com os pontos de costura, fora de escopo. Tickets são fatias verticais, um arquivo
 cada, com `Blocked by:` e `Status:` no topo.
 
+### 5.2.1 Arquitetura e paralelismo por contrato **[dono]**, 2026-11-19
+
+O harness passou a carregar arquitetura, por conceito e não por stack. Decisões do dono:
+
+- **Back:** módulos com domínio, use cases, portas e adaptadores (skill `hexagonal-architecture`).
+- **Front:** Feature-Sliced Design puro (skill `feature-sliced-design`), sem use case no front.
+- **Contrato** entre front e back num pacote comum, na mesma linguagem.
+- **DRY** como conhecimento num lugar só; no front a cópia temporária de regra é aceita,
+  marcada com `shortcut:`, e o `ponytail` a lista.
+- **Código limpo:** skill `clean-code-guard`, só como rubrica do revisor.
+- **Paralelismo:** um dono por arquivo (skill `parallel-feature-development`).
+
+As skills vêm dos autores, via CLI de skills, copiadas para `.claude/skills/` do projeto e
+fixadas no `skills-lock.json`; o agente não as edita. Elas se contradizem em pontos que
+importam (interface com uma implementação só é excesso para duas delas e regra para outra;
+"reutilize o que existe" contra "não importe do vizinho"). O desempate é do harness, na seção
+Arquitetura do `AGENTS.md`.
+
+Trilhos: `Owns:` obrigatório no ticket; o validador recusa posse sobreposta entre tickets
+paralelos e, com `CONTRACT_PATHS`, ticket que não espera o contrato; `.harness/integrate`
+recusa a branch que mexeu fora da posse, que conflita ou que quebra a checagem;
+`VALIDATE_ARCH` roda a ferramenta de fronteira que o projeto escolheu. O que é julgamento
+(SOLID, função clara, regra duplicada) é do revisor, com rubrica fixa.
+
 ### 5.3 Modelos e custo **[dono]** definiu os níveis; escalada e ordem são **[autor]**
 
 | Papel | Modelo |

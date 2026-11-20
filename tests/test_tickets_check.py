@@ -16,7 +16,7 @@ def spec(repo, tickets, slug="x", header=None):
     (folder / "issues").mkdir(parents=True, exist_ok=True)
     (folder / "spec.md").write_text("# spec\n")
     for name, (status, blocked) in tickets.items():
-        text = header(status, blocked) if header else f"# {name}\n\nStatus: {status}\nBlocked by: {blocked}\n\ncorpo\n"
+        text = header(status, blocked) if header else f"# {name}\n\nStatus: {status}\nBlocked by: {blocked}\nOwns: src/{name}\n\ncorpo\n"
         (folder / "issues" / f"{name}.md").write_text(text)
     return folder
 

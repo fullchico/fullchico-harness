@@ -45,6 +45,22 @@ Só quando houver `spec:`. Cite a linha da spec em cada achado:
 - o que foi feito e a spec não pede;
 - o que parece feito, mas a implementação está errada.
 
+## Eixo 3: arquitetura e clareza
+
+A rubrica é a skill `clean-code-guard` (nomes, funções, SOLID, DRY) e, para duplicação e
+enxugamento, os critérios da `ponytail-review`. Use-as só como lista do que procurar: você não
+edita nada, e as convenções de arquitetura do `AGENTS.md` valem sobre as duas. Aponte, citando
+a regra:
+
+- dependência na direção errada: domínio ou use case importando framework, banco ou tela;
+  módulo ou fatia importando por dentro de outro, sem passar pela entrada pública;
+- regra de negócio fora do use case (no controlador, no adaptador, no componente de tela);
+- a mesma regra de negócio em dois lugares sem o comentário `shortcut:` que a declara;
+- nome que não diz o que é (`v`, `data`, `item`, `handle`) e função que faz mais de uma coisa;
+- retorno que obriga quem lê a decifrar: prefira nomear o resultado a encadear expressões.
+
+Porta em fronteira de entrada e saída não é excesso, mesmo com uma implementação só.
+
 ## Sempre
 
 - **O tipo do commit bate com a mudança?** Funcionalidade nova rotulada `fix`,

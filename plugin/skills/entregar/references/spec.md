@@ -23,6 +23,10 @@ um ponto de costura que já existe e o mais alto possível. Diga o que é um bom
 (comportamento observável, não detalhe interno) e aponte testes parecidos que já existem.
 Esta seção é obrigatória: é ela que permite implementar e validar sem subir ambiente.
 
+**Módulos e contrato.** Os módulos do back e as fatias do front que nascem ou mudam, cada um
+com a sua pasta, e o contrato entre front e back: os tipos e as operações, onde ficam, e o que
+mais é comum a mais de um módulo. É daqui que sai a posse de cada ticket.
+
 **Ambiente e execução.** Quem executa a spec não tem a quem perguntar, então diga aqui:
 os serviços de que os testes dependem (banco, fila) e como cada implementador isola o seu
 quando vários rodam ao mesmo tempo no mesmo ambiente (um banco de teste por ticket, por
