@@ -107,6 +107,20 @@ class TestFetch(RemoteCase):
         self.assertEqual(self.script("fetch", "outro-remoto").returncode, 2)
 
 
+PR_BODY = """Corrige a.
+
+## Critérios de aceite
+
+| Critério | Teste |
+|---|---|
+| a funciona | a.test.ts |
+
+## Validação
+
+Os quatro aprovaram.
+"""
+
+
 class TestPr(RemoteCase):
     def setUp(self):
         super().setUp()
@@ -116,7 +130,7 @@ class TestPr(RemoteCase):
         self.log = tmp / "gh.log"
         self.path = f"{tmp / 'bin'}:{os.environ['PATH']}"
         commit_file(self.repo, "a.txt", "fix: a")
-        (self.repo / "pr-body.md").write_text("corpo\n")
+        (self.repo / "pr-body.md").write_text(PR_BODY)
 
     def pr(self, *args):
         return self.script("pr", *args, PATH=self.path, FAKE_GH_LOG=str(self.log))
@@ -140,6 +154,18 @@ class TestPr(RemoteCase):
         self.assertIn("fix: título com espaço; e $(perigo)", args)
         self.assertIn(str(self.repo / "pr-body.md"), args)
         self.assertIn("feat/x", args)
+
+    def test_create_refuses_a_body_outside_the_standard(self):
+        self.approve()
+        self.script("push")
+        (self.repo / "pr-body.md").write_text("Corrige a.\n\n## Validação\n\nok\n")
+        r = self.pr("create", "fix: a", "pr-body.md")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("## Critérios de aceite", r.stderr)
+        (self.repo / "pr-body.md").write_text("## Critérios de aceite\n\nx\n\n## Validação\n\nok\n")
+        r = self.pr("create", "fix: a", "pr-body.md")
+        self.assertEqual(r.returncode, 1, "sem o parágrafo de abertura antes do primeiro título")
+        self.assertEqual(self.gh_calls(), [])
 
     def test_create_refuses_body_file_outside_the_project_and_stale_remote(self):
         self.approve()

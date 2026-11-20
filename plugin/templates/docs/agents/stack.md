@@ -23,18 +23,22 @@ Use só as do seu papel. As outras estão instaladas, mas não são para você.
 | Papel | Skills |
 |---|---|
 | ticket de contrato | `zod`, `pnpm`, `seo`, `vitest`; `drizzle-orm-patterns` e `supabase-postgres-best-practices` para o schema do banco, que é dele |
-| módulo do back | `hexagonal-architecture`, `drizzle-orm-patterns`, `zod`, `vitest`; `supabase-postgres-best-practices` ao escrever consulta; `bullmq` ao mexer em fila |
-| fatia do front | `feature-sliced-design`, `vercel-react-best-practices`, `shadcn`, `frontend-design`, `zod`, `vitest`; `seo` em página pública |
+| módulo do back | `hexagonal-architecture`, `nestjs-best-practices`, `drizzle-orm-patterns`, `zod`, `vitest`; `supabase-postgres-best-practices` ao escrever consulta; `bullmq` ao mexer em fila; `property-based-testing` em regra com borda (data, dinheiro, intervalo) |
+| fatia do front | `feature-sliced-design`, `nextjs-app-router-patterns`, `vercel-react-best-practices`, `shadcn`, `frontend-design`, `zod`, `vitest`; `seo` em página pública |
 | ticket de ponta a ponta | `playwright-best-practices` |
 | revisor de código | `clean-code-guard`, `ponytail-review`, `accessibility` |
 | revisor de segurança | `owasp-security` |
+| caçador de bugs | `property-based-testing` |
+| quem fecha a entrega | `write-pr-description` |
 | quem fatia | `parallel-feature-development` |
 
-Para Next.js e NestJS não há skill: valem a seção Arquitetura do `AGENTS.md` e a documentação
-que vem com o próprio pacote instalado.
+As skills de Next.js e NestJS ensinam o framework; a arquitetura continua sendo a seção
+Arquitetura do `AGENTS.md`.
 
 ## Onde a skill diverge, vale isto
 
+- **Validação de entrada no Nest.** A skill de NestJS manda `class-validator`: aqui é o
+  esquema Zod do contrato, num pipe. E "service" dela é o nosso use case.
 - **Arquivo de índice.** A skill de React diz para evitá-los: isso é para biblioteca de
   terceiros. Cada fatia do front tem o seu `index.ts`, e é por ele que se importa.
 - **Lógica no servidor do Next.** Nada de regra de negócio nem de acesso a banco em rota,

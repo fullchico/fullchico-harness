@@ -32,6 +32,13 @@ PY
 )"
 [ -n "$BODY" ] || die "o arquivo do corpo precisa existir dentro do projeto."
 
+# O corpo segue o padrão do harness: abertura dizendo o que e por quê, depois as seções que o
+# revisor procura. Sem elas o PR não abre.
+head -n 1 "$BODY" | grep -q '^[^#[:space:]]' || die "o corpo começa com um parágrafo dizendo o que muda e por quê, antes de qualquer título."
+for SECTION in "## Critérios de aceite" "## Validação"; do
+  grep -qxF "$SECTION" "$BODY" || die "falta a seção \"$SECTION\" no corpo do pull request."
+done
+
 REMOTE_SHA="$(git ls-remote origin "refs/heads/$BRANCH" 2>/dev/null | cut -f1)"
 [ "$REMOTE_SHA" = "$(git rev-parse HEAD)" ] || die "a branch $BRANCH não está no remoto neste commit. Envie antes com .harness/push."
 

@@ -329,6 +329,46 @@
       "profiles": [
         "fullstack-typescript"
       ]
+    },
+    {
+      "skill": "nestjs-best-practices",
+      "repo": "kadajett/agent-nestjs-skills",
+      "role": "NestJS: módulos, injeção, erros, testes",
+      "who": "módulo do back",
+      "adaptation": "validação de entrada é pelo Zod do contrato, não class-validator; regra de negócio fica no use case, não em service; ignore microsserviços e deploy",
+      "profiles": [
+        "fullstack-typescript"
+      ]
+    },
+    {
+      "skill": "nextjs-app-router-patterns",
+      "repo": "wshobson/agents",
+      "role": "Next.js: App Router, componentes de servidor e de cliente",
+      "who": "fatia do front",
+      "adaptation": "o Next só apresenta: nada de regra de negócio nem banco em rota ou server action; os dados vêm da API do back",
+      "profiles": [
+        "fullstack-typescript"
+      ]
+    },
+    {
+      "skill": "property-based-testing",
+      "repo": "trailofbits/skills",
+      "role": "teste por propriedade em regra com borda (data, dinheiro, intervalo)",
+      "who": "módulo do back e caçador de bugs",
+      "adaptation": "só com fast-check e só onde a regra tem borda; não é para todo teste",
+      "profiles": [
+        "fullstack-typescript"
+      ]
+    },
+    {
+      "skill": "write-pr-description",
+      "repo": "warpdotdev/common-skills",
+      "role": "texto do pull request",
+      "who": "quem fecha a entrega",
+      "adaptation": "o padrão de seções é o do roteiro de fechamento; a skill só melhora o texto",
+      "profiles": [
+        "fullstack-typescript"
+      ]
     }
   ],
   "stack": {

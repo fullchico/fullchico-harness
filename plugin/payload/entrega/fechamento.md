@@ -95,8 +95,34 @@ valendo. Não há como contornar o portão.
 
 ## 5. Pull request
 
-Escreva o corpo com a skill `pr`, em português, sem assinatura de IA, num arquivo que não
-entra em commit:
+Escreva o corpo em português, sem assinatura de IA, com a skill `write-pr-description` se
+ela estiver instalada, neste padrão. `.harness/pr` recusa o corpo sem a abertura e sem as
+duas seções marcadas com obrigatória:
+
+```markdown
+<uma a três frases: o que a entrega faz e por quê; quem lê só isto sabe se é o revisor certo>
+
+## Critérios de aceite          (obrigatória)
+
+| Critério da spec | Teste que o cobre |
+|---|---|
+| <critério, como está na spec> | <arquivo do teste e nome do caso> |
+
+## O que mudou
+
+<por módulo; decisão que tinha alternativa real, e por que a alternativa perdeu>
+
+## Validação                    (obrigatória)
+
+<os quatro vereditos com o commit, e a linha final de `.harness/validate --profile push`>
+
+## Riscos e pendências
+
+<o que pode quebrar fora dos arquivos tocados; o que ficou de fora; "nenhum" se for o caso>
+```
+
+Critério sem teste que o cubra não entra na tabela como coberto: escreva "sem teste" e
+explique em Riscos e pendências. O arquivo do corpo não entra em commit:
 
 ```bash
 mkdir -p .harness-run && { [ -f .harness-run/.gitignore ] || echo '*' > .harness-run/.gitignore; }
