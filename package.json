@@ -1,16 +1,16 @@
 {
   "name": "@fullchico/harness",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Trilhos e portões para projetos desenvolvidos com agentes no Claude Code: orquestração por ticket, revisão independente presa ao commit, ambiente por feature.",
   "license": "MIT",
   "author": "FullChico",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/FullChico/fullchico-harness.git"
+    "url": "git+https://github.com/fullchico/fullchico-harness.git"
   },
-  "homepage": "https://github.com/FullChico/fullchico-harness#readme",
+  "homepage": "https://github.com/fullchico/fullchico-harness#readme",
   "bugs": {
-    "url": "https://github.com/FullChico/fullchico-harness/issues"
+    "url": "https://github.com/fullchico/fullchico-harness/issues"
   },
   "keywords": ["claude-code", "agents", "harness", "guardrails", "hooks"],
   "bin": {
