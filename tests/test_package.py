@@ -6,7 +6,7 @@ import unittest
 
 from tests.helpers import ROOT
 
-PUBLIC_EXCLUDED = ("docs/",)
+PUBLIC_EXCLUDED = ("docs/", "interno/")
 
 
 def public_files():

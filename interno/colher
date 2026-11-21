@@ -1,0 +1,233 @@
+#!/usr/bin/env python3
+"""Colhe o uso do harness num projeto e escreve um relatório para quem mantém a lib.
+
+Uso: interno/colher <pasta do projeto> [--desde AAAA-MM-DD]
+
+Só lê: as transcrições do Claude Code (em ~/.claude/projects), os documentos da entrega no
+projeto (specs, tickets, achados), o estado dos portões e o que o dono acrescentou por conta
+própria (skills, comandos, agentes, configuração). Não grava nada no projeto. O relatório vai
+para docs/uso/ desta lib, que não é publicada.
+
+O que entra na lib a partir daqui é só processo: a regra geral que teria evitado o problema,
+nunca o caso específico do projeto.
+"""
+import collections
+import datetime
+import glob
+import json
+import os
+import re
+import subprocess
+import sys
+
+LIB = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.join(LIB, "plugin", "payload", "hooks"))
+import common  # noqa: E402
+
+
+def git(cwd, *args):
+    try:
+        return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, timeout=30).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def worktrees(root):
+    listed = git(root, "worktree", "list", "--porcelain")
+    return [line[9:] for line in listed.splitlines() if line.startswith("worktree ")] or [root]
+
+
+def transcripts(paths):
+    """(arquivo, tipo de agente) de cada sessão e subagente das pastas dadas."""
+    home = os.path.expanduser("~/.claude/projects")
+    found = []
+    for path in paths:
+        folder = os.path.join(home, re.sub(r"[^A-Za-z0-9]", "-", os.path.realpath(path)))
+        for file in glob.glob(os.path.join(folder, "**", "*.jsonl"), recursive=True):
+            kind = "sessão do dono"
+            meta = file[:-6] + ".meta.json"
+            if os.path.exists(meta):
+                try:
+                    kind = json.load(open(meta, encoding="utf-8")).get("agentType") or "subagente"
+                except (OSError, ValueError):
+                    kind = "subagente"
+            found.append((file, kind))
+    return found
+
+
+def read(files, since):
+    use = collections.defaultdict(lambda: {"sessões": 0, "chamadas": 0, "lidos": 0, "escritos": 0, "primeiro": None, "último": None})
+    denials, errors, dispatches, skills, owner = collections.Counter(), collections.Counter(), [], collections.Counter(), []
+    for file, kind in files:
+        row, seen = use[kind], set()
+        counted = False
+        try:
+            lines = open(file, encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for line in lines:
+            try:
+                entry = json.loads(line)
+            except ValueError:
+                continue
+            stamp = entry.get("timestamp") or ""
+            if since and stamp and stamp[:10] < since:
+                continue
+            message = entry.get("message") or {}
+            if stamp:
+                row["primeiro"] = min(row["primeiro"] or stamp, stamp)
+                row["último"] = max(row["último"] or stamp, stamp)
+                if not counted:
+                    row["sessões"] += 1
+                    counted = True
+            usage = message.get("usage")
+            if usage and message.get("id") not in seen:
+                seen.add(message.get("id"))
+                row["chamadas"] += 1
+                row["lidos"] += usage.get("input_tokens", 0) + usage.get("cache_read_input_tokens", 0) + usage.get("cache_creation_input_tokens", 0)
+                row["escritos"] += usage.get("output_tokens", 0)
+            content = message.get("content")
+            if entry.get("type") == "user" and isinstance(content, str) and kind == "sessão do dono" and not content.startswith("<"):
+                owner.append((stamp[:16], content.strip().replace("\n", " ")[:200]))
+            for block in content if isinstance(content, list) else []:
+                if not isinstance(block, dict):
+                    continue
+                if block.get("type") == "tool_use":
+                    data = block.get("input") or {}
+                    if block.get("name") in ("Agent", "Task"):
+                        ticket = re.search(r"ticket: (\S+)", data.get("prompt") or "")
+                        dispatches.append((stamp[:16], data.get("subagent_type"), os.path.basename(ticket.group(1)) if ticket else ""))
+                    elif block.get("name") == "Skill":
+                        skills[data.get("skill") or "?"] += 1
+                elif block.get("type") == "tool_result" and block.get("is_error"):
+                    text = block.get("content")
+                    text = text if isinstance(text, str) else json.dumps(text, ensure_ascii=False)
+                    hook = re.search(r"hook error: \[[^\]]*?(\w+\.py)[^\]]*\]: (.{0,110})", text)
+                    if hook:
+                        denials[(kind, hook.group(1), hook.group(2).strip())] += 1
+                    else:
+                        errors[(kind, re.sub(r"\s+", " ", text)[:90])] += 1
+    return use, denials, errors, dispatches, skills, owner
+
+
+def project_state(root):
+    out = {"specs": [], "pendências": [], "conf": {}, "extras": {}}
+    for tree in worktrees(root):
+        for spec in sorted(glob.glob(os.path.join(tree, "docs", "specs", "*", ""))):
+            issues = sorted(glob.glob(os.path.join(spec, "issues", "*.md")))
+            status = collections.Counter()
+            for issue in issues:
+                m = re.search(r"(?m)^Status: (\w+)", open(issue, encoding="utf-8", errors="replace").read())
+                status[m.group(1) if m else "?"] += 1
+            rounds = collections.Counter(os.path.basename(f).split("-")[0] for f in glob.glob(os.path.join(spec, "achados", "*.md")))
+            out["specs"].append((os.path.relpath(spec, tree).rstrip("/"), os.path.basename(tree), dict(status), dict(rounds)))
+        try:
+            out["pendências"] += [(os.path.basename(tree), p) for p in common.pendings(tree)]
+        except Exception:
+            pass
+    out["conf"] = common.read_conf(os.path.join(root, "harness.conf"))
+    # O que o dono acrescentou e a lib não trouxe: é aí que aparece o que faltou.
+    mapped = {s["skill"] for s in json.load(open(os.path.join(LIB, "plugin", "map.json"), encoding="utf-8")).get("project_skills", [])}
+    installed = {os.path.basename(p.rstrip("/")) for p in glob.glob(os.path.join(root, ".claude", "skills", "*", ""))}
+    out["extras"] = {
+        "skills que a lib não trouxe": sorted(installed - mapped),
+        "skills da lib ausentes": sorted(mapped - installed) if installed else [],
+        "comandos do projeto": sorted(os.path.basename(p) for p in glob.glob(os.path.join(root, ".claude", "commands", "*"))),
+        "agentes do projeto": sorted(os.path.basename(p) for p in glob.glob(os.path.join(root, ".claude", "agents", "*"))),
+        "ajustes em harness.d": sorted(os.path.basename(p) for p in glob.glob(os.path.join(root, "harness.d", "*"))),
+    }
+    log = git(root, "log", "--all", "--format=%s")
+    out["reaberturas"] = len(re.findall(r"(?m)^chore\(tickets\): reopen", log))
+    out["commits suspeitos"] = [s for s in log.splitlines() if re.search(r"\b(pause|disable|skip|desliga|pula)\b", s, re.I)][:10]
+    return out
+
+
+def table(header, rows):
+    lines = ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
+    return "\n".join(lines + ["| " + " | ".join(str(c) for c in row) + " |" for row in rows])
+
+
+def main():
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    since = next((sys.argv[i + 1] for i, a in enumerate(sys.argv) if a == "--desde" and i + 1 < len(sys.argv)), "")
+    if len(args) != 1 or not os.path.isdir(args[0]):
+        print("uso: interno/colher <pasta do projeto> [--desde AAAA-MM-DD]", file=sys.stderr)
+        return 2
+    root = git(args[0], "rev-parse", "--show-toplevel") or os.path.realpath(args[0])
+    main_tree = worktrees(root)[0]
+    files = transcripts(worktrees(root))
+    use, denials, errors, dispatches, skills, owner = read(files, since)
+    state = project_state(main_tree)
+    name = os.path.basename(main_tree)
+    today = datetime.date.today().isoformat()
+
+    out = [f"# Uso do harness em `{name}`, colhido em {today}", "",
+           f"Transcrições lidas: {len(files)}." + (f" Só a partir de {since}." if since else ""), ""]
+    out += ["## Consumo por papel", ""]
+    rows = []
+    for kind, r in sorted(use.items(), key=lambda kv: -kv[1]["lidos"]):
+        span = ""
+        if r["primeiro"] and r["último"]:
+            span = f'{r["primeiro"][11:16]} a {r["último"][11:16]} ({r["primeiro"][:10]})'
+        rows.append((kind, r["sessões"], r["chamadas"], f'{r["lidos"] / 1e6:.1f} M', f'{r["escritos"] / 1e3:.0f} mil', span))
+    out += [table(("Papel", "Execuções", "Chamadas", "Tokens lidos", "Tokens escritos", "Primeira e última atividade"), rows), ""]
+
+    out += ["## Entregas", ""]
+    if state["specs"]:
+        out += [table(("Spec", "Worktree", "Tickets por estado", "Arquivos de achado por ticket"),
+                      [(s, t, st or "sem tickets", r or "nenhum") for s, t, st, r in state["specs"]]), ""]
+    else:
+        out += ["Nenhuma spec encontrada.", ""]
+    out += [f"Reaberturas de ticket no histórico: {state['reaberturas']}.", ""]
+    by_agent = collections.Counter(a for _, a, _ in dispatches)
+    out += ["Despachos de subagente: " + (", ".join(f"{a} {n}" for a, n in by_agent.most_common()) or "nenhum") + ".", ""]
+    per_ticket = collections.Counter(t for _, a, t in dispatches if a and "implementador" in a and t)
+    again = [(t, n) for t, n in per_ticket.most_common() if n > 1]
+    if again:
+        out += ["Tickets implementados mais de uma vez: " + ", ".join(f"{t} ({n}x)" for t, n in again) + ".", ""]
+
+    out += ["## Onde os trilhos barraram", ""]
+    if denials:
+        out += [table(("Quem", "Hook", "Motivo", "Vezes"), [(k, h, m, n) for (k, h, m), n in denials.most_common(25)]), ""]
+        out += ["A mesma recusa várias vezes para o mesmo papel é sinal de roteiro que ensina errado.", ""]
+    else:
+        out += ["Nenhuma recusa de hook nas transcrições.", ""]
+
+    out += ["## Erros de ferramenta mais frequentes", ""]
+    out += [table(("Quem", "Erro", "Vezes"), [(k, e, n) for (k, e), n in errors.most_common(15)]) if errors else "Nenhum.", ""]
+
+    out += ["## Pendências", ""]
+    if state["pendências"]:
+        out += [table(("Worktree", "Id", "Estado", "Ticket", "Texto"),
+                      [(t, p.get("id"), p.get("status"), os.path.basename(p.get("ticket") or "") or "passe final", (p.get("text") or "")[:90]) for t, p in state["pendências"]]), ""]
+    else:
+        out += ["Nenhuma registrada.", ""]
+
+    out += ["## Skills e comandos", ""]
+    out += ["Invocadas: " + (", ".join(f"{s} {n}" for s, n in skills.most_common()) or "nenhuma") + ".", ""]
+    for label, items in state["extras"].items():
+        out += [f"- **{label}:** " + (", ".join(items) if items else "nenhum")]
+    never = sorted(set(os.path.basename(p.rstrip("/")) for p in glob.glob(os.path.join(main_tree, ".claude", "skills", "*", ""))) - {s.split(":")[-1] for s in skills})
+    out += ["", "- **skills instaladas e nunca invocadas:** " + (", ".join(never) if never else "nenhuma"), ""]
+
+    out += ["## Configuração", ""]
+    out += ["Chaves preenchidas no `harness.conf`: " + (", ".join(sorted(k for k, v in state["conf"].items() if v and not k.startswith("ENV_"))) or "nenhuma") + ".", ""]
+    if state["commits suspeitos"]:
+        out += ["Commits que falam em pausar ou desligar algo:", ""] + [f"- {s}" for s in state["commits suspeitos"]] + [""]
+
+    out += ["## O que o dono pediu", ""]
+    out += [f"- {when} {text}" for when, text in owner[-25:]] or ["Nenhuma mensagem do dono encontrada."]
+    out += ["", "## O que o dono achou", "", "(a preencher com o retorno dele: o que irritou e o que surpreendeu)", ""]
+
+    target = os.path.join(LIB, "docs", "uso")
+    os.makedirs(target, exist_ok=True)
+    path = os.path.join(target, f"{name}-{today}.md")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(out))
+    print(path)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

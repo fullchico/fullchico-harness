@@ -3,7 +3,7 @@
 # Uso: tools/export-public <pasta de destino> "<mensagem do commit>"
 #
 # A branch de trabalho, com as notas de desenho e o histórico, fica local. O que vai a público é
-# o conteúdo versionado menos `docs/`, num commit assinado com o e-mail anônimo do GitHub. Antes
+# o conteúdo versionado menos `docs/` e `interno/`, num commit assinado com o e-mail anônimo do GitHub. Antes
 # do commit, cada arquivo é conferido contra padrões genéricos (caminho de pasta pessoal, e-mail
 # pessoal) e contra uma lista de termos privados que fica fora do repositório, em
 # ~/.config/fullchico-harness/private-terms (um por linha).
@@ -24,7 +24,7 @@ mkdir -p "$DEST" && cd "$DEST" || exit 1
 [ -d .git ] || git init -q -b main
 # Sai tudo o que estava, menos o histórico: arquivo removido na origem some no destino.
 find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-(cd "$SRC" && git ls-files -z | grep -zv '^docs/' | xargs -0 tar -cf - ) | tar -xf - || exit 1
+(cd "$SRC" && git ls-files -z | grep -zvE '^(docs|interno)/' | xargs -0 tar -cf - ) | tar -xf - || exit 1
 
 python3 -I - "$DEST" "$TERMS" <<'PY' || { echo "export-public: nada foi commitado." >&2; exit 1; }
 import os, re, sys
