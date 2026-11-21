@@ -63,6 +63,17 @@ class TestInstall(unittest.TestCase):
         self.assertIn("_PORT", (repo / ".env").read_text())
         self.assertNotIn("/harness:setup", r.stdout)
 
+    def test_it_shows_where_it_is_until_the_end(self):
+        repo = make_repo()
+        r = self.run_install(str(repo))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        steps = [line for line in r.stdout.splitlines() if line.startswith("[")]
+        self.assertTrue(steps[0].startswith("[1/3]"), r.stdout)
+        self.assertIn("[2/3] Plugins", r.stdout)
+        self.assertRegex(r.stdout, r"\[3/3\] Skills \(1/\d+\)")
+        self.assertRegex(r.stdout, r"\[3/3\] Skills \((\d+)/\1\)", "a última skill fecha a contagem")
+        self.assertLess(r.stdout.index("[3/3]"), r.stdout.index("instalado em"))
+
     def test_inside_a_claude_session_it_says_what_will_not_work(self):
         from unittest import mock
         repo = make_repo()
