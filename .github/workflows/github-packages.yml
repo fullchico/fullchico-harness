@@ -1,0 +1,23 @@
+name: github-packages
+# Publica a mesma versão no registro do GitHub, para o pacote aparecer na página do repositório.
+# Quem instala usa o npm (npx @fullchico/harness); esta cópia é só o espelho.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: "@fullchico"
+      - run: npm publish --registry https://npm.pkg.github.com --provenance=false
+        env:
+          NODE_AUTH_TOKEN: ${{ github.token }}
