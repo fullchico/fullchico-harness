@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FullChico Harness: trilhos para agentes que escrevem código</title>
 <meta name="description" content="Plugin para o Claude Code que troca instrução por trilho: quem escreve o código não o aprova, e o que não passou pelos portões não sai da máquina.">
+<link rel="icon" type="image/svg+xml" href="trem.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Atkinson+Hyperlegible+Next:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -58,7 +59,10 @@ p { margin: 0; max-width: 62ch; }
 code, pre { font-family: var(--mono); font-size: 0.9em; }
 
 .top { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding: 1.4rem 0; flex-wrap: wrap; }
-.top .name { font-family: var(--display); font-weight: 800; font-size: 1.15rem; text-decoration: none; }
+.top .name { font-family: var(--display); font-weight: 800; font-size: 1.15rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.6rem; }
+.top .name svg { width: 2.1rem; height: 2.1rem; fill: currentColor; }
+.top .name svg .glass { fill: var(--ground); }
+.top .name svg .lamp { fill: var(--lamp-caution); }
 .top nav { display: flex; gap: 1.4rem; font-size: 0.95rem; }
 
 .hero { padding-top: 3.5rem; padding-bottom: 2.5rem; }
@@ -150,7 +154,14 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
 </head>
 <body>
 <header class="wrap top">
-  <a class="name" href="#">FullChico Harness</a>
+  <a class="name" href="#">
+    <svg viewBox="0 0 64 64" aria-hidden="true">
+      <path d="M24 6h16a9 9 0 0 1 9 9v22a3 3 0 0 1-3 3H18a3 3 0 0 1-3-3V15a9 9 0 0 1 9-9z"/>
+      <rect class="glass" x="21" y="12" width="22" height="11" rx="3"/>
+      <circle class="lamp" cx="32" cy="31" r="4"/>
+      <rect x="12" y="40" width="40" height="4.5" rx="2.25"/>
+      <g fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M23 47 13 61M41 47l10 14"/><path d="M18.5 52h27M14.5 58h35" stroke-width="2.4"/></g>
+    </svg>FullChico Harness</a>
   <nav>
     <a href="#trilhos">O que ele recusa</a>
     <a href="#instalar">Instalar</a>
