@@ -7,6 +7,11 @@ roteiros ou na spec: só mudança de processo.
 O tempo da v7 não entra na comparação: a internet caiu e oscilou durante a execução (o
 primeiro ticket ficou 1h27 com o implementador, com pausas de até 40 minutos sem atividade).
 
+## Diretriz da v8 (do dono, 2026-11-21)
+
+O que pode ser hook, guard ou script entra como trilho. Em texto fica só o que é julgamento
+ou a explicação do porquê. Texto é interpretável e burlável.
+
 ## O que a v7 confirmou
 
 - Base dividida em contrato, fundação do back e fundação do front, por orientação do roteiro.
@@ -84,6 +89,53 @@ primeiro ticket ficou 1h27 com o implementador, com pausas de até 40 minutos se
     `~/.claude/harness/`.
 22. Os passos novos do roteiro (ambiente provado depois da base, checagem completa a cada onda
     com tela, aplicativo de pé no fim) são instrução, não trilho.
+
+## Varredura: regras que hoje são só texto e viram trilho
+
+Feita em 2026-11-21 por leitura dos roteiros, agentes, skills, `AGENTS.managed.md` e `stack.md`
+contra os hooks e scripts. Nada foi rodado: é o mapa do que implementar. Da mais valiosa e
+barata para a menos.
+
+| # | Regra hoje em texto | Trilho | Esforço |
+|---|---|---|---|
+| V1 | Não desligar checagem já gravada | `conf_check` nega proposta que remove ou esvazia `VALIDATE_*`, `MODULE_ROOTS`, `CONTRACT_PATHS` | pequeno |
+| V2 | Implementador sempre em worktree isolado | `dispatch_guard` nega sem `isolation: worktree` | pequeno |
+| V3 | Implementador e revisores não sobem, param nem removem ambiente, não enviam, não abrem PR | `service_guard`: esses comandos só para o dono e o orquestrador | pequeno |
+| V4 | Orquestrador não junta com `git merge` à mão nem resolve conflito | `service_guard` nega `merge`, `rebase`, `cherry-pick` para o orquestrador | pequeno |
+| V5 | Agente do projeto que implementa segue as mesmas regras de pedido | `dispatch_guard` reconhece agente de `.claude/agents/` que implementa | pequeno |
+| V6 | Só se despacha ticket `claimed`, da fronteira, até `MAX_PARALLEL`, com o grafo válido | `dispatch_guard` lê o ticket; `ticket claim` valida o grafo e conta os em andamento | pequeno |
+| V7 | Qualidade roda um comando só, não corrige nem repete | lista branca de comandos para `harness:qualidade` | pequeno |
+| V8 | Spec com seções obrigatórias; entrega fora da branch padrão | `ready_for_execution` confere os títulos; `push` recusa a branch padrão | pequeno |
+| V9 | Título do PR no formato de commit; corpo sem assinatura de IA | `pr` aplica as mesmas regras do `commit-msg` | pequeno |
+| V10 | Começar por `setup-worktree`; implementador não deixa processo rodando | setup por hook; `ports-free` também ao fim do implementador | pequeno |
+| V11 | `APPROVED` de qualidade só se a checagem passou | hoje o carimbo confia na frase do agente; gravar o resultado do `validate` por hook e exigir esse registro | médio |
+| V12 | Revisor não edita nem deixa o worktree alterado | `gate_stamp` não carimba se o worktree mudou durante a revisão | médio |
+| V13 | Orquestrador não escreve código da feature | guard de escrita: só `docs/`, `GLOSSARY.md`, `.harness-run/`; `integrate` recusa commit de código que não seja junção | médio |
+| V14 | Modelo por papel e teto de três rodadas | `dispatch_guard` confere o modelo e conta as rodadas (definir antes o que conta: item 11) | médio |
+| V15 | Regras de stack conferíveis por texto (o que o `stack.md` lista como "não se usa") | `stack_check.py` no `validate`, só no perfil `fullstack-typescript` | médio |
+| V16 | Só este worktree é fonte | hook de leitura nega caminho de outro worktree de feature (hoje não há hook de leitura) | médio |
+| V17 | Base provada antes da primeira onda; checagem completa a cada onda com tela; app de pé no fim | script que prova e grava um registro; o despacho e o PR exigem o registro | grande |
+
+## Problemas achados no texto (corrigir junto)
+
+- O fluxo de bug da skill de entrega manda fechar por um roteiro que despacha implementador e
+  reabre ticket; sem spec nem ticket, o guard nega.
+- O modelo de PR pede a linha final de `validate --profile push`; a checagem do fechamento é `merge`.
+- O `AGENTS.md` diz que só o caçador de bugs fecha pendência; o hook aceita também o revisor de ambiente.
+- Os roteiros mandam rodar `prepare` e `dev` "sozinhos" como se saíssem do sandbox; não saem.
+  É a regra em que o orquestrador tropeça (item 13).
+- A descrição do agente `revisor` anuncia três eixos e lista dois.
+- O texto diz "ticket com mais de duas pendências não está pronto"; a máquina conta por revisão (item 1).
+- O comentário do `harness.conf` diz que `VALIDATE_MERGE` roda antes do PR; roda a cada onda com tela.
+
+## O que fica em texto, e por quê
+
+- Gravidade, caso concreto e o que cada revisor procura: é leitura de código.
+- Qualidade da spec e do fatiamento: desenho.
+- "Faça só o que o ticket pede", "não adivinhe", teste primeiro: a posse limita os arquivos, não a intenção.
+- Substituto igual ao adaptador e corrida com teste real: depende de entender os testes.
+- Tipo do commit, código em inglês, vocabulário do glossário: julgamento do revisor.
+- Modo autônomo, paradas e relato final: conduta de conversa.
 
 ## Ainda não observado na v7 (a lista fica incompleta até ela terminar)
 
