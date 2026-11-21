@@ -179,8 +179,10 @@ def foreground(caller, tool_input):
     Subagente em segundo plano avisa a sessão do dono, e não quem o despachou. O modelo caro
     passava a receber cada término e a repassar, por mensagem, ao orquestrador.
     """
-    if caller == "harness:orquestrador" and tool_input.get("run_in_background") is not False:
-        return ("O orquestrador despacha em primeiro plano: passe `run_in_background: false`. Dispare os "
+    # Só o pedido explícito de segundo plano é recusado. Sem o parâmetro, vale o que a ferramenta
+    # faz: há versões em que a de um subagente nem o tem, e só despacha em primeiro plano.
+    if caller == "harness:orquestrador" and tool_input.get("run_in_background") is True:
+        return ("O orquestrador despacha em primeiro plano: não passe `run_in_background: true`. Dispare os "
                 "tickets da rodada na mesma mensagem, que eles rodam juntos, e espere todos voltarem.")
     return None
 
