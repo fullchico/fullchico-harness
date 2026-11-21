@@ -1,6 +1,15 @@
+<img src="site/trem.svg" alt="" width="72" align="right">
+
 # FullChico Harness
 
-Página do projeto: https://fullchico.github.io/fullchico-harness/
+[![npm](https://img.shields.io/npm/v/@fullchico/harness?label=npm&color=1d1b16)](https://www.npmjs.com/package/@fullchico/harness)
+[![ci](https://github.com/fullchico/fullchico-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/fullchico/fullchico-harness/actions/workflows/ci.yml)
+
+[Página do projeto](https://fullchico.github.io/fullchico-harness/) · [Pacote no npm](https://www.npmjs.com/package/@fullchico/harness)
+
+```bash
+npx @fullchico/harness install .
+```
 
 Ambiente de desenvolvimento com agentes, para o Claude Code. Um plugin que padroniza, em
 todo projeto que o adota, o fluxo de uma mudança, os guardrails e o ambiente de
