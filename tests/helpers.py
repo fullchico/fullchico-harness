@@ -15,6 +15,11 @@ sys.path.insert(0, str(HOOKS))
 # Isola os testes da configuração git da máquina (hooks globais, assinatura).
 os.environ["GIT_CONFIG_GLOBAL"] = os.devnull
 os.environ["GIT_CONFIG_NOSYSTEM"] = "1"
+# A fila de checagem é da máquina inteira. Os testes usam uma só deles, para não esperar por
+# uma entrega de verdade que esteja rodando, nem atrasá-la.
+_LOCKS = tempfile.mkdtemp(prefix="harness-locks-")
+atexit.register(shutil.rmtree, _LOCKS, ignore_errors=True)
+os.environ.setdefault("HARNESS_LOCK_DIR", _LOCKS)
 
 
 def _tmpdir() -> pathlib.Path:
