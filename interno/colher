@@ -98,7 +98,7 @@ def read(files, since):
                 row["lidos"] += usage.get("input_tokens", 0) + usage.get("cache_read_input_tokens", 0) + usage.get("cache_creation_input_tokens", 0)
                 row["escritos"] += usage.get("output_tokens", 0)
             content = message.get("content")
-            if entry.get("type") == "user" and isinstance(content, str) and kind == "sessão do dono" and not content.startswith("<"):
+            if entry.get("type") == "user" and isinstance(content, str) and kind == "sessão do dono" and not content.startswith(("<", "Generate a short git branch name")):
                 owner.append((stamp[:16], content.strip().replace("\n", " ")[:200]))
             for block in content if isinstance(content, list) else []:
                 if not isinstance(block, dict):
@@ -136,16 +136,20 @@ def project_state(root):
             out["pendências"] += [(os.path.basename(tree), p) for p in common.pendings(tree)]
         except Exception:
             pass
-    out["conf"] = common.read_conf(os.path.join(root, "harness.conf"))
+    out["conf"] = {}
+    for tree in worktrees(root):
+        out["conf"].update({k: v for k, v in common.read_conf(os.path.join(tree, "harness.conf")).items() if v})
     # O que o dono acrescentou e a lib não trouxe: é aí que aparece o que faltou.
     mapped = {s["skill"] for s in json.load(open(os.path.join(LIB, "plugin", "map.json"), encoding="utf-8")).get("project_skills", [])}
-    installed = {os.path.basename(p.rstrip("/")) for p in glob.glob(os.path.join(root, ".claude", "skills", "*", ""))}
+    trees = worktrees(root)
+    everywhere = lambda *parts: [p for tree in trees for p in glob.glob(os.path.join(tree, *parts))]
+    installed = {os.path.basename(p.rstrip("/")) for p in everywhere(".claude", "skills", "*", "")}
     out["extras"] = {
         "skills que a lib não trouxe": sorted(installed - mapped),
         "skills da lib ausentes": sorted(mapped - installed) if installed else [],
-        "comandos do projeto": sorted(os.path.basename(p) for p in glob.glob(os.path.join(root, ".claude", "commands", "*"))),
-        "agentes do projeto": sorted(os.path.basename(p) for p in glob.glob(os.path.join(root, ".claude", "agents", "*"))),
-        "ajustes em harness.d": sorted(os.path.basename(p) for p in glob.glob(os.path.join(root, "harness.d", "*"))),
+        "comandos do projeto": sorted({os.path.basename(p) for p in everywhere(".claude", "commands", "*")}),
+        "agentes do projeto": sorted({os.path.basename(p) for p in everywhere(".claude", "agents", "*")}),
+        "ajustes em harness.d": sorted({os.path.basename(p) for p in everywhere("harness.d", "*")}),
     }
     log = git(root, "log", "--all", "--format=%s")
     out["reaberturas"] = len(re.findall(r"(?m)^chore\(tickets\): reopen", log))
@@ -218,7 +222,7 @@ def main():
     out += ["Invocadas: " + (", ".join(f"{s} {n}" for s, n in skills.most_common()) or "nenhuma") + ".", ""]
     for label, items in state["extras"].items():
         out += [f"- **{label}:** " + (", ".join(items) if items else "nenhum")]
-    never = sorted(set(os.path.basename(p.rstrip("/")) for p in glob.glob(os.path.join(main_tree, ".claude", "skills", "*", ""))) - {s.split(":")[-1] for s in skills})
+    never = sorted({os.path.basename(p.rstrip("/")) for tree in worktrees(root) for p in glob.glob(os.path.join(tree, ".claude", "skills", "*", ""))} - {s.split(":")[-1] for s in skills})
     out += ["", "- **skills instaladas e nunca invocadas:** " + (", ".join(never) if never else "nenhuma"), ""]
 
     out += ["## Configuração", ""]
