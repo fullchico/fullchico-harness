@@ -63,6 +63,18 @@ class TestInstall(unittest.TestCase):
         self.assertIn("_PORT", (repo / ".env").read_text())
         self.assertNotIn("/harness:setup", r.stdout)
 
+    def test_inside_a_claude_session_it_says_what_will_not_work(self):
+        from unittest import mock
+        repo = make_repo()
+        with mock.patch.dict(os.environ, {"CLAUDECODE": "1"}):
+            r = self.run_install(str(repo))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("claude plugin marketplace add FullChico/fullchico-harness", r.stdout + r.stderr)
+        clean = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+        with mock.patch.dict(os.environ, clean, clear=True):
+            r = self.run_install(str(repo))
+        self.assertNotIn("dentro de uma sessão", r.stdout + r.stderr)
+
     def test_outside_a_repository_is_refused(self):
         r = self.run_install(str(_tmpdir()))
         self.assertNotEqual(r.returncode, 0)

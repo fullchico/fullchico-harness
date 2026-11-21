@@ -43,11 +43,25 @@ com sandbox disponível. O remoto do projeto precisa ser HTTPS. Recomendado: `rt
 
 ## Instalar num projeto
 
-Um comando, na pasta do projeto (um repositório git):
+Antes: o projeto precisa ser um repositório git com remoto HTTPS (sem remoto não há push nem
+pull request).
+
+Um comando, **no seu terminal, fora de uma sessão do Claude Code**, na pasta do projeto:
 
 ```bash
 npx @fullchico/harness install .
 ```
+
+De dentro de uma sessão o sandbox bloqueia o GitHub: os arquivos são gravados, mas o registro
+do marketplace falha. Se foi o seu caso, complete no terminal:
+
+```bash
+claude plugin marketplace add FullChico/fullchico-harness
+claude plugin install harness@fullchico --scope project
+```
+
+Depois de instalar, abra o Claude Code na pasta uma vez, em modo interativo, e aceite o
+diálogo de confiança: sem isso ele ignora as permissões do projeto.
 
 Com o repositório clonado, `/caminho/do/fullchico-harness/install /caminho/do/projeto` faz o mesmo.
 

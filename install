@@ -85,6 +85,17 @@ if grep -Eq '^PROJECT="?[^"[:space:]]' "$ROOT/harness.conf" 2>/dev/null; then
   NEXT="O harness.conf já estava preenchido: portas gravadas no .env e dependências instaladas."
 fi
 
+if [ -n "${CLAUDECODE:-}" ]; then
+  cat >&2 <<'EOT'
+
+install: você está dentro de uma sessão do Claude Code. O sandbox dela bloqueia o acesso ao
+GitHub, e o registro do marketplace e a instalação dos plugins podem ter falhado. Os arquivos
+do projeto foram gravados. Para completar, rode no seu terminal, fora da sessão:
+  claude plugin marketplace add FullChico/fullchico-harness
+  claude plugin install harness@fullchico --scope project      (na pasta do projeto)
+EOT
+fi
+
 cat <<EOT
 
 Harness $VERSION instalado em $ROOT, no perfil $PROFILE.
