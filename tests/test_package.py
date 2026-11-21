@@ -21,6 +21,8 @@ class TestPackage(unittest.TestCase):
         self.assertEqual(package["version"], plugin["version"])
         self.assertEqual(package["name"], "@fullchico/harness")
         self.assertEqual(package["publishConfig"]["access"], "public")
+        # O npm compara este endereço, letra por letra, com o que o GitHub informa na procedência.
+        self.assertEqual(package["repository"]["url"], "git+https://github.com/fullchico/fullchico-harness.git")
 
     def test_entry_point_answers_and_refuses_unknown_commands(self):
         run = lambda *args: subprocess.run(["node", str(ROOT / "bin/harness.js"), *args], capture_output=True, text=True)
