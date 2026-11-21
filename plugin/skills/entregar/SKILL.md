@@ -44,8 +44,8 @@ perguntar.
   estiver na branch padrão, pare e peça ao dono para abrir o worktree da feature.
 - Confira que há remoto: `git remote get-url origin`, e que a branch padrão já está nele
   (`git ls-remote origin`). Sem remoto não existe push nem pull request; sem a branch padrão
-  lá, o pull request não tem base, e o primeiro envio dela é do dono, no terminal. Avise o dono já agora, numa linha, e siga: a entrega vai até as aprovações, e o
-  envio fica esperando o remoto. Não deixe para descobrir no fim.
+  lá, o pull request não tem base, e o primeiro envio dela é do dono, no terminal. Avise o dono já agora, numa linha, e siga: sem remoto a entrega vai até o fim
+  (portões conferidos, aplicativo de pé) e só o envio e o pull request ficam para depois.
 - Rode `.harness/fetch`. Se a branch padrão do remoto andou, traga-a para dentro da feature
   com `git merge origin/<branch padrão>`, antes de qualquer outra coisa.
 - Leia `GLOSSARY.md` e os ADRs em `docs/adr/`, se existirem.

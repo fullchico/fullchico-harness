@@ -22,8 +22,17 @@ cd "$ROOT" || exit 1
 # Worktree de agente já integrado não sobra para depois da entrega.
 "$HERE/agents-clean" >/dev/null 2>&1 || true
 BRANCH="$(git symbolic-ref --short -q HEAD)" || die "o push é sempre de uma branch; este checkout não está em nenhuma."
-URL="$(git remote get-url origin 2>/dev/null)" || die "este repositório não tem o remoto origin."
 SHA="$(git rev-parse HEAD)"
+if ! URL="$(git remote get-url origin 2>/dev/null)"; then
+  # Sem remoto não há para onde enviar, mas a entrega se confere igual: os mesmos portões,
+  # medidos contra a branch padrão local. Passou, está pronta; publicar é um passo do dono.
+  printf 'refs/heads/%s %s refs/heads/%s 0000000000000000000000000000000000000000\n' "$BRANCH" "$SHA" "$BRANCH" \
+    | "$HERE/gate-check" "" || exit 1
+  echo "Branch $BRANCH aprovada nos portões ($SHA). Projeto sem remoto: nada foi enviado."
+  echo "Para publicar: crie o repositório, ligue com \`git remote add origin <url https>\`, envie a branch"
+  echo "padrão (esse primeiro envio é do dono) e rode .harness/push de novo."
+  exit 0
+fi
 
 printf 'refs/heads/%s %s refs/heads/%s 0000000000000000000000000000000000000000\n' "$BRANCH" "$SHA" "$BRANCH" \
   | "$HERE/gate-check" "$URL" || exit 1

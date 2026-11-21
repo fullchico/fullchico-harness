@@ -271,3 +271,33 @@ class TestHeavyChecksTakeTurns(unittest.TestCase):
         r = subprocess.run([str(repo / ".harness/validate"), "--profile", "push"], cwd=repo, capture_output=True, text=True,
                            env={**os.environ, "HARNESS_LOCK_DIR": str(locks)}, timeout=60)
         self.assertEqual(r.returncode, 0, r.stderr)
+
+
+class TestDeliveryWithoutRemote(unittest.TestCase):
+    """Projeto sem remoto não é entrega falha: os portões valem igual, e só o envio fica para depois."""
+
+    def setUp(self):
+        self.repo = make_repo()
+        self.assertEqual(sync(self.repo).returncode, 0)
+        commit_all(self.repo, "chore: adopt harness")
+        git(self.repo, "checkout", "-q", "-b", "fix/x")
+        (self.repo / "a.txt").write_text("a\n")
+        self.sha = commit_all(self.repo, "fix: a")
+
+    def push(self):
+        return subprocess.run([str(self.repo / ".harness/push")], cwd=self.repo, capture_output=True, text=True)
+
+    def test_gates_are_still_required(self):
+        r = self.push()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("falta a aprovação", r.stderr)
+
+    def test_approved_delivery_ends_ready_and_says_how_to_publish(self):
+        from tests.helpers import owner_approve
+        for gate in ("seguranca", "revisao", "qualidade", "bugs"):
+            owner_approve(self.repo, gate)
+        r = self.push()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("sem remoto", r.stdout)
+        self.assertIn("git remote add origin", r.stdout)
+        self.assertNotIn("enviada", r.stdout)

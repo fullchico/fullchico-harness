@@ -91,8 +91,9 @@ if [ -n "${CLAUDECODE:-}" ]; then
 install: você está dentro de uma sessão do Claude Code. O sandbox dela bloqueia o acesso ao
 GitHub, e o registro do marketplace e a instalação dos plugins podem ter falhado. Os arquivos
 do projeto foram gravados. Para completar, rode no seu terminal, fora da sessão:
+  cd <pasta do projeto>
   claude plugin marketplace add FullChico/fullchico-harness
-  claude plugin install harness@fullchico --scope project      (na pasta do projeto)
+  claude plugin install harness@fullchico --scope project
 EOT
 fi
 
