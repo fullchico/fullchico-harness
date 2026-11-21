@@ -43,8 +43,9 @@ com sandbox disponível. O remoto do projeto precisa ser HTTPS. Recomendado: `rt
 
 ## Instalar num projeto
 
-Antes: o projeto precisa ser um repositório git com remoto HTTPS (sem remoto não há push nem
-pull request).
+Antes: o projeto precisa ser um repositório git. O remoto, que tem de ser HTTPS, pode vir
+depois: sem ele a entrega roda até o fim e termina aprovada e pronta, e só o envio e o pull
+request ficam esperando.
 
 Um comando, **no seu terminal, fora de uma sessão do Claude Code**, na pasta do projeto:
 
@@ -53,12 +54,17 @@ npx @fullchico/harness install .
 ```
 
 De dentro de uma sessão o sandbox bloqueia o GitHub: os arquivos são gravados, mas o registro
-do marketplace falha. Se foi o seu caso, complete no terminal:
+do marketplace falha. Se foi o seu caso, complete no terminal, **na pasta do projeto** (o
+segundo comando liga o plugin na pasta em que é rodado):
 
 ```bash
+cd /caminho/do/projeto
 claude plugin marketplace add FullChico/fullchico-harness
 claude plugin install harness@fullchico --scope project
 ```
+
+Se o primeiro responder que a origem não bate com uma entrada já registrada, há um marketplace
+`fullchico` antigo nas suas configurações: `claude plugin marketplace remove fullchico` e repita.
 
 Depois de instalar, abra o Claude Code na pasta uma vez, em modo interativo, e aceite o
 diálogo de confiança: sem isso ele ignora as permissões do projeto.

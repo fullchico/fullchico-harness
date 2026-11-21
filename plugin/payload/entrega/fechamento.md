@@ -104,6 +104,10 @@ gravada por um hook a partir dessa resposta. Você não grava aprovação e não
 .harness/push
 ```
 
+**Projeto sem remoto.** O comando confere os quatro portões do mesmo jeito e termina dizendo
+que a branch está aprovada e que nada foi enviado. É um fim válido: pule o passo 6 (não há
+pull request), faça o passo 7 e diga ao dono, no relato, o que falta para publicar.
+
 É o único caminho até o remoto. Se ele negar, leia o motivo: aprovação faltando para o
 commit atual quer dizer que houve commit depois da revisão, ou que um revisor não fechou
 a resposta no formato: dispare de novo o que faltou. Se o motivo for a branch padrão
