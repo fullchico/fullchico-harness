@@ -1,6 +1,7 @@
 name: release
 # Uma tag vX.Y.Z publica essa versão no npm, depois de a suíte passar e de a tag bater com
-# a versão escrita no pacote e no plugin.
+# a versão escrita no pacote e no plugin. Não há token: o npm confia neste workflow deste
+# repositório (publicação confiável, por OIDC), configurada uma vez com `npm trust github`.
 on:
   push:
     tags: ["v*"]
@@ -9,6 +10,7 @@ jobs:
     runs-on: macos-latest
     permissions:
       contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -26,9 +28,9 @@ jobs:
           [ "$TAG" = "$PKG" ] && [ "$TAG" = "$PLUGIN" ] || { echo "tag $TAG, pacote $PKG, plugin $PLUGIN: precisam ser iguais"; exit 1; }
       - run: git config --global user.name ci && git config --global user.email ci@example.invalid
       - run: python3 -W error -m unittest discover -s tests
+      # A publicação confiável exige npm 11.5 ou mais novo.
+      - run: npm install -g npm@latest
       - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - run: gh release create "$GITHUB_REF_NAME" --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}
