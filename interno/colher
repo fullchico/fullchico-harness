@@ -38,12 +38,22 @@ def worktrees(root):
     return [line[9:] for line in listed.splitlines() if line.startswith("worktree ")] or [root]
 
 
-def transcripts(paths):
-    """(arquivo, tipo de agente) de cada sessão e subagente das pastas dadas."""
+def transcripts(paths, name):
+    """(arquivo, tipo de agente) de cada sessão e subagente do projeto.
+
+    Além das pastas que existem, entram as de worktrees já removidos: a transcrição continua no
+    disco, numa pasta cujo nome termina no nome do projeto ou o traz seguido do nome do worktree
+    (`...-workspaces-<projeto>-<worktree>`, o padrão do Orca).
+    """
     home = os.path.expanduser("~/.claude/projects")
+    slug = re.sub(r"[^A-Za-z0-9]", "-", name)
+    folders = {os.path.join(home, re.sub(r"[^A-Za-z0-9]", "-", os.path.realpath(path))) for path in paths}
+    for folder in glob.glob(os.path.join(home, "*")):
+        base = os.path.basename(folder)
+        if base.endswith("-" + slug) or re.search(r"-workspaces-" + re.escape(slug) + r"-[^-]+$", base):
+            folders.add(folder)
     found = []
-    for path in paths:
-        folder = os.path.join(home, re.sub(r"[^A-Za-z0-9]", "-", os.path.realpath(path)))
+    for folder in sorted(folders):
         for file in glob.glob(os.path.join(folder, "**", "*.jsonl"), recursive=True):
             kind = "sessão do dono"
             meta = file[:-6] + ".meta.json"
@@ -156,7 +166,7 @@ def main():
         return 2
     root = git(args[0], "rev-parse", "--show-toplevel") or os.path.realpath(args[0])
     main_tree = worktrees(root)[0]
-    files = transcripts(worktrees(root))
+    files = transcripts(worktrees(root), os.path.basename(main_tree))
     use, denials, errors, dispatches, skills, owner = read(files, since)
     state = project_state(main_tree)
     name = os.path.basename(main_tree)
