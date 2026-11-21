@@ -54,67 +54,53 @@ com sandbox disponível. O remoto do projeto precisa ser HTTPS. Recomendado: `rt
 
 ## Instalar num projeto
 
-Antes: o projeto precisa ser um repositório git. O remoto, que tem de ser HTTPS, pode vir
-depois: sem ele a entrega roda até o fim e termina aprovada e pronta, e só o envio e o pull
-request ficam esperando.
-
-Um comando, **no seu terminal, fora de uma sessão do Claude Code**, na pasta do projeto:
+Um comando, no seu terminal, na pasta do projeto (um repositório git):
 
 ```bash
 npx @fullchico/harness install .
 ```
 
-De dentro de uma sessão o sandbox bloqueia o GitHub: os arquivos são gravados, mas o registro
-do marketplace falha. Se foi o seu caso, complete no terminal, **na pasta do projeto** (o
-segundo comando liga o plugin na pasta em que é rodado):
+É só isso. Ele grava os arquivos do harness, registra o marketplace, instala o plugin e as
+skills. Depois abra o Claude Code na pasta e faça o pedido:
 
-```bash
-cd /caminho/do/projeto
-claude plugin marketplace add FullChico/fullchico-harness
-claude plugin install harness@fullchico --scope project
+```text
+/harness:entregar quero um sistema de agendamento para uma barbearia
 ```
 
-Se o primeiro responder que a origem não bate com uma entrada já registrada, há um marketplace
-`fullchico` antigo nas suas configurações: `claude plugin marketplace remove fullchico` e repita.
-
-Depois de instalar, abra o Claude Code na pasta uma vez, em modo interativo, e aceite o
-diálogo de confiança: sem isso ele ignora as permissões do projeto.
+Na primeira vez o Claude Code pergunta se você confia na pasta: aceite. O remoto pode vir
+depois: sem ele a entrega roda até o fim, e só o envio e o pull request ficam esperando.
 
 ### Deixar o Claude instalar
 
-Cole este pedido numa sessão do Claude Code aberta na pasta do projeto:
+Se preferir, cole este pedido numa sessão do Claude Code aberta na pasta do projeto:
 
 ```text
-Instale o FullChico Harness neste projeto e deixe-o pronto para a primeira entrega. Siga esta ordem e pare se algo falhar, mostrando o erro exato.
+Instale o FullChico Harness neste projeto e deixe-o pronto para a primeira entrega. Pare se algo falhar, mostrando o erro exato.
 
 1. Confira os pré-requisitos: esta pasta é um repositório git (se não for, pergunte antes de criar um), e existem `python3`, `node`, `docker compose` e `claude`. Diga o que falta.
-2. Rode `npx @fullchico/harness install .`. O perfil padrão é o fullstack TypeScript; se eu quiser outro, eu digo.
-3. Se o instalador avisar que o marketplace ou o plugin não foram registrados (acontece dentro de uma sessão, por causa do sandbox), não tente contornar. Passe-me os comandos para eu rodar no meu terminal, na pasta do projeto, e espere eu confirmar:
-   claude plugin marketplace add FullChico/fullchico-harness
-   claude plugin install harness@fullchico --scope project
-4. Confira o que foi gravado: `.harness/`, `.claude/settings.json`, `.claude/skills/`, `AGENTS.md`, `CLAUDE.md` e `harness.conf`. Não edite arquivo gerenciado pelo harness.
-5. Peça-me para reiniciar o Claude Code nesta pasta, para o plugin e os hooks carregarem, e para aceitar o diálogo de confiança. Depois de reiniciar, rode `/harness:setup`.
-6. Faça o commit do que foi gerado, numa branch, e explique o primeiro envio: com remoto, ele é meu, no terminal; sem remoto, o projeto segue local.
+2. Rode `npx @fullchico/harness install .` fora do sandbox do Bash, pedindo a minha permissão: o instalador precisa alcançar o GitHub para registrar o plugin, e dentro do sandbox isso é bloqueado. Um comando só faz tudo: grava os arquivos, registra o marketplace e instala o plugin e as skills.
+3. Confira o que foi gravado: `.harness/`, `.claude/settings.json`, `.claude/skills/`, `AGENTS.md`, `CLAUDE.md` e `harness.conf`. Não edite arquivo gerenciado pelo harness.
+4. Faça o commit do que foi gerado, numa branch.
+5. Peça-me para reiniciar o Claude Code nesta pasta, para o plugin e os hooks carregarem.
 
-No fim, relate em poucas linhas o que foi instalado, o que eu preciso fazer à mão e o comando para começar a primeira entrega.
+No fim, relate em poucas linhas o que foi instalado e o comando para começar a primeira entrega: `/harness:entregar <o que eu quero construir>`, num worktree de feature.
 ```
 
-Com o repositório clonado, `/caminho/do/fullchico-harness/install /caminho/do/projeto` faz o mesmo.
+### Se algo não funcionar
+
+- **Rodei o comando de dentro de uma sessão do Claude Code e o plugin não apareceu.** O
+  sandbox da sessão bloqueia o GitHub. Rode de novo no seu terminal, fora da sessão; o comando
+  pode ser repetido sem dano.
+- **"A origem não bate com uma entrada já registrada".** Há um marketplace `fullchico` antigo
+  nas suas configurações: `claude plugin marketplace remove fullchico` e rode o instalador de novo.
+- **Projeto que já tinha código.** Depois de instalar, rode `/harness:setup` numa sessão: ele
+  propõe o `harness.conf` a partir do que encontra.
 
 Ele grava `.harness/`, `.claude/settings.json`, `AGENTS.md`, `CLAUDE.md`, `docs/agents/` e
 `orca.yaml`, registra os marketplaces, e instala no escopo do projeto o plugin do harness e os
 de terceiros (`mattpocock-skills`, `ponytail`). Se o `harness.conf` já estiver preenchido,
 também grava as portas no `.env` e instala as dependências. Pode ser rodado de novo. Arquivo
 gerenciado alterado à mão trava a instalação; `--force` substitui.
-
-Num projeto novo falta um passo, numa sessão do Claude Code aberta nele:
-
-```
-/harness:setup
-```
-
-Ele propõe o `harness.conf` a partir do que encontra no projeto. Faça o commit do que foi
-gerado e reinicie a sessão.
 
 ### Perfis
 

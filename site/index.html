@@ -223,12 +223,11 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
 
   <section id="instalar" class="wash">
     <div class="wrap">
-      <h2>Do zero à primeira entrega</h2>
+      <h2>Dois passos até a primeira entrega</h2>
       <ol class="steps">
-        <li><div><h3>Instale no projeto</h3><p>Num repositório git. O remoto pode vir depois: sem ele a entrega roda até o fim, e só o envio fica esperando.</p>
+        <li><div><h3>Um comando, no seu terminal</h3><p>Na pasta do projeto, que precisa ser um repositório git. Ele grava os arquivos, registra o plugin e instala as skills. O remoto pode vir depois.</p>
           <div class="cmd"><code id="c2">npx @fullchico/harness install .</code><button type="button" data-copy="c2">Copiar</button></div></div></li>
-        <li><div><h3>Abra o Claude Code na pasta e aceite a confiança</h3><p>Sem isso ele ignora as permissões do projeto. Depois rode <code>/harness:setup</code>, que propõe a configuração a partir do que encontra.</p></div></li>
-        <li><div><h3>Faça o pedido</h3><p>Num worktree de feature. A entrevista fecha as decisões, e a execução segue sem você.</p>
+        <li><div><h3>Abra o Claude Code e faça o pedido</h3><p>Na primeira vez ele pergunta se você confia na pasta. A entrevista fecha as decisões, e a execução segue sem você.</p>
           <div class="cmd"><code id="c3">/harness:entregar quero um sistema de agendamento para uma barbearia</code><button type="button" data-copy="c3">Copiar</button></div></div></li>
       </ol>
 
@@ -236,18 +235,15 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <p class="note" style="margin-top:0.5rem">Cole este pedido numa sessão do Claude Code aberta na pasta do projeto.</p>
       <div class="prompt">
         <header><strong>Pedido para o Claude</strong><button type="button" class="copy" data-copy="p1">Copiar o pedido</button></header>
-<pre id="p1">Instale o FullChico Harness neste projeto e deixe-o pronto para a primeira entrega. Siga esta ordem e pare se algo falhar, mostrando o erro exato.
+<pre id="p1">Instale o FullChico Harness neste projeto e deixe-o pronto para a primeira entrega. Pare se algo falhar, mostrando o erro exato.
 
 1. Confira os pré-requisitos: esta pasta é um repositório git (se não for, pergunte antes de criar um), e existem `python3`, `node`, `docker compose` e `claude`. Diga o que falta.
-2. Rode `npx @fullchico/harness install .`. O perfil padrão é o fullstack TypeScript; se eu quiser outro, eu digo.
-3. Se o instalador avisar que o marketplace ou o plugin não foram registrados (acontece dentro de uma sessão, por causa do sandbox), não tente contornar. Passe-me os comandos para eu rodar no meu terminal, na pasta do projeto, e espere eu confirmar:
-   claude plugin marketplace add FullChico/fullchico-harness
-   claude plugin install harness@fullchico --scope project
-4. Confira o que foi gravado: `.harness/`, `.claude/settings.json`, `.claude/skills/`, `AGENTS.md`, `CLAUDE.md` e `harness.conf`. Não edite arquivo gerenciado pelo harness.
-5. Peça-me para reiniciar o Claude Code nesta pasta, para o plugin e os hooks carregarem, e para aceitar o diálogo de confiança. Depois de reiniciar, rode `/harness:setup`.
-6. Faça o commit do que foi gerado, numa branch, e explique o primeiro envio: com remoto, ele é meu, no terminal; sem remoto, o projeto segue local.
+2. Rode `npx @fullchico/harness install .` fora do sandbox do Bash, pedindo a minha permissão: o instalador precisa alcançar o GitHub para registrar o plugin, e dentro do sandbox isso é bloqueado. Um comando só faz tudo: grava os arquivos, registra o marketplace e instala o plugin e as skills.
+3. Confira o que foi gravado: `.harness/`, `.claude/settings.json`, `.claude/skills/`, `AGENTS.md`, `CLAUDE.md` e `harness.conf`. Não edite arquivo gerenciado pelo harness.
+4. Faça o commit do que foi gerado, numa branch.
+5. Peça-me para reiniciar o Claude Code nesta pasta, para o plugin e os hooks carregarem.
 
-No fim, relate em poucas linhas o que foi instalado, o que eu preciso fazer à mão e o comando para começar a primeira entrega.</pre>
+No fim, relate em poucas linhas o que foi instalado e o comando para começar a primeira entrega: `/harness:entregar <o que eu quero construir>`, num worktree de feature.</pre>
       </div>
     </div>
   </section>

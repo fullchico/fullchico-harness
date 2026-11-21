@@ -69,7 +69,8 @@ class TestInstall(unittest.TestCase):
         with mock.patch.dict(os.environ, {"CLAUDECODE": "1"}):
             r = self.run_install(str(repo))
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn("claude plugin marketplace add FullChico/fullchico-harness", r.stdout + r.stderr)
+        self.assertIn("dentro de uma sessão", r.stdout + r.stderr)
+        self.assertIn("npx @fullchico/harness install", r.stdout + r.stderr)
         clean = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
         with mock.patch.dict(os.environ, clean, clear=True):
             r = self.run_install(str(repo))
