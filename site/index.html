@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullChico Harness: trilhos para agentes que escrevem código</title>
+<meta name="description" content="Plugin para o Claude Code que troca instrução por trilho: quem escreve o código não o aprova, e o que não passou pelos portões não sai da máquina.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Atkinson+Hyperlegible+Next:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ground: #e8eef0;
+  --ballast: #d5dfe3;
+  --ink: #132630;
+  --steel: #546b77;
+  --go: #177a4d;
+  --caution: #b97a00;
+  --stop: #b93328;
+  --lamp-go: #26b573;
+  --lamp-caution: #f2a900;
+  --lamp-stop: #e04a3c;
+  --panel: #f6f9fa;
+  --display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #0f1f27;
+    --ballast: #1b303a;
+    --ink: #e6eef1;
+    --steel: #9db1bb;
+    --go: #4fd597;
+    --caution: #f6bd3a;
+    --stop: #ff7c6e;
+    --panel: #162a34;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+.wrap { max-width: 68rem; margin: 0 auto; padding: 0 1.25rem; }
+a { color: inherit; text-underline-offset: 0.2em; }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--lamp-caution); outline-offset: 3px; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.05; letter-spacing: -0.02em; margin: 0; }
+h1 { font-size: clamp(2.6rem, 7.5vw, 5.4rem); font-weight: 800; font-stretch: 85%; max-width: 13ch; }
+h2 { font-size: clamp(1.8rem, 4vw, 2.75rem); font-weight: 700; max-width: 22ch; }
+h3 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.01em; }
+p { margin: 0; max-width: 62ch; }
+code, pre { font-family: var(--mono); font-size: 0.9em; }
+
+.top { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding: 1.4rem 0; flex-wrap: wrap; }
+.top .name { font-family: var(--display); font-weight: 800; font-size: 1.15rem; text-decoration: none; }
+.top nav { display: flex; gap: 1.4rem; font-size: 0.95rem; }
+
+.hero { padding-top: 3.5rem; padding-bottom: 2.5rem; }
+.hero .lede { font-size: 1.3rem; margin-top: 1.5rem; max-width: 46ch; color: var(--steel); }
+
+/* A linha: o fluxo de uma entrega, com um sinal em cada portão. */
+.line { margin: 3.5rem 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(7, 1fr); position: relative; }
+.line::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 1.35rem; height: 0.55rem;
+  background:
+    repeating-linear-gradient(90deg, var(--steel) 0 3px, transparent 3px 22px),
+    linear-gradient(var(--ink), var(--ink)) top / 100% 2px no-repeat,
+    linear-gradient(var(--ink), var(--ink)) bottom / 100% 2px no-repeat;
+}
+.line li { position: relative; padding-top: 3.4rem; padding-right: 0.8rem; font-size: 0.95rem; }
+.line li::before {
+  content: ""; position: absolute; top: 0.72rem; left: 0; width: 1.8rem; height: 1.8rem; border-radius: 50%;
+  background: var(--ground); border: 3px solid var(--ink);
+}
+.line li.gate::before { background: var(--lamp-go); box-shadow: 0 0 0 5px color-mix(in srgb, var(--lamp-go) 25%, transparent); }
+.line b { display: block; font-family: var(--display); font-size: 1.1rem; }
+.line span { color: var(--steel); }
+@media (prefers-reduced-motion: no-preference) {
+  .line li.gate::before { animation: lamp 2.4s ease-out both; }
+  .line li.gate:nth-of-type(5)::before { animation-delay: 0.5s; }
+  .line li.gate:nth-of-type(6)::before { animation-delay: 1s; }
+  @keyframes lamp { 0%, 35% { background: var(--lamp-stop); box-shadow: none; } 60% { background: var(--lamp-caution); } }
+}
+@media (max-width: 52rem) {
+  .line { grid-template-columns: 1fr; gap: 1.1rem; }
+  .line::before { left: 0.62rem; right: auto; top: 0; bottom: 0; width: 0.55rem; height: auto;
+    background:
+      repeating-linear-gradient(0deg, var(--steel) 0 3px, transparent 3px 22px),
+      linear-gradient(var(--ink), var(--ink)) left / 2px 100% no-repeat,
+      linear-gradient(var(--ink), var(--ink)) right / 2px 100% no-repeat; }
+  .line li { padding: 0 0 0 3rem; min-height: 2rem; }
+  .line li::before { top: 0; }
+}
+
+.install { margin-top: 3.5rem; display: grid; gap: 0.6rem; }
+.cmd {
+  display: flex; align-items: stretch; background: var(--ink); color: var(--ground);
+  border-radius: 0.5rem; overflow: hidden; max-width: 38rem;
+}
+.cmd code { flex: 1; padding: 1rem 1.2rem; font-size: 1rem; overflow-x: auto; white-space: nowrap; }
+.cmd button, .copy {
+  font: 600 0.9rem var(--body); cursor: pointer; border: 0; padding: 0 1.2rem;
+  background: var(--lamp-caution); color: #1b1300;
+}
+.copy { padding: 0.7rem 1.1rem; border-radius: 0.4rem; }
+.note { font-size: 0.95rem; color: var(--steel); }
+
+section { padding: 4.5rem 0; border-top: 2px solid var(--ballast); }
+section > .wrap > p.intro { margin-top: 1.1rem; font-size: 1.15rem; color: var(--steel); }
+
+/* O quadro de sinais: cada regra e o que acontece com quem a quebra. */
+.board { margin-top: 2.5rem; border-top: 2px solid var(--ink); }
+.board div { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr) minmax(0, 1.1fr); gap: 0.4rem 1.2rem; padding: 1.05rem 0; border-bottom: 1px solid var(--ballast); align-items: start; }
+.board i { width: 0.95rem; height: 0.95rem; border-radius: 50%; margin-top: 0.42rem; background: var(--lamp-stop); }
+.board i.amber { background: var(--lamp-caution); }
+.board dt { font-weight: 600; }
+.board dd { margin: 0; color: var(--steel); }
+@media (max-width: 44rem) { .board div { grid-template-columns: 1.4rem 1fr; } .board dd { grid-column: 2; } }
+.legend { margin-top: 1.2rem; display: flex; gap: 1.6rem; flex-wrap: wrap; font-size: 0.95rem; color: var(--steel); }
+.legend span::before { content: ""; display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: 50%; margin-right: 0.5rem; background: var(--lamp-stop); }
+.legend span.amber::before { background: var(--lamp-caution); }
+
+.steps { margin: 2.5rem 0 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 2rem; max-width: 46rem; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 3rem 1fr; gap: 0 1rem; }
+.steps li::before { content: counter(s); font: 800 2rem/1 var(--display); color: var(--steel); }
+.steps h3 { margin-bottom: 0.35rem; }
+.steps .cmd { margin-top: 0.9rem; }
+
+.prompt { margin-top: 2rem; background: var(--panel); border: 2px solid var(--ink); border-radius: 0.5rem; max-width: 50rem; }
+.prompt header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.8rem 1rem; border-bottom: 2px solid var(--ink); flex-wrap: wrap; }
+.prompt pre { margin: 0; padding: 1.1rem 1.2rem; white-space: pre-wrap; font-size: 0.88rem; line-height: 1.55; max-height: 24rem; overflow: auto; }
+
+.two { margin-top: 2.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; }
+@media (max-width: 44rem) { .two { grid-template-columns: 1fr; } }
+.two ul { margin: 0.9rem 0 0; padding-left: 1.1rem; }
+.two li { margin-bottom: 0.5rem; }
+.two h3 { display: flex; align-items: center; gap: 0.6rem; }
+.two h3::before { content: ""; width: 0.9rem; height: 0.9rem; border-radius: 50%; background: var(--lamp-go); }
+.two div + div h3::before { background: var(--lamp-caution); }
+
+footer { padding: 2.5rem 0 4rem; border-top: 2px solid var(--ballast); color: var(--steel); font-size: 0.95rem; }
+footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<header class="wrap top">
+  <a class="name" href="#">FullChico Harness</a>
+  <nav>
+    <a href="#trilhos">O que ele recusa</a>
+    <a href="#instalar">Instalar</a>
+    <a href="https://github.com/fullchico/fullchico-harness">GitHub</a>
+  </nav>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <h1>Trilhos para agentes que escrevem código.</h1>
+    <p class="lede">Um plugin para o Claude Code. Você faz o pedido e responde a uma entrevista. O resto corre sozinho, e o que não passou pela revisão não sai da máquina.</p>
+
+    <ol class="line" aria-label="O caminho de uma entrega">
+      <li><b>Pedido</b><span>uma frase</span></li>
+      <li><b>Entrevista</b><span>até não sobrar decisão</span></li>
+      <li><b>Spec e tickets</b><span>contrato primeiro</span></li>
+      <li class="gate"><b>Revisão do ticket</b><span>antes de juntar</span></li>
+      <li class="gate"><b>Integração</b><span>um por vez, com checagem</span></li>
+      <li class="gate"><b>Quatro portões</b><span>sobre o commit exato</span></li>
+      <li><b>Envio</b><span>e o aplicativo de pé</span></li>
+    </ol>
+
+    <div class="install">
+      <div class="cmd"><code id="c1">npx @fullchico/harness install .</code><button type="button" data-copy="c1">Copiar</button></div>
+      <p class="note">No seu terminal, na pasta do projeto. Precisa de git, Python 3, Docker e do Claude Code.</p>
+    </div>
+  </div>
+
+  <section id="trilhos">
+    <div class="wrap">
+      <h2>Instrução o agente interpreta. Trilho ele não atravessa.</h2>
+      <p class="intro">O harness tira do texto tudo o que uma máquina consegue conferir. Cada linha abaixo é uma recusa de verdade, feita por hook, guard ou script, e coberta por teste.</p>
+      <dl class="board">
+        <div><i></i><dt>Quem escreveu o código aprova o próprio trabalho</dt><dd>A aprovação é gravada por um hook, a partir da resposta de um revisor que não viu a conversa de quem implementou. Nenhum agente alcança o registro.</dd></div>
+        <div><i></i><dt>Envio sem os quatro vereditos</dt><dd>Segurança, revisão, caça a defeito e qualidade, todos sobre o mesmo commit. Um commit novo pede tudo de novo.</dd></div>
+        <div><i></i><dt>Um ticket mexe no arquivo de outro</dt><dd>Cada ticket declara o que possui. A integração recusa a branch que saiu da posse, e conflito não se resolve à mão.</dd></div>
+        <div><i></i><dt>Um módulo entra por dentro de outro</dt><dd>De outro módulo só se importa a entrada pública. A checagem é do harness, não uma regra que o projeto possa afrouxar.</dd></div>
+        <div><i></i><dt>Desligar uma checagem que não passa</dt><dd>Checagem já gravada pode mudar de comando, não sumir. A proposta que a remove é recusada.</dd></div>
+        <div><i></i><dt>Implementador sobe ambiente, envia ou abre pull request</dt><dd>Isso é de quem conduz a entrega. Revisor também não troca o commit do worktree, que é de todos.</dd></div>
+        <div><i class="amber"></i><dt>Defeito pequeno, que não justifica parar tudo</dt><dd>Vira pendência registrada, no máximo duas por ticket, com o teste que a pegaria. Enquanto houver uma aberta, o envio é recusado.</dd></div>
+        <div><i></i><dt>Várias compilações ao mesmo tempo</dt><dd>A checagem pesada entra numa fila da máquina. Sem isso, três agentes em paralelo esgotam a memória.</dd></div>
+      </dl>
+      <div class="legend"><span>recusa</span><span class="amber">segue, mas fica registrado e barra o envio</span></div>
+    </div>
+  </section>
+
+  <section id="instalar">
+    <div class="wrap">
+      <h2>Do zero à primeira entrega</h2>
+      <ol class="steps">
+        <li><div><h3>Instale no projeto</h3><p>Num repositório git. O remoto pode vir depois: sem ele a entrega roda até o fim, e só o envio fica esperando.</p>
+          <div class="cmd"><code id="c2">npx @fullchico/harness install .</code><button type="button" data-copy="c2">Copiar</button></div></div></li>
+        <li><div><h3>Abra o Claude Code na pasta e aceite a confiança</h3><p>Sem isso ele ignora as permissões do projeto. Depois rode <code>/harness:setup</code>, que propõe a configuração a partir do que encontra.</p></div></li>
+        <li><div><h3>Faça o pedido</h3><p>Num worktree de feature. A entrevista fecha as decisões, e a execução segue sem você.</p>
+          <div class="cmd"><code id="c3">/harness:entregar quero um sistema de agendamento para uma barbearia</code><button type="button" data-copy="c3">Copiar</button></div></div></li>
+      </ol>
+
+      <h3 style="margin-top:3.5rem">Prefere que o Claude faça a instalação?</h3>
+      <p class="note" style="margin-top:0.5rem">Cole este pedido numa sessão do Claude Code aberta na pasta do projeto.</p>
+      <div class="prompt">
+        <header><strong>Pedido para o Claude</strong><button type="button" class="copy" data-copy="p1">Copiar o pedido</button></header>
+<pre id="p1">Instale o FullChico Harness neste projeto e deixe-o pronto para a primeira entrega. Siga esta ordem e pare se algo falhar, mostrando o erro exato.
+
+1. Confira os pré-requisitos: esta pasta é um repositório git (se não for, pergunte antes de criar um), e existem `python3`, `node`, `docker compose` e `claude`. Diga o que falta.
+2. Rode `npx @fullchico/harness install .`. O perfil padrão é o fullstack TypeScript; se eu quiser outro, eu digo.
+3. Se o instalador avisar que o marketplace ou o plugin não foram registrados (acontece dentro de uma sessão, por causa do sandbox), não tente contornar. Passe-me os comandos para eu rodar no meu terminal, na pasta do projeto, e espere eu confirmar:
+   claude plugin marketplace add FullChico/fullchico-harness
+   claude plugin install harness@fullchico --scope project
+4. Confira o que foi gravado: `.harness/`, `.claude/settings.json`, `.claude/skills/`, `AGENTS.md`, `CLAUDE.md` e `harness.conf`. Não edite arquivo gerenciado pelo harness.
+5. Peça-me para reiniciar o Claude Code nesta pasta, para o plugin e os hooks carregarem, e para aceitar o diálogo de confiança. Depois de reiniciar, rode `/harness:setup`.
+6. Faça o commit do que foi gerado, numa branch, e explique o primeiro envio: com remoto, ele é meu, no terminal; sem remoto, o projeto segue local.
+
+No fim, relate em poucas linhas o que foi instalado, o que eu preciso fazer à mão e o comando para começar a primeira entrega.</pre>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>O que já foi provado, e o que ainda não</h2>
+      <p class="intro">Este projeto é novo. Melhor você saber disso por aqui do que no meio de uma entrega.</p>
+      <div class="two">
+        <div>
+          <h3>Conferido</h3>
+          <ul>
+            <li>Os mecanismos de recusa, por uma suíte de mais de 450 testes que roda a cada versão.</li>
+            <li>Entregas de projeto novo do começo ao fim, em sessões reais, com vários tickets em paralelo.</li>
+            <li>A instalação por <code>npx</code> num projeto de verdade.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Ainda não</h3>
+          <ul>
+            <li>Uma segunda entrega sobre código que já existe, que é o uso do dia a dia.</li>
+            <li>Perfis fora do fullstack TypeScript (NestJS, Next.js, Postgres).</li>
+            <li>Achar o defeito continua sendo trabalho de um revisor, que é um modelo. O trilho garante que a revisão aconteceu e teve consequência, não que ela viu tudo.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a href="https://github.com/fullchico/fullchico-harness">Código no GitHub</a>
+    <a href="https://www.npmjs.com/package/@fullchico/harness">Pacote no npm</a>
+    <span>Licença MIT</span>
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll("[data-copy]").forEach(function (button) {
+  var label = button.textContent;
+  button.addEventListener("click", function () {
+    var text = document.getElementById(button.dataset.copy).textContent;
+    navigator.clipboard.writeText(text).then(function () {
+      button.textContent = "Copiado";
+      setTimeout(function () { button.textContent = label; }, 1600);
+    });
+  });
+});
+</script>
+</body>
+</html>

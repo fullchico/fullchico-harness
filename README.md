@@ -1,5 +1,7 @@
 # FullChico Harness
 
+Página do projeto: https://fullchico.github.io/fullchico-harness/
+
 Ambiente de desenvolvimento com agentes, para o Claude Code. Um plugin que padroniza, em
 todo projeto que o adota, o fluxo de uma mudança, os guardrails e o ambiente de
 desenvolvimento por feature.
@@ -68,6 +70,25 @@ Se o primeiro responder que a origem não bate com uma entrada já registrada, h
 
 Depois de instalar, abra o Claude Code na pasta uma vez, em modo interativo, e aceite o
 diálogo de confiança: sem isso ele ignora as permissões do projeto.
+
+### Deixar o Claude instalar
+
+Cole este pedido numa sessão do Claude Code aberta na pasta do projeto:
+
+```text
+Instale o FullChico Harness neste projeto e deixe-o pronto para a primeira entrega. Siga esta ordem e pare se algo falhar, mostrando o erro exato.
+
+1. Confira os pré-requisitos: esta pasta é um repositório git (se não for, pergunte antes de criar um), e existem `python3`, `node`, `docker compose` e `claude`. Diga o que falta.
+2. Rode `npx @fullchico/harness install .`. O perfil padrão é o fullstack TypeScript; se eu quiser outro, eu digo.
+3. Se o instalador avisar que o marketplace ou o plugin não foram registrados (acontece dentro de uma sessão, por causa do sandbox), não tente contornar. Passe-me os comandos para eu rodar no meu terminal, na pasta do projeto, e espere eu confirmar:
+   claude plugin marketplace add FullChico/fullchico-harness
+   claude plugin install harness@fullchico --scope project
+4. Confira o que foi gravado: `.harness/`, `.claude/settings.json`, `.claude/skills/`, `AGENTS.md`, `CLAUDE.md` e `harness.conf`. Não edite arquivo gerenciado pelo harness.
+5. Peça-me para reiniciar o Claude Code nesta pasta, para o plugin e os hooks carregarem, e para aceitar o diálogo de confiança. Depois de reiniciar, rode `/harness:setup`.
+6. Faça o commit do que foi gerado, numa branch, e explique o primeiro envio: com remoto, ele é meu, no terminal; sem remoto, o projeto segue local.
+
+No fim, relate em poucas linhas o que foi instalado, o que eu preciso fazer à mão e o comando para começar a primeira entrega.
+```
 
 Com o repositório clonado, `/caminho/do/fullchico-harness/install /caminho/do/projeto` faz o mesmo.
 
