@@ -14,6 +14,10 @@ primeiro ticket ficou 1h27 com o implementador, com pausas de até 40 minutos se
 - Critério de gravidade firme: o primeiro achado severo foi "proteção que não protege".
 - Pendências do revisor de ambiente passaram a ser registradas.
 - A limpeza de portas rodou ao fim dos revisores sem derrubar nada.
+- A checagem completa a cada onda com tela pegou defeito que o revisor e os testes do ticket
+  não pegaram, em pelo menos cinco tickets de tela.
+- O ambiente provado logo depois da base pegou defeito nas duas fundações.
+- Nenhum ticket passou de três rodadas; o contrato não foi mais o gargalo.
 
 ## Vistas na v7
 
@@ -50,15 +54,40 @@ primeiro ticket ficou 1h27 com o implementador, com pausas de até 40 minutos se
    também os worktrees dos três tickets que estavam no meio da correção, sem commit. Deve
    poupar worktree com alteração não commitada, ou avisar antes.
 
+9. **Implementador fechou o ticket afirmando que o teste passava, sem tê-lo rodado.** Quem
+   desmentiu foi a checagem completa depois da onda. O fechamento do ticket deve trazer a prova
+   (a saída do teste), não a afirmação; e o `integrate` deveria rodar os testes de navegador do
+   próprio ticket, não só a checagem de push.
+10. **Fechar o ticket só depois de o teste passar no ambiente da feature.** O orquestrador
+    passou a fazer isso sozinho no meio da v7, depois do caso acima. Vira regra do roteiro.
+11. **O que conta como rodada no teto de três.** Um ticket teve duas reprovações da checagem
+    completa e uma do revisor. O roteiro diz "só reprovação conta", sem dizer se a da checagem
+    entra. Definir, e contar por máquina.
+12. **Total de pendências.** Dez abertas com 16 de 18 tickets integrados: bem menos que as 17
+    da v6, mas o teto por revisão não segura o total (ver item 1).
+13. **O orquestrador tropeça sempre na mesma regra:** encadeia um comando do harness com outro,
+    é barrado pelo guard e refaz. Acontece em toda versão. O roteiro pode dizer isso logo no
+    começo, ou o guard pode responder com o comando já separado.
+14. **Aviso de pasta não confiável a cada execução.** O Claude Code ignora as permissões
+    `allow` do projeto em pasta nunca aberta em modo interativo. Não atrapalha o teste (roda com
+    permissões liberadas), mas atrapalharia uma sessão normal do dono.
+
 ## Vindas das listas anteriores, ainda não feitas
 
-9. Entrevista de verdade, em sessão interativa, com o dono respondendo.
-10. Linha de base sem harness: o mesmo pedido, só com as skills e um prompt bom.
-11. Reprovação de contrato subindo de modelo, contada por máquina.
-12. Versão fixada dos plugins de terceiros; aviso quando uma skill fixada mudar na origem.
-13. Teste por propriedade exigido por máquina nas regras com borda.
-14. Decisão sobre a skill `shadcn`, que executa `npx shadcn@latest` ao carregar.
-15. A suíte da lib travou uma vez sem causa encontrada; os testes deixam resíduo em
+15. Entrevista de verdade, em sessão interativa, com o dono respondendo.
+16. Linha de base sem harness: o mesmo pedido, só com as skills e um prompt bom.
+17. Reprovação de contrato subindo de modelo, contada por máquina.
+18. Versão fixada dos plugins de terceiros; aviso quando uma skill fixada mudar na origem.
+19. Teste por propriedade exigido por máquina nas regras com borda.
+20. Decisão sobre a skill `shadcn`, que executa `npx shadcn@latest` ao carregar.
+21. A suíte da lib travou uma vez sem causa encontrada; os testes deixam resíduo em
     `~/.claude/harness/`.
-16. Os passos novos do roteiro (ambiente provado depois da base, checagem completa a cada onda
+22. Os passos novos do roteiro (ambiente provado depois da base, checagem completa a cada onda
     com tela, aplicativo de pé no fim) são instrução, não trilho.
+
+## Ainda não observado na v7 (a lista fica incompleta até ela terminar)
+
+- O ciclo completo das pendências: correção no fechamento e conferência pelo caçador de bugs.
+- Os quatro portões sobre a branch inteira e o push.
+- O aplicativo deixado de pé no fim, depois do envio.
+- A auditoria independente: quantos defeitos escaparam de todas as camadas.
