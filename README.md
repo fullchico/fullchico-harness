@@ -4,10 +4,6 @@ Ambiente de desenvolvimento com agentes, para o Claude Code. Um plugin que padro
 todo projeto que o adota, o fluxo de uma mudança, os guardrails e o ambiente de
 desenvolvimento por feature.
 
-O desenho completo, com as decisões e os motivos, está em
-[`docs/superpowers/specs/2026-11-18-harness-design.md`](docs/superpowers/specs/2026-11-18-harness-design.md).
-O que foi conferido em sessões reais, e o que ainda não foi, está em
-[`docs/verificacao-plataforma.md`](docs/verificacao-plataforma.md).
 
 ## O que ele faz
 
@@ -47,11 +43,13 @@ com sandbox disponível. O remoto do projeto precisa ser HTTPS. Recomendado: `rt
 
 ## Instalar num projeto
 
-Com este repositório clonado na máquina, um comando:
+Um comando, na pasta do projeto (um repositório git):
 
 ```bash
-/caminho/do/fullchico-harness/install /caminho/do/projeto
+npx @fullchico/harness install .
 ```
+
+Com o repositório clonado, `/caminho/do/fullchico-harness/install /caminho/do/projeto` faz o mesmo.
 
 Ele grava `.harness/`, `.claude/settings.json`, `AGENTS.md`, `CLAUDE.md`, `docs/agents/` e
 `orca.yaml`, registra os marketplaces, e instala no escopo do projeto o plugin do harness e os

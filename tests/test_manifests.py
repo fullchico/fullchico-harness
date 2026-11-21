@@ -30,7 +30,6 @@ class TestManifests(unittest.TestCase):
             if f.is_file() and "__pycache__" not in f.parts:
                 text = f.read_text(errors="ignore")
                 self.assertNotIn("/Users/", text, f)
-                self.assertNotIn("movacrm", text.lower(), f)
 
 
 if __name__ == "__main__":

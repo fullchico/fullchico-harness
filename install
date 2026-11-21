@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Adota o harness num projeto, num comando só.
-# Uso: <pasta do harness>/install [pasta do projeto] [--profile <perfil>] [--force]
+# Uso: npx @fullchico/harness install [pasta do projeto] [--profile <perfil>] [--force]
+#      <pasta do harness>/install [pasta do projeto] [--profile <perfil>] [--force]   (num clone)
 #
 # Perfis: fullstack-typescript (padrão; a stack e as skills dela), livre (projeto novo em
 # outra stack) e existente (projeto que já tinha código; não impõe arquitetura nem língua).
@@ -38,8 +39,11 @@ PROFILE="${PROFILE:-fullstack-typescript}"
 
 if [ -z "${HARNESS_SKIP_PLUGIN:-}" ] && command -v claude >/dev/null 2>&1; then
   warn() { echo "install: não consegui $1; rode à mão: $2" >&2; }
-  # O do harness vem desta pasta: vale antes de o repositório estar publicado.
-  claude plugin marketplace add "$HARNESS" >/dev/null 2>&1 || warn "registrar o marketplace do harness" "claude plugin marketplace add $HARNESS"
+  # Num clone do repositório, o marketplace é esta pasta (desenvolvimento do próprio harness).
+  # Instalado pelo npm, a pasta é o cache do npx e some: vale o repositório publicado.
+  if [ -d "$HARNESS/.git" ] || [ -f "$HARNESS/.git" ]; then MARKET="$HARNESS"; else MARKET="FullChico/fullchico-harness"; fi
+  MARKET="${HARNESS_MARKETPLACE:-$MARKET}"
+  claude plugin marketplace add "$MARKET" >/dev/null 2>&1 || warn "registrar o marketplace do harness" "claude plugin marketplace add $MARKET"
   python3 -I - "$ROOT/.claude/settings.json" <<'PY' | while IFS= read -r REPO; do
 import json, sys
 for name, entry in json.load(open(sys.argv[1])).get("extraKnownMarketplaces", {}).items():
