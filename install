@@ -37,45 +37,71 @@ python3 -I "$HARNESS/plugin/bin/sync" "$ROOT" --version "$VERSION" $FORCE ${PROF
 PROFILE="$(sed -n 's/^PROFILE=//p' "$ROOT/harness.conf" | tr -d "\"'" | sed -n 1p)"
 PROFILE="${PROFILE:-fullstack-typescript}"
 
+# Mostra em que ponto está: registrar plugins e baixar skills leva mais de um minuto, e em
+# silêncio parece travado. Num terminal a linha é reescrita; fora dele sai uma linha por passo.
+if [ -t 1 ]; then
+  progress() { printf '\r\033[K%s' "$1"; }
+  settle() { printf '\r\033[K%s\n' "$1"; }
+else
+  progress() { echo "$1"; }
+  settle() { :; }
+fi
+echo "[1/3] Arquivos do harness gravados"
+
 if [ -z "${HARNESS_SKIP_PLUGIN:-}" ] && command -v claude >/dev/null 2>&1; then
-  warn() { echo "install: não consegui $1; rode à mão: $2" >&2; }
+  warn() { [ -t 1 ] && printf '\r\033[K'; echo "install: não consegui $1; rode à mão: $2" >&2; }
   # Num clone do repositório, o marketplace é esta pasta (desenvolvimento do próprio harness).
   # Instalado pelo npm, a pasta é o cache do npx e some: vale o repositório publicado.
   if [ -d "$HARNESS/.git" ] || [ -f "$HARNESS/.git" ]; then MARKET="$HARNESS"; else MARKET="FullChico/fullchico-harness"; fi
   MARKET="${HARNESS_MARKETPLACE:-$MARKET}"
+  progress "[2/3] Plugins: registrando os marketplaces"
   claude plugin marketplace add "$MARKET" >/dev/null 2>&1 || warn "registrar o marketplace do harness" "claude plugin marketplace add $MARKET"
-  python3 -I - "$ROOT/.claude/settings.json" <<'PY' | while IFS= read -r REPO; do
+  REPOS="$(python3 -I - "$ROOT/.claude/settings.json" <<'PY'
 import json, sys
 for name, entry in json.load(open(sys.argv[1])).get("extraKnownMarketplaces", {}).items():
     source = entry.get("source", {})
     if name != "fullchico" and source.get("source") == "github" and source.get("repo"):
         print(source["repo"])
 PY
+)"
+  for REPO in $REPOS; do
     claude plugin marketplace add "$REPO" >/dev/null 2>&1 || warn "registrar o marketplace $REPO" "claude plugin marketplace add $REPO"
   done
   # Instalar é por projeto: o comando roda de dentro dele.
-  python3 -I - "$ROOT/.claude/settings.json" <<'PY' | while IFS= read -r PLUGIN; do
+  PLUGINS="$(python3 -I - "$ROOT/.claude/settings.json" <<'PY'
 import json, sys
 for name, enabled in json.load(open(sys.argv[1])).get("enabledPlugins", {}).items():
     if enabled:
         print(name)
 PY
+)"
+  TOTAL="$(printf '%s\n' $PLUGINS | grep -c .)" N=0
+  for PLUGIN in $PLUGINS; do
+    N=$((N + 1))
+    progress "[2/3] Plugins ($N/$TOTAL): $PLUGIN"
     (cd "$ROOT" && claude plugin install "$PLUGIN" --scope project >/dev/null 2>&1) || warn "instalar $PLUGIN" "claude plugin install $PLUGIN --scope project"
   done
+  settle "[2/3] Plugins instalados ($TOTAL)"
 else
   echo "install: sem o comando claude; os plugins ficam para depois." >&2
 fi
 
 # Skills de arquitetura, dos autores, copiadas para o projeto e fixadas no skills-lock.json.
 if [ -z "${HARNESS_SKIP_PLUGIN:-}" ] && command -v npx >/dev/null 2>&1; then
-  python3 -I -c 'import json,sys
+  SKILLS="$(python3 -I -c 'import json,sys
 for s in json.load(open(sys.argv[1])).get("project_skills", []):
     if sys.argv[2] in s.get("profiles", []):
-        print(s["repo"], s["skill"])' "$HARNESS/plugin/map.json" "$PROFILE" | while read -r REPO SKILL; do
+        print(s["repo"] + "|" + s["skill"])' "$HARNESS/plugin/map.json" "$PROFILE")"
+  TOTAL="$(printf '%s\n' $SKILLS | grep -c .)" N=0
+  for PAIR in $SKILLS; do
+    REPO="${PAIR%%|*}" SKILL="${PAIR##*|}"
+    N=$((N + 1))
+    progress "[3/3] Skills ($N/$TOTAL): $SKILL"
     [ -d "$ROOT/.claude/skills/$SKILL" ] && continue
     (cd "$ROOT" && npx -y skills add "$REPO" -s "$SKILL" -a claude-code -y --copy </dev/null >/dev/null 2>&1) \
-      || echo "install: não instalei a skill $SKILL; rode à mão: npx skills add $REPO -s $SKILL -a claude-code -y --copy" >&2
+      || { [ -t 1 ] && printf '\r\033[K'; echo "install: não instalei a skill $SKILL; rode à mão: npx skills add $REPO -s $SKILL -a claude-code -y --copy" >&2; }
   done
+  [ "$TOTAL" -eq 0 ] || settle "[3/3] Skills instaladas ($TOTAL)"
 fi
 
 # Com o harness.conf já preenchido, deixa o worktree pronto: portas no .env e dependências.
