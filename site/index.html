@@ -11,31 +11,29 @@
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Atkinson+Hyperlegible+Next:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --ground: #e8eef0;
-  --ballast: #d5dfe3;
-  --ink: #132630;
-  --steel: #546b77;
-  --go: #177a4d;
-  --caution: #b97a00;
-  --stop: #b93328;
-  --lamp-go: #26b573;
-  --lamp-caution: #f2a900;
-  --lamp-stop: #e04a3c;
-  --panel: #f6f9fa;
+  --ground: #ffffff;
+  --paper: #ffffff;
+  --ballast: #e9e7e2;
+  --wash: #f7f6f3;
+  --ink: #1d1b16;
+  --steel: #6b6860;
+  --lamp-go: #2fae74;
+  --lamp-caution: #f5b73b;
+  --lamp-stop: #e5604d;
+  --panel: #f7f6f3;
   --display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
   --body: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --ground: #0f1f27;
-    --ballast: #1b303a;
-    --ink: #e6eef1;
-    --steel: #9db1bb;
-    --go: #4fd597;
-    --caution: #f6bd3a;
-    --stop: #ff7c6e;
-    --panel: #162a34;
+    --ground: #191919;
+    --paper: #191919;
+    --ballast: #33312d;
+    --wash: #222120;
+    --ink: #f1efe9;
+    --steel: #a8a59c;
+    --panel: #222120;
   }
 }
 * { box-sizing: border-box; }
@@ -60,62 +58,60 @@ code, pre { font-family: var(--mono); font-size: 0.9em; }
 
 .top { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding: 1.4rem 0; flex-wrap: wrap; }
 .top .name { font-family: var(--display); font-weight: 800; font-size: 1.15rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.6rem; }
-.top .name svg { width: 2.1rem; height: 2.1rem; fill: currentColor; }
-.top .name svg .glass { fill: var(--ground); }
-.top .name svg .lamp { fill: var(--lamp-caution); }
+.top .name svg { width: 2.9rem; height: auto; overflow: visible; }
+.top .name svg g { stroke-width: 7; }
 .top nav { display: flex; gap: 1.4rem; font-size: 0.95rem; }
 
 .hero { padding-top: 3.5rem; padding-bottom: 2.5rem; }
 .hero .lede { font-size: 1.3rem; margin-top: 1.5rem; max-width: 46ch; color: var(--steel); }
 
-/* A linha: o fluxo de uma entrega, com um sinal em cada portão. */
-.line { margin: 3.5rem 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(7, 1fr); position: relative; }
+/* O pátio: a locomotiva de lado, soltando fumaça, sobre o trilho que é o fluxo da entrega. */
+.yard { margin-top: 3rem; }
+.loco { display: block; width: clamp(9rem, 22vw, 13.5rem); height: auto; margin-left: -0.3rem; margin-bottom: -0.45rem; position: relative; z-index: 1; color: var(--ink); overflow: visible; }
+@media (prefers-reduced-motion: no-preference) {
+  .puffs circle { animation: puff 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .puffs circle:nth-child(2) { animation-delay: 0.5s; }
+  .puffs circle:nth-child(3) { animation-delay: 1s; }
+  @keyframes puff { 0%, 100% { transform: translate(0, 0) scale(1); opacity: 1; } 50% { transform: translate(5px, -7px) scale(1.12); opacity: 0.55; } }
+}
+.line { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(7, 1fr); position: relative; }
 .line::before {
-  content: ""; position: absolute; left: 0; right: 0; top: 1.35rem; height: 0.55rem;
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 0.8rem;
   background:
-    repeating-linear-gradient(90deg, var(--steel) 0 3px, transparent 3px 22px),
-    linear-gradient(var(--ink), var(--ink)) top / 100% 2px no-repeat,
-    linear-gradient(var(--ink), var(--ink)) bottom / 100% 2px no-repeat;
+    linear-gradient(var(--ink), var(--ink)) top / 100% 4px no-repeat,
+    repeating-linear-gradient(90deg, var(--ink) 0 4px, transparent 4px 30px) 0 4px / 100% 0.55rem no-repeat;
 }
-.line li { position: relative; padding-top: 3.4rem; padding-right: 0.8rem; font-size: 0.95rem; }
+.line li { position: relative; padding-top: 3.6rem; padding-right: 0.8rem; font-size: 0.95rem; }
 .line li::before {
-  content: ""; position: absolute; top: 0.72rem; left: 0; width: 1.8rem; height: 1.8rem; border-radius: 50%;
-  background: var(--ground); border: 3px solid var(--ink);
+  content: ""; position: absolute; top: 1.35rem; left: 0; width: 1.5rem; height: 1.5rem; border-radius: 50%;
+  background: var(--paper); border: 4px solid var(--ink);
 }
-.line li.gate::before { background: var(--lamp-go); box-shadow: 0 0 0 5px color-mix(in srgb, var(--lamp-go) 25%, transparent); }
+.line li::after { content: ""; position: absolute; top: 0.2rem; left: 0.63rem; width: 4px; height: 1.2rem; background: var(--ink); }
+.line li.gate::before { background: var(--lamp-go); }
 .line b { display: block; font-family: var(--display); font-size: 1.1rem; }
 .line span { color: var(--steel); }
-@media (prefers-reduced-motion: no-preference) {
-  .line li.gate::before { animation: lamp 2.4s ease-out both; }
-  .line li.gate:nth-of-type(5)::before { animation-delay: 0.5s; }
-  .line li.gate:nth-of-type(6)::before { animation-delay: 1s; }
-  @keyframes lamp { 0%, 35% { background: var(--lamp-stop); box-shadow: none; } 60% { background: var(--lamp-caution); } }
-}
 @media (max-width: 52rem) {
-  .line { grid-template-columns: 1fr; gap: 1.1rem; }
-  .line::before { left: 0.62rem; right: auto; top: 0; bottom: 0; width: 0.55rem; height: auto;
-    background:
-      repeating-linear-gradient(0deg, var(--steel) 0 3px, transparent 3px 22px),
-      linear-gradient(var(--ink), var(--ink)) left / 2px 100% no-repeat,
-      linear-gradient(var(--ink), var(--ink)) right / 2px 100% no-repeat; }
-  .line li { padding: 0 0 0 3rem; min-height: 2rem; }
+  .line { grid-template-columns: 1fr; gap: 1.1rem; padding-top: 1.6rem; }
+  .line li { padding: 0 0 0 2.6rem; min-height: 1.8rem; }
   .line li::before { top: 0; }
+  .line li::after { display: none; }
 }
 
 .install { margin-top: 3.5rem; display: grid; gap: 0.6rem; }
 .cmd {
-  display: flex; align-items: stretch; background: var(--ink); color: var(--ground);
-  border-radius: 0.5rem; overflow: hidden; max-width: 38rem;
+  display: flex; align-items: stretch; background: var(--wash); color: var(--ink);
+  border: 2px solid var(--ink); border-radius: 0.8rem; overflow: hidden; max-width: 38rem;
 }
 .cmd code { flex: 1; padding: 1rem 1.2rem; font-size: 1rem; overflow-x: auto; white-space: nowrap; }
 .cmd button, .copy {
   font: 600 0.9rem var(--body); cursor: pointer; border: 0; padding: 0 1.2rem;
-  background: var(--lamp-caution); color: #1b1300;
+  background: var(--ink); color: var(--paper);
 }
-.copy { padding: 0.7rem 1.1rem; border-radius: 0.4rem; }
+.copy { padding: 0.6rem 1rem; border-radius: 0.6rem; }
 .note { font-size: 0.95rem; color: var(--steel); }
 
-section { padding: 4.5rem 0; border-top: 2px solid var(--ballast); }
+section { padding: 5rem 0; border-top: 2px solid var(--ballast); }
+section.wash { background: var(--wash); }
 section > .wrap > p.intro { margin-top: 1.1rem; font-size: 1.15rem; color: var(--steel); }
 
 /* O quadro de sinais: cada regra e o que acontece com quem a quebra. */
@@ -136,7 +132,7 @@ section > .wrap > p.intro { margin-top: 1.1rem; font-size: 1.15rem; color: var(-
 .steps h3 { margin-bottom: 0.35rem; }
 .steps .cmd { margin-top: 0.9rem; }
 
-.prompt { margin-top: 2rem; background: var(--panel); border: 2px solid var(--ink); border-radius: 0.5rem; max-width: 50rem; }
+.prompt { margin-top: 2rem; background: var(--paper); border: 2px solid var(--ink); border-radius: 0.9rem; max-width: 50rem; overflow: hidden; }
 .prompt header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.8rem 1rem; border-bottom: 2px solid var(--ink); flex-wrap: wrap; }
 .prompt pre { margin: 0; padding: 1.1rem 1.2rem; white-space: pre-wrap; font-size: 0.88rem; line-height: 1.55; max-height: 24rem; overflow: auto; }
 
@@ -155,12 +151,19 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
 <body>
 <header class="wrap top">
   <a class="name" href="#">
-    <svg viewBox="0 0 64 64" aria-hidden="true">
-      <path d="M24 6h16a9 9 0 0 1 9 9v22a3 3 0 0 1-3 3H18a3 3 0 0 1-3-3V15a9 9 0 0 1 9-9z"/>
-      <rect class="glass" x="21" y="12" width="22" height="11" rx="3"/>
-      <circle class="lamp" cx="32" cy="31" r="4"/>
-      <rect x="12" y="40" width="40" height="4.5" rx="2.25"/>
-      <g fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M23 47 13 61M41 47l10 14"/><path d="M18.5 52h27M14.5 58h35" stroke-width="2.4"/></g>
+    <svg viewBox="0 0 200 136" aria-hidden="true">
+      <g fill="var(--paper)" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+        <g class="puffs"><circle cx="150" cy="30" r="9"/><circle cx="166" cy="15" r="6.5"/><circle cx="181" cy="5" r="4.5"/></g>
+        <rect x="126" y="46" width="18" height="26" rx="3"/><rect x="120" y="40" width="30" height="10" rx="5"/>
+        <path d="M88 70a11 11 0 0 1 22 0z"/>
+        <rect x="62" y="68" width="106" height="42" rx="21"/>
+        <rect x="22" y="44" width="54" height="66" rx="9"/><rect x="14" y="36" width="70" height="12" rx="6"/>
+        <rect x="34" y="56" width="26" height="22" rx="5"/>
+        <path d="M166 110l26 16h-34z"/>
+        <circle cx="46" cy="116" r="17"/><circle cx="100" cy="119" r="14"/><circle cx="140" cy="119" r="14"/>
+        <path d="M100 119h40" /><circle cx="46" cy="116" r="3" fill="currentColor"/><circle cx="100" cy="119" r="2.5" fill="currentColor"/><circle cx="140" cy="119" r="2.5" fill="currentColor"/>
+        <circle cx="172" cy="80" r="5.5" fill="var(--lamp-caution)"/>
+      </g>
     </svg>FullChico Harness</a>
   <nav>
     <a href="#trilhos">O que ele recusa</a>
@@ -174,6 +177,21 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
     <h1>Trilhos para agentes que escrevem código.</h1>
     <p class="lede">Um plugin para o Claude Code. Você faz o pedido e responde a uma entrevista. O resto corre sozinho, e o que não passou pela revisão não sai da máquina.</p>
 
+    <div class="yard">
+    <svg class="loco" viewBox="0 0 200 136" aria-hidden="true">
+      <g fill="var(--paper)" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+        <g class="puffs"><circle cx="150" cy="30" r="9"/><circle cx="166" cy="15" r="6.5"/><circle cx="181" cy="5" r="4.5"/></g>
+        <rect x="126" y="46" width="18" height="26" rx="3"/><rect x="120" y="40" width="30" height="10" rx="5"/>
+        <path d="M88 70a11 11 0 0 1 22 0z"/>
+        <rect x="62" y="68" width="106" height="42" rx="21"/>
+        <rect x="22" y="44" width="54" height="66" rx="9"/><rect x="14" y="36" width="70" height="12" rx="6"/>
+        <rect x="34" y="56" width="26" height="22" rx="5"/>
+        <path d="M166 110l26 16h-34z"/>
+        <circle cx="46" cy="116" r="17"/><circle cx="100" cy="119" r="14"/><circle cx="140" cy="119" r="14"/>
+        <path d="M100 119h40" /><circle cx="46" cy="116" r="3" fill="currentColor"/><circle cx="100" cy="119" r="2.5" fill="currentColor"/><circle cx="140" cy="119" r="2.5" fill="currentColor"/>
+        <circle cx="172" cy="80" r="5.5" fill="var(--lamp-caution)"/>
+      </g>
+    </svg>
     <ol class="line" aria-label="O caminho de uma entrega">
       <li><b>Pedido</b><span>uma frase</span></li>
       <li><b>Entrevista</b><span>até não sobrar decisão</span></li>
@@ -183,6 +201,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <li class="gate"><b>Quatro portões</b><span>sobre o commit exato</span></li>
       <li><b>Envio</b><span>e o aplicativo de pé</span></li>
     </ol>
+    </div>
 
     <div class="install">
       <div class="cmd"><code id="c1">npx @fullchico/harness install .</code><button type="button" data-copy="c1">Copiar</button></div>
@@ -208,7 +227,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
     </div>
   </section>
 
-  <section id="instalar">
+  <section id="instalar" class="wash">
     <div class="wrap">
       <h2>Do zero à primeira entrega</h2>
       <ol class="steps">
