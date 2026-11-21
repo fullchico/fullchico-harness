@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 900 460" role="img" aria-label="A entrevista antes de qualquer código: uma pessoa responde a uma série de perguntas, cada pergunta vira uma decisão marcada, e no fim sai um documento de spec sem nenhuma decisão em aberto.">
+<style>.ink{stroke:#1d1b16;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;fill:none}.thin{stroke-width:3}.paper{fill:#fff}.ok{fill:#2fae74}.warn{fill:#f5b73b}.no{fill:#e5604d}.dot{fill:#1d1b16;stroke:none}.ties{stroke-width:12;stroke-linecap:butt;stroke-dasharray:4 20}.txt{fill:#1d1b16;stroke:none;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-weight:700;font-size:20px;text-anchor:middle}.sub{font-weight:400}.big{font-size:26px}@media (prefers-color-scheme:dark){.ink{stroke:#f1efe9}.paper{fill:#191919}.txt,.dot{fill:#f1efe9}}</style>
+<defs><g id="linha"><circle class="ink paper" cx="256" cy="0" r="17"/><text class="txt" x="256" y="7">?</text><path class="ink thin" d="M476 0h44M510-8l10 8-10 8"/><circle class="ink ok" cx="562" cy="0" r="17"/><path class="ink" d="M554 0l6 7 10-13"/></g></defs>
+<circle class="ink paper" cx="110" cy="150" r="34"/><circle class="dot" cx="99" cy="146" r="3.5"/><circle class="dot" cx="121" cy="146" r="3.5"/><path class="ink thin" d="M100 162q10 8 20 0"/>
+<path class="ink" d="M110 184v106M110 216l-40 40M110 216l48 14M110 290l-30 80M110 290l30 80"/>
+<path class="ink paper" d="M234 50H586a24 24 0 0 1 24 24V346a24 24 0 0 1-24 24H234a24 24 0 0 1-24-24V230l-34-18 34-18V74a24 24 0 0 1 24-24z"/>
+<use xlink:href="#linha" href="#linha" y="99"/><use xlink:href="#linha" href="#linha" y="173"/><use xlink:href="#linha" href="#linha" y="247"/><use xlink:href="#linha" href="#linha" y="321"/>
+<path class="ink" d="M292 91h150M292 108h90M292 165h120M292 182h156M292 239h160M292 256h70M292 313h100M292 330h140"/>
+<path class="ink" d="M632 210h50M670 198l14 12-14 12"/>
+<path class="ink paper" d="M722 90H826l34 34V318a12 12 0 0 1-12 12H722a12 12 0 0 1-12-12V102a12 12 0 0 1 12-12z"/><path class="ink" d="M826 90v34h34"/>
+<text class="txt big" x="775" y="166">spec</text>
+<path class="ink" d="M734 200h102M734 232h102M734 264h102M734 296h60"/>
+<text class="txt" x="110" y="420">Você</text>
+<text class="txt sub" x="410" y="420">cada pergunta vira uma decisão</text>
+<text class="txt sub" x="785" y="420">nada em aberto</text>
+</svg>

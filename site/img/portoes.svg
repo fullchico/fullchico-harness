@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 460" role="img" aria-label="Os quatro portões antes do envio: Segurança, Revisão, Caça a defeito e Qualidade, quatro cancelas em sequência que examinam o mesmo vagão, o commit. Depois delas vem o envio. Um sinal âmbar à parte marca a pendência: o trabalho segue, mas o envio fica barrado.">
+<style>.ink{stroke:#1d1b16;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;fill:none}.thin{stroke-width:3}.paper{fill:#fff}.ok{fill:#2fae74}.warn{fill:#f5b73b}.no{fill:#e5604d}.dot{fill:#1d1b16;stroke:none}.ties{stroke-width:12;stroke-linecap:butt;stroke-dasharray:4 20}.txt{fill:#1d1b16;stroke:none;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-weight:700;font-size:20px;text-anchor:middle}.sub{font-weight:400}.big{font-size:26px}@media (prefers-color-scheme:dark){.ink{stroke:#f1efe9}.paper{fill:#191919}.txt,.dot{fill:#f1efe9}}</style>
+<defs><g id="est"><rect class="ink paper" x="-26" y="-66" width="52" height="52" rx="4"/><path class="ink paper" d="M-36-66L0-92l36 26z"/><rect class="ink thin paper" x="-8" y="-42" width="16" height="28" rx="3"/><rect class="ink paper" x="-42" y="-14" width="84" height="10" rx="5"/></g>
+<g id="canc"><rect class="ink paper" x="-7" y="-112" width="14" height="100" rx="5"/><rect class="ink paper" x="0" y="-66" width="72" height="12" rx="6" transform="rotate(-55 0 -60)"/><circle class="dot" cx="0" cy="-60" r="4"/><circle class="ink ok" cx="0" cy="-124" r="14"/><rect class="ink paper" x="-18" y="-14" width="36" height="10" rx="5"/></g></defs>
+<path class="ink ties" d="M22 328H1180"/><path class="ink" d="M20 320H1180"/>
+<rect class="ink paper" x="35" y="232" width="150" height="62" rx="10"/><circle class="ink paper" cx="72" cy="305" r="13"/><circle class="ink paper" cx="148" cy="305" r="13"/>
+<text class="txt" x="110" y="270">commit</text>
+<path class="ink thin" d="M110 214V96H780V172M300 96v76M460 96v76M620 96v76M100 202l10 12 10-12"/>
+<text class="txt sub" x="445" y="76">os quatro examinam o mesmo commit</text>
+<use xlink:href="#canc" href="#canc" x="300" y="320"/><use xlink:href="#canc" href="#canc" x="460" y="320"/><use xlink:href="#canc" href="#canc" x="620" y="320"/><use xlink:href="#canc" href="#canc" x="780" y="320"/>
+<path class="ink" d="M950 308v-72"/><rect class="ink paper" x="934" y="180" width="32" height="58" rx="16"/><circle class="ink thin warn" cx="950" cy="198" r="8"/><circle class="ink thin paper" cx="950" cy="220" r="8"/><rect class="ink paper" x="932" y="306" width="36" height="10" rx="5"/>
+<use xlink:href="#est" href="#est" x="1110" y="320"/>
+<text class="txt" x="300" y="364">Segurança</text><text class="txt" x="460" y="364">Revisão</text><text class="txt" x="620" y="364">Caça a defeito</text><text class="txt" x="780" y="364">Qualidade</text>
+<text class="txt" x="950" y="364">pendência</text><text class="txt sub" x="950" y="390">segue, mas</text><text class="txt sub" x="950" y="415">barra o envio</text>
+<text class="txt" x="1110" y="364">envio</text>
+</svg>

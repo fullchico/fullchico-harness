@@ -56,12 +56,12 @@ h3 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.01em; }
 p { margin: 0; max-width: 62ch; }
 code, pre { font-family: var(--mono); font-size: 0.9em; }
 
-.top { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding: 1.4rem 0; flex-wrap: wrap; }
+.top { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding: 1.4rem 1.25rem; flex-wrap: wrap; }
 .top .name { font-family: var(--display); font-weight: 800; font-size: 1.15rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.6rem; }
 .top .name svg { width: 2.1rem; height: 2.1rem; fill: currentColor; }
 .top .name svg .glass { fill: var(--paper); }
 .top .name svg .lamp { fill: var(--lamp-caution); }
-.top nav { display: flex; gap: 1.4rem; font-size: 0.95rem; }
+.top nav { display: flex; flex-wrap: wrap; gap: 0.3rem 1.3rem; font-size: 0.95rem; }
 
 .hero { padding-top: 3.5rem; padding-bottom: 2.5rem; }
 .hero .lede { font-size: 1.3rem; margin-top: 1.5rem; max-width: 46ch; color: var(--steel); }
@@ -128,7 +128,7 @@ section > .wrap > p.intro { margin-top: 1.1rem; font-size: 1.15rem; color: var(-
 .legend span.amber::before { background: var(--lamp-caution); }
 
 .steps { margin: 2.5rem 0 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 2rem; max-width: 46rem; }
-.steps li { counter-increment: s; display: grid; grid-template-columns: 3rem 1fr; gap: 0 1rem; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 3rem minmax(0, 1fr); gap: 0 1rem; }
 .steps li::before { content: counter(s); font: 800 2rem/1 var(--display); color: var(--steel); }
 .steps h3 { margin-bottom: 0.35rem; }
 .steps .cmd { margin-top: 0.9rem; }
@@ -145,6 +145,55 @@ section > .wrap > p.intro { margin-top: 1.1rem; font-size: 1.15rem; color: var(-
 .two h3::before { content: ""; width: 0.9rem; height: 0.9rem; border-radius: 50%; background: var(--lamp-go); }
 .two div + div h3::before { background: var(--lamp-caution); }
 
+/* Seções novas: ilustrações, cartões, conversa, vagões e listas. */
+.art { margin: 2.5rem 0 0; overflow-x: auto; }
+.art:focus-visible { outline: 3px solid var(--lamp-caution); outline-offset: 3px; }
+@media (max-width: 44rem) { .art img { min-width: 36rem; } }
+.art img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.ill { fill: var(--paper); stroke: var(--ink); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; display: block; overflow: visible; }
+.ill .go { fill: var(--lamp-go); } .ill .caution { fill: var(--lamp-caution); } .ill .stop { fill: var(--lamp-stop); }
+.ill .none { fill: none; } .ill .solid { fill: var(--ink); }
+.cards { margin: 2.5rem 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1.25rem; }
+.cards > * { background: var(--paper); border: 2px solid var(--ink); border-radius: 0.9rem; padding: 1.3rem; min-width: 0; overflow-wrap: anywhere; }
+.cards h3 { margin: 0.9rem 0 0.4rem; }
+.cards .ill:first-child + h3, .cards h3:first-child { margin-top: 0.9rem; }
+.cards h3:first-child { margin-top: 0; }
+.cards p, .cards li li { color: var(--steel); font-size: 1rem; }
+.cards ul { margin: 0.6rem 0 0; padding-left: 1.1rem; }
+.cards li li { margin-bottom: 0.35rem; }
+.cards code, .prose code, .facts code { color: var(--ink); }
+.cards .icon { width: 5rem; height: 4rem; }
+.cards .lamp { width: 2.2rem; height: 2.2rem; }
+.cards .wagon { width: 6rem; height: 4rem; }
+.cards.count { counter-reset: c; }
+.cards.count > li { counter-increment: c; }
+.cards.count > li::before { content: counter(c); font: 800 2rem/1 var(--display); color: var(--steel); }
+.tag { display: inline-block; font: 600 0.8rem var(--mono); border: 2px solid var(--ink); border-radius: 2rem; padding: 0.05rem 0.6rem; margin-bottom: 0.5rem; color: var(--ink); }
+.prose { margin-top: 2.5rem; display: grid; gap: 1rem; }
+.prose p { color: var(--steel); }
+.prose p strong { color: var(--ink); }
+.sub { margin-top: 3.5rem; }
+.sub + p { margin-top: 0.5rem; color: var(--steel); }
+
+.chat { margin: 2.5rem 0 0; padding: 0; list-style: none; display: grid; gap: 1rem; max-width: 46rem; }
+.chat > li { display: flex; gap: 0.8rem; align-items: flex-start; }
+.chat .ill { width: 2.6rem; height: 2.6rem; flex: none; }
+.chat > li > div { border: 2px solid var(--ink); border-radius: 0.3rem 1.1rem 1.1rem 1.1rem; padding: 0.8rem 1rem; background: var(--paper); min-width: 0; overflow-wrap: anywhere; }
+.chat b { display: block; font-size: 0.85rem; color: var(--steel); font-weight: 600; }
+.chat > li.you { flex-direction: row-reverse; }
+.chat > li.you > div { border-radius: 1.1rem 0.3rem 1.1rem 1.1rem; background: var(--wash); }
+section.wash .chat > li.you > div { background: var(--ground); }
+.chat > li.done > div { border-color: var(--lamp-go); box-shadow: inset 0 0 0 1px var(--lamp-go); }
+.chat ul { margin: 0.4rem 0 0; padding-left: 1.1rem; }
+
+.facts { margin: 2.5rem 0 0; border-top: 2px solid var(--ink); }
+.facts div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 0.3rem 1.5rem; padding: 1rem 0; border-bottom: 1px solid var(--ballast); overflow-wrap: anywhere; }
+.facts dt { font-weight: 600; }
+.facts dd { margin: 0; color: var(--steel); }
+@media (max-width: 44rem) { .facts div { grid-template-columns: 1fr; } }
+.verdict { margin-top: 1.5rem; max-width: 38rem; background: var(--wash); border: 2px solid var(--ink); border-radius: 0.8rem; padding: 1rem 1.2rem; overflow-x: auto; font-size: 0.9rem; line-height: 1.6; }
+section.wash .verdict { background: var(--ground); }
+
 footer { padding: 2.5rem 0 4rem; border-top: 2px solid var(--ballast); color: var(--steel); font-size: 0.95rem; }
 footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
 </style>
@@ -159,8 +208,11 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <rect x="12" y="40" width="40" height="4.5" rx="2.25"/>
       <g fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M23 47 13 61M41 47l10 14"/><path d="M18.5 52h27M14.5 58h35" stroke-width="2.4"/></g>
     </svg>FullChico Harness</a>
-  <nav>
-    <a href="#trilhos">O que ele recusa</a>
+  <nav aria-label="Seções">
+    <a href="#conceito">Conceito</a>
+    <a href="#uso">Como se usa</a>
+    <a href="#papeis">Papéis</a>
+    <a href="#portoes">Portões</a>
     <a href="#instalar">Instalar</a>
     <a href="https://github.com/fullchico/fullchico-harness">GitHub</a>
   </nav>
@@ -203,10 +255,147 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
     </div>
   </div>
 
-  <section id="trilhos">
+  <section id="conceito">
     <div class="wrap">
       <h2>Instrução o agente interpreta. Trilho ele não atravessa.</h2>
-      <p class="intro">O harness tira do texto tudo o que uma máquina consegue conferir. Cada linha abaixo é uma recusa de verdade, feita por hook, guard ou script, e coberta por teste.</p>
+      <p class="intro">Uma regra escrita num arquivo de instruções depende de o agente ler, lembrar e decidir obedecer. O harness tira do texto tudo o que uma máquina consegue conferir e entrega isso a hooks, guards e scripts, que recusam em vez de pedir.</p>
+      <ul class="cards">
+        <li>
+          <svg class="ill icon" viewBox="0 0 80 64" aria-hidden="true"><path d="M8 54l4-15 22-22 11 11-22 22zM12 39l11 11"/><path class="none" d="M48 8v48" stroke-dasharray="1 9"/><circle class="go" cx="65" cy="32" r="12"/><path class="none" d="M59 32l4 4 8-8"/></svg>
+          <h3>Quem escreve não aprova</h3>
+          <p>A aprovação nasce do veredito de um revisor de contexto novo, que não viu a conversa de quem implementou. Um hook grava esse veredito num lugar onde nenhum agente escreve.</p>
+        </li>
+        <li>
+          <svg class="ill icon" viewBox="0 0 80 64" aria-hidden="true"><path d="M40 50v12M28 62h24"/><rect x="28" y="2" width="24" height="48" rx="10"/><circle class="stop" cx="40" cy="14" r="4.5"/><circle class="caution" cx="40" cy="26" r="4.5"/><circle class="go" cx="40" cy="38" r="4.5"/></svg>
+          <h3>Nada sai sem os portões</h3>
+          <p>O shell do agente roda no sandbox do Claude Code, sem rede para o servidor de git. O único caminho até o remoto é <code>.harness/push</code>, que exige quatro vereditos sobre o commit.</p>
+        </li>
+        <li>
+          <svg class="ill icon" viewBox="0 0 80 64" aria-hidden="true"><path class="none" d="M24 32h10M34 14v36M34 14h14M34 50h14M68 14h10M68 50h10"/><rect x="4" y="22" width="20" height="20" rx="5"/><rect x="48" y="5" width="20" height="18" rx="5"/><rect x="48" y="41" width="20" height="18" rx="5"/></svg>
+          <h3>Paralelismo por contrato, um dono por arquivo</h3>
+          <p>O ticket de contrato fecha antes de os outros começarem. Cada ticket declara as pastas que possui, dois tickets paralelos nunca possuem o mesmo caminho, e a integração recusa a branch que mexer fora da posse.</p>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="uso" class="wash">
+    <div class="wrap">
+      <h2>Você pede, responde à entrevista e recebe pronto</h2>
+      <p class="intro">O comando <code>/harness:entregar</code> conduz a mudança da entrevista ao pull request. A sua parte é o começo. A execução corre sem você.</p>
+      <ol class="cards count">
+        <li><h3>Pedido</h3><p>Uma frase, numa sessão do Claude Code aberta no worktree da feature.</p></li>
+        <li><h3>Entrevista</h3><p>A sessão pergunta até não sobrar decisão em aberto, escreve a spec e a manda para revisão. Você resolve os achados e aprova.</p></li>
+        <li><h3>Pronto</h3><p>Volta o link do pull request, o endereço do aplicativo que ficou de pé, o que entrou e o que ficou de fora. O merge é seu.</p></li>
+      </ol>
+      <figure class="art" tabindex="0"><img src="img/fluxo.svg" alt="O fluxo de uma entrega: do pedido e da entrevista à spec, aos tickets em paralelo, à integração, aos portões e ao envio." loading="lazy"></figure>
+
+      <h3 class="sub">Um exemplo de conversa</h3>
+      <p>Ilustrativo e encurtado: as perguntas mudam conforme o pedido, e o endereço vem das portas da feature.</p>
+      <ol class="chat">
+        <li class="you"><svg class="ill" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18"/><circle class="none" cx="20" cy="15" r="5"/><path class="none" d="M10 32a10 10 0 0 1 20 0"/></svg><div><b>Você</b><code>/harness:entregar quero um sistema de agendamento para uma barbearia</code></div></li>
+        <li><svg class="ill" viewBox="0 0 40 40" aria-hidden="true"><rect x="6" y="4" width="28" height="28" rx="9"/><rect class="none" x="12" y="10" width="16" height="8" rx="3"/><circle class="caution" cx="20" cy="25" r="3"/><path d="M12 32l-4 6M28 32l4 6"/></svg><div><b>Claude, na entrevista</b>O cliente marca o horário sozinho ou só a barbearia marca? Recomendo que o cliente marque, com a barbearia podendo ajustar.</div></li>
+        <li class="you"><svg class="ill" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18"/><circle class="none" cx="20" cy="15" r="5"/><path class="none" d="M10 32a10 10 0 0 1 20 0"/></svg><div><b>Você</b>O cliente marca.</div></li>
+        <li><svg class="ill" viewBox="0 0 40 40" aria-hidden="true"><rect x="6" y="4" width="28" height="28" rx="9"/><rect class="none" x="12" y="10" width="16" height="8" rx="3"/><circle class="caution" cx="20" cy="25" r="3"/><path d="M12 32l-4 6M28 32l4 6"/></svg><div><b>Claude, na entrevista</b>Há mais de um barbeiro? Se houver, o horário pertence ao barbeiro e dois clientes podem marcar a mesma hora com pessoas diferentes.</div></li>
+        <li class="you"><svg class="ill" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18"/><circle class="none" cx="20" cy="15" r="5"/><path class="none" d="M10 32a10 10 0 0 1 20 0"/></svg><div><b>Você</b>São três barbeiros, cada um com a sua agenda.</div></li>
+        <li><svg class="ill" viewBox="0 0 40 40" aria-hidden="true"><rect x="6" y="4" width="28" height="28" rx="9"/><rect class="none" x="12" y="10" width="16" height="8" rx="3"/><circle class="caution" cx="20" cy="25" r="3"/><path d="M12 32l-4 6M28 32l4 6"/></svg><div><b>Claude, na entrevista</b>Até quando o cliente pode cancelar, e o que acontece com o horário cancelado?</div></li>
+        <li class="you"><svg class="ill" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18"/><circle class="none" cx="20" cy="15" r="5"/><path class="none" d="M10 32a10 10 0 0 1 20 0"/></svg><div><b>Você</b>Segue com o recomendado até o fim.</div></li>
+        <li class="done"><svg class="ill" viewBox="0 0 40 40" aria-hidden="true"><rect x="6" y="4" width="28" height="28" rx="9"/><rect class="none" x="12" y="10" width="16" height="8" rx="3"/><circle class="caution" cx="20" cy="25" r="3"/><path d="M12 32l-4 6M28 32l4 6"/></svg><div><b>Claude, no relato final</b>Entrega concluída.
+          <ul>
+            <li>Branch aprovada nos quatro portões e pull request aberto.</li>
+            <li>Aplicativo de pé em <code>http://localhost:3210</code>, com o usuário de teste.</li>
+            <li>Para parar: <code>.harness/down</code>.</li>
+            <li>As decisões tomadas sem você estão na spec.</li>
+          </ul></div></li>
+      </ol>
+
+      <dl class="facts">
+        <div><dt>Onde você é chamado</dt><dd>Para aprovar a spec, para remover um ambiente (que apaga dados) e para fazer o merge.</dd></div>
+        <div><dt>Seguir sem você</dt><dd>Se você disser "segue até o fim", toda pergunta recebe a resposta recomendada, a aprovação da spec deixa de ser uma parada, e cada decisão fica escrita na spec, na seção "Decisões tomadas sem o dono". Os portões, as revisões e o sandbox não mudam.</dd></div>
+        <div><dt>Projeto sem remoto</dt><dd>A entrega vai até o fim: os portões são conferidos, a branch fica aprovada e o aplicativo fica de pé. Só o envio e o pull request esperam.</dd></div>
+        <div><dt>Quando ela para</dt><dd>Se um ticket não fecha em três rodadas de correção, ou se falta um dado que só você tem.</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section id="entrevista">
+    <div class="wrap">
+      <h2>A entrevista vem antes de qualquer código</h2>
+      <p class="intro">Quem executa não tem a quem perguntar. O orquestrador recebe só a spec: o que ficou na conversa não chega até ele. Por isso as decisões se fecham antes.</p>
+      <figure class="art" tabindex="0"><img src="img/entrevista.svg" alt="A entrevista: as perguntas e respostas entre o dono e a sessão viram a spec, que passa por um revisor antes de a execução começar." loading="lazy"></figure>
+      <div class="prose">
+        <p><strong>O grilling.</strong> A entrevista é conduzida com a skill <code>grilling</code>, do plugin de terceiros <code>mattpocock-skills</code>, até não sobrar decisão em aberto. O harness a usa como ela é, sem adaptação.</p>
+        <p><strong>O vocabulário.</strong> A skill <code>domain-modeling</code>, do mesmo plugin, registra os termos no <code>GLOSSARY.md</code> e as decisões difíceis de reverter em ADRs.</p>
+        <p><strong>Bug é outro caminho.</strong> Se o pedido é um bug, a skill <code>diagnosing-bugs</code> entra no lugar da entrevista. Não há spec nem tickets, mas a checagem, a revisão e o envio valem do mesmo jeito.</p>
+      </div>
+
+      <h3 class="sub">O que sai dela</h3>
+      <p>Uma spec por mudança, em <code>docs/specs/&lt;slug&gt;/spec.md</code>, escrita para alguém que vai implementar sem ter visto a entrevista.</p>
+      <ul class="cards">
+        <li><h3>Critérios de aceite</h3><p>Numerados, do ponto de vista de quem usa. Cada um vira um teste de ponta a ponta, e é essa suíte que protege o que já funciona nas entregas seguintes.</p></li>
+        <li><h3>Módulos e contrato</h3><p>Os módulos do back e as fatias do front, cada um com a sua pasta. É daí que sai a posse de cada ticket. O contrato entre front e back e entre módulos fica definido antes de qualquer implementação.</p></li>
+        <li><h3>Decisões registradas</h3><p>Cada escolha feita na entrevista, com o motivo. As decisões de teste dizem por onde cada comportamento é testado, e o que não entra fica dito em "Fora de escopo".</p></li>
+        <li><h3>Ambiente e execução</h3><p>Os serviços de que os testes dependem e como cada implementador isola o seu quando vários rodam ao mesmo tempo.</p></li>
+      </ul>
+
+      <h3 class="sub">A spec é revisada antes de a execução começar</h3>
+      <p>O <code>revisor-spec</code> recebe a spec e nada da conversa. Ele aponta o que falta ou está ambíguo, você resolve cada achado e aprova. Só então o orquestrador é disparado.</p>
+    </div>
+  </section>
+
+  <section id="papeis" class="wash">
+    <div class="wrap">
+      <h2>Quem implementa não aprova</h2>
+      <p class="intro">Todo subagente nasce sem a conversa, entrega o trabalho e não valida o próprio resultado. O pedido a cada um só aponta para documentos: a spec, o ticket, o diff, o commit. O modelo caro fica onde ele paga.</p>
+      <figure class="art" tabindex="0"><img src="img/papeis.svg" alt="Os papéis de uma entrega: o dono e a sessão desenham, o orquestrador conduz a execução, os implementadores escrevem e os revisores dão o veredito." loading="lazy"></figure>
+      <ul class="cards">
+        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><circle cx="12" cy="7" r="4"/><path d="M4 22a8 8 0 0 1 16 0"/></g></svg><h3>Você, o dono</h3><span class="tag">pessoa</span><p>Faz o pedido, responde à entrevista, aprova a spec e faz o merge. Também é quem autoriza remover um ambiente, porque isso apaga dados.</p></li>
+        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><path d="M3 4h18v12H11l-5 5v-5H3z"/></g></svg><h3>A sua sessão</h3><span class="tag">o modelo da sessão</span><p>Conduz a entrevista e escreve a spec, onde o raciocínio mais caro paga. Depois entrega a execução e não revisa o que mandou fazer.</p></li>
+        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><path d="M6 2h9l4 4v16H6zM9 11h7M9 16h7"/></g></svg><h3><code>revisor-spec</code></h3><span class="tag">o modelo da sessão</span><p>Lê a spec sem a conversa que a produziu, como alguém que vai implementá-la sem poder perguntar, e aponta o que falta ou está ambíguo.</p></li>
+        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><circle cx="12" cy="4" r="2.5"/><circle cx="5" cy="20" r="2.5"/><circle cx="19" cy="20" r="2.5"/><path d="M12 7v5l-6 5M12 12l6 5"/></g></svg><h3><code>orquestrador</code></h3><span class="tag">sonnet</span><p>Recebe só a spec aprovada. Fatia em tickets, despacha os implementadores em paralelo, integra, checa, chama os revisores e envia.</p></li>
+        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><path d="M8 6l-6 6 6 6M16 6l6 6-6 6"/></g></svg><h3><code>implementador</code></h3><span class="tag">haiku</span><p>Implementa um ticket numa cópia própria do repositório, só com a spec e o ticket. O ticket de contrato e as rodadas de correção vão em Sonnet; reprovado duas vezes, em Opus.</p></li>
+        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><ellipse cx="12" cy="13" rx="5" ry="7"/><path d="M12 6V3M7 10 3 8M17 10l4-2M7 16l-4 2M17 16l4 2"/></g></svg><h3><code>revisor-bugs</code></h3><span class="tag">sonnet</span><p>Caça defeito: código que dá resultado errado, quebra ou perde dado. Lê cada ticket antes de integrar e a branch inteira antes do envio.</p></li>
+        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><path d="M12 2l9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10"/></g></svg><h3><code>revisor-ambiente</code></h3><span class="tag">opus</span><p>Só no ticket de contrato. Procura o que funciona na pasta de quem escreveu e não funcionaria numa cópia limpa do repositório.</p></li>
+        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><path d="M12 2l8 3v6c0 6-4 9-8 11-4-2-8-5-8-11V5z"/></g></svg><h3><code>seguranca</code></h3><span class="tag">sonnet</span><p>Revisão de segurança sobre o diff da branch, sem a conversa de quem escreveu. O veredito libera ou barra o envio.</p></li>
+        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6"/></g></svg><h3><code>revisor</code></h3><span class="tag">sonnet</span><p>Revisão de código em dois eixos: os padrões do repositório e a aderência à spec.</p></li>
+        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><circle class="go" cx="12" cy="12" r="10"/><path d="M7 12l4 4 6-7"/></g></svg><h3><code>qualidade</code></h3><span class="tag">haiku</span><p>Roda a checagem completa do projeto no commit pedido e atesta que ela passa. Não revisa, não opina e não corrige.</p></li>
+      </ul>
+      <div class="prose">
+        <p><strong>Revisão no mesmo contexto não é revisão.</strong> Quem escreveu não revisa, e a sessão que orquestrou também não. Se quem implementa não consegue construir só com a spec e o ticket, a lacuna se corrige no documento, não numa explicação por fora.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="portoes">
+    <div class="wrap">
+      <h2>Quatro vereditos sobre o mesmo commit</h2>
+      <p class="intro">Commit local é livre. O envio exige os quatro vereditos sobre o commit do topo da branch, e um commit novo pede todos de novo.</p>
+      <figure class="art" tabindex="0"><img src="img/portoes.svg" alt="Os portões: a revisão de cada ticket antes de integrar e, no fim, os quatro vereditos sobre o commit antes do envio." loading="lazy"></figure>
+      <ul class="cards">
+        <li><svg class="ill lamp" viewBox="0 0 36 36" aria-hidden="true"><circle class="go" cx="18" cy="18" r="15"/><path class="none" d="M11 18l5 5 9-10"/></svg><h3>Segurança</h3><p>O <code>seguranca</code> revisa o diff da branch inteira, da base ao topo.</p></li>
+        <li><svg class="ill lamp" viewBox="0 0 36 36" aria-hidden="true"><circle class="go" cx="18" cy="18" r="15"/><path class="none" d="M11 18l5 5 9-10"/></svg><h3>Revisão de código</h3><p>O <code>revisor</code> julga os padrões do repositório e a aderência à spec.</p></li>
+        <li><svg class="ill lamp" viewBox="0 0 36 36" aria-hidden="true"><circle class="go" cx="18" cy="18" r="15"/><path class="none" d="M11 18l5 5 9-10"/></svg><h3>Caça a defeito</h3><p>O <code>revisor-bugs</code> procura o que só aparece olhando os módulos juntos e confere cada pendência aberta.</p></li>
+        <li><svg class="ill lamp" viewBox="0 0 36 36" aria-hidden="true"><circle class="go" cx="18" cy="18" r="15"/><path class="none" d="M11 18l5 5 9-10"/></svg><h3>Qualidade</h3><p>O <code>qualidade</code> roda a checagem completa naquele commit: testes de unidade e de integração, fronteiras, build e ponta a ponta.</p></li>
+      </ul>
+      <p class="note" style="margin-top:1.5rem">Todo revisor termina a resposta com este bloco. É dele que o hook grava a aprovação.</p>
+<pre class="verdict">VEREDITO: APPROVED   (ou REJECTED)
+COMMIT: &lt;hash completo do commit revisado&gt;
+RESUMO: &lt;uma linha&gt;</pre>
+
+      <dl class="facts">
+        <div><dt>Cada ticket é revisado antes de integrar</dt><dd>A branch de cada implementador passa pela caça a bugs. O <code>.harness/integrate</code> recusa a que não passou naquele commit, confere a posse, junta, roda a checagem e desfaz a junção se ela falhar.</dd></div>
+        <div><dt>O ticket de contrato tem duas leituras</dt><dd>Ele define o que todos os outros seguem. Por isso é lido ao mesmo tempo pelo <code>revisor-bugs</code>, que procura defeito de comportamento, e pelo <code>revisor-ambiente</code>, que procura o que só funciona na pasta de quem escreveu. A integração exige as duas.</dd></div>
+        <div><dt>Pendências</dt><dd>Achado simples não reprova: o revisor aprova e registra a pendência, com o teste que a pegaria. São no máximo duas abertas por ticket; passou disso, a aprovação não é gravada. Enquanto houver uma aberta o envio é recusado, e só um revisor a fecha.</dd></div>
+        <div><dt>Rodadas de correção</dt><dd>Reprovação vira rodada de correção para aquele ticket, com o achado gravado em arquivo. O limite é de três por ticket; na quarta a entrega para e relata o que travou.</dd></div>
+        <div><dt>Funcionalidade nova traz a spec</dt><dd>Uma branch com commit <code>feat</code> precisa trazer a spec da mudança, ou o envio é recusado.</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section id="recusas" class="wash">
+    <div class="wrap">
+      <h2>O que ele recusa</h2>
+      <p class="intro">Cada linha abaixo é uma recusa de verdade, feita por hook, guard ou script, e coberta por teste.</p>
       <dl class="board">
         <div><i></i><dt>Quem escreveu o código aprova o próprio trabalho</dt><dd>A aprovação é gravada por um hook, a partir da resposta de um revisor que não viu a conversa de quem implementou. Nenhum agente alcança o registro.</dd></div>
         <div><i></i><dt>Envio sem os quatro vereditos</dt><dd>Segurança, revisão, caça a defeito e qualidade, todos sobre o mesmo commit. Um commit novo pede tudo de novo.</dd></div>
@@ -218,6 +407,60 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
         <div><i></i><dt>Várias compilações ao mesmo tempo</dt><dd>A checagem pesada entra numa fila da máquina. Sem isso, três agentes em paralelo esgotam a memória.</dd></div>
       </dl>
       <div class="legend"><span>recusa</span><span class="amber">segue, mas fica registrado e barra o envio</span></div>
+    </div>
+  </section>
+
+
+  <section id="junto">
+    <div class="wrap">
+      <h2>O que vem junto</h2>
+      <p class="intro">O instalador registra o plugin do harness e os de terceiros de que ele depende, e copia para o projeto as skills da stack, fixadas no <code>skills-lock.json</code>.</p>
+      <h3 class="sub">Plugins de terceiros</h3>
+      <dl class="facts" style="margin-top:1rem">
+        <div><dt><code>mattpocock-skills</code></dt><dd>O processo: <code>grilling</code> e <code>domain-modeling</code> na entrevista, <code>tdd</code> na implementação, <code>diagnosing-bugs</code> para bugs e <code>pr</code> na abertura do pull request. Traz ainda skills avulsas, como <code>code-review</code>, <code>prototype</code> e <code>research</code>.</dd></div>
+        <div><dt><code>ponytail</code></dt><dd>Fica sempre ligado e segura o tamanho do código que o agente escreve. O <code>ponytail-review</code> dá ao revisor os critérios de duplicação e enxugamento.</dd></div>
+        <div><dt><code>frontend-design</code></dt><dd>A direção visual das telas, usada por quem implementa o front.</dd></div>
+        <div><dt><code>rtk</code></dt><dd>Não é plugin, é um binário recomendado. Se estiver instalado, um hook comprime a saída de git e de testes.</dd></div>
+      </dl>
+
+      <h3 class="sub">Skills da stack, por papel</h3>
+      <p>São vinte, de seus autores, no perfil padrão <code>fullstack-typescript</code>: NestJS, Drizzle, Postgres e BullMQ no back; Next.js, shadcn e Tailwind no front; Zod no contrato; Vitest e Playwright nos testes; pnpm no monorepo.</p>
+      <ul class="cards">
+        <li><h3>Arquitetura e fatiamento</h3><ul>
+          <li><code>hexagonal-architecture</code>: use case, portas e adaptadores no back.</li>
+          <li><code>feature-sliced-design</code>: camadas, fatias e entrada pública no front.</li>
+          <li><code>parallel-feature-development</code>: um dono por arquivo, contrato primeiro.</li></ul></li>
+        <li><h3>Quem implementa o back</h3><ul>
+          <li><code>nestjs-best-practices</code>: módulos, injeção, erros e testes.</li>
+          <li><code>drizzle-orm-patterns</code>: acesso a banco.</li>
+          <li><code>supabase-postgres-best-practices</code>: esquema e consultas no Postgres.</li>
+          <li><code>bullmq</code>: filas.</li></ul></li>
+        <li><h3>Quem implementa o front</h3><ul>
+          <li><code>nextjs-app-router-patterns</code>: componentes de servidor e de cliente.</li>
+          <li><code>vercel-react-best-practices</code>: React e desempenho.</li>
+          <li><code>shadcn</code>: componentes de interface.</li></ul></li>
+        <li><h3>Contrato e base</h3><ul>
+          <li><code>zod</code>: validação e contrato.</li>
+          <li><code>pnpm</code>: monorepo e dependências.</li>
+          <li><code>seo</code>: SEO técnico nas páginas públicas.</li></ul></li>
+        <li><h3>Testes</h3><ul>
+          <li><code>vitest</code>: unidade e integração.</li>
+          <li><code>playwright-best-practices</code>: ponta a ponta.</li>
+          <li><code>property-based-testing</code>: regra com borda, como data, dinheiro e intervalo.</li></ul></li>
+        <li><h3>Quem revisa e quem fecha</h3><ul>
+          <li><code>clean-code-guard</code>: a rubrica do revisor de código.</li>
+          <li><code>accessibility</code>: acessibilidade, na revisão de código.</li>
+          <li><code>owasp-security</code>: lista do que procurar, na revisão de segurança.</li>
+          <li><code>write-pr-description</code>: o texto do pull request.</li></ul></li>
+      </ul>
+
+      <h3 class="sub">Perfis</h3>
+      <dl class="facts" style="margin-top:1rem">
+        <div><dt><code>fullstack-typescript</code>, o padrão</dt><dd>Projeto novo na stack padrão: traz a arquitetura, o arquivo da stack e as skills dela.</dd></div>
+        <div><dt><code>livre</code></dt><dd>Projeto novo em outra stack: traz os conceitos de arquitetura, e a stack é escolhida na spec.</dd></div>
+        <div><dt><code>existente</code></dt><dd>Projeto que já tinha código: processo e proteção, sem impor arquitetura nem língua.</dd></div>
+      </dl>
+      <p class="note" style="margin-top:1.2rem">O núcleo vale nos três: sandbox, portões do envio, tickets com posse de arquivo, contrato primeiro e paralelismo. Além disso, cada feature ganha o próprio ambiente Docker, com portas e projeto isolados.</p>
     </div>
   </section>
 
@@ -243,12 +486,12 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
 4. Faça o commit do que foi gerado, numa branch.
 5. Peça-me para reiniciar o Claude Code nesta pasta, para o plugin e os hooks carregarem.
 
-No fim, relate em poucas linhas o que foi instalado e o comando para começar a primeira entrega: `/harness:entregar <o que eu quero construir>`, num worktree de feature.</pre>
+No fim, relate em poucas linhas o que foi instalado e o comando para começar a primeira entrega: `/harness:entregar &lt;o que eu quero construir&gt;`, num worktree de feature.</pre>
       </div>
     </div>
   </section>
 
-  <section>
+  <section id="provado">
     <div class="wrap">
       <h2>O que já foi provado, e o que ainda não</h2>
       <p class="intro">Este projeto é novo. Melhor você saber disso por aqui do que no meio de uma entrega.</p>
