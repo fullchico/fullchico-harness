@@ -100,5 +100,11 @@ if ! "$HERE/validate" --profile push; then
   git reset -q --hard "$HEAD_BEFORE"
   die "a checagem do projeto falhou com o ticket $NAME integrado; a junção foi desfeita. É uma rodada de correção para esse ticket."
 fi
+# O worktree integrado pode continuar travado pela sessão que o criou e não sair agora. O que
+# se reconstrói (dependências, build: tudo que o git ignora) sai já, para a entrega não encher o disco.
+DONE_TREE="$(git worktree list --porcelain | awk -v b="refs/heads/$BRANCH" '/^worktree /{p=substr($0,10)} $0=="branch " b {print p}')"
+case "$DONE_TREE" in
+  */.claude/worktrees/*) git -C "$DONE_TREE" clean -fdXq 2>/dev/null || true ;;
+esac
 "$HERE/agents-clean" >/dev/null 2>&1 || true
 echo "Ticket $NAME integrado ($(git rev-parse --short HEAD)); checagem passou."

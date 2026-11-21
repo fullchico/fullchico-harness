@@ -166,6 +166,13 @@ def chain(agent, caller):
     return None
 
 
+def isolated(agent, tool_input):
+    """Cada implementador trabalha na própria cópia: no worktree da feature ele atropelaria os outros."""
+    if agent == "harness:implementador" and tool_input.get("isolation") != "worktree":
+        return "Implementador é despachado com `isolation: worktree`, mesmo quando a rodada tem um ticket só."
+    return None
+
+
 def foreground(caller, tool_input):
     """O orquestrador espera os subagentes que dispara.
 
@@ -210,12 +217,44 @@ def main():
     agent = tool_input.get("subagent_type")
     reason = (chain(agent, payload.get("agent_type"))
               or foreground(payload.get("agent_type"), tool_input)
+              or isolated(agent, tool_input)
               or check(agent, tool_input.get("prompt"), root))
+    if not reason:
+        reason = claimed(agent, tool_input.get("prompt"), root)
     if not reason and agent == "harness:orquestrador":
         reason = ready_for_execution(tool_input.get("prompt"), root)
     if reason:
         common.deny(reason)
     record_request(agent, tool_input.get("prompt"), root)
+    record_ticket(agent, tool_input.get("prompt"), root)
+
+
+TICKET_GATE = {"harness:revisor-bugs": "bugs", "harness:revisor-ambiente": "ambiente"}
+
+
+def record_ticket(agent, prompt, root):
+    """Guarda de que ticket é a revisão: o teto de pendências é do ticket, não de cada resposta."""
+    gate = TICKET_GATE.get(agent)
+    if not gate or not isinstance(prompt, str) or not root:
+        return
+    fields = dict(m.groups() for m in map(_LINE.match, (l.strip() for l in prompt.splitlines())) if m)
+    path = common.request_path(common.state_dir(root), gate, fields["commit"])
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"gate": gate, "commit": fields["commit"], "ticket": fields.get("ticket")}, f)
+
+
+def claimed(agent, prompt, root):
+    """Só se despacha ticket que o orquestrador pegou com `.harness/ticket claim`, e em commit."""
+    if agent != "harness:implementador" or not isinstance(prompt, str) or not root:
+        return None
+    fields = dict(m.groups() for m in map(_LINE.match, (l.strip() for l in prompt.splitlines())) if m)
+    ticket = fields.get("ticket")
+    text = common._git(root, "show", f"HEAD:{ticket}") if ticket else None
+    if text is None or not re.search(r"(?m)^Status: claimed\s*$", text):
+        return (f"O ticket {ticket} não está `Status: claimed` no commit atual. Pegue-o antes com "
+                "`.harness/ticket claim <pasta da spec> <NN>`, que também faz o commit.")
+    return None
 
 
 GATE = {"harness:seguranca": "seguranca", "harness:revisor": "revisao"}

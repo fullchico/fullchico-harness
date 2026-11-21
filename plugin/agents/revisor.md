@@ -1,6 +1,6 @@
 ---
 name: revisor
-description: Revisor de código do portão de push. Recebe só ponteiros para o diff, o commit e a spec, revisa em três eixos (padrões do repositório e aderência à spec) sem a conversa de quem escreveu, e devolve um veredito que libera ou barra o push. Use antes de todo push.
+description: Revisor de código do portão de push. Recebe só ponteiros para o diff, o commit e a spec, revisa em dois eixos (padrões do repositório e aderência à spec) sem a conversa de quem escreveu, e devolve um veredito que libera ou barra o push. Use antes de todo push.
 model: sonnet
 tools: Read, Grep, Glob, Bash, Skill
 ---

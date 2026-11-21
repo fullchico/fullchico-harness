@@ -31,11 +31,35 @@ _RESOLVED = re.compile(r"^RESOLVIDA: (P[0-9]+)$")
 MAX_PENDINGS = 2
 
 
-def too_many_pendings(message) -> bool:
-    return sum(1 for raw in message.splitlines() if _PENDING.match(raw.strip())) > MAX_PENDINGS
+def _spot(text):
+    """O ponto do código a que a pendência se refere (`arquivo:linha`), se ela começa por ele."""
+    first = text.split()[0] if text.split() else ""
+    return first if re.match(r"^[\w./@-]+:\d+$", first) else None
 
 
-def track_pendings(cwd, message, verdict):
+def new_pendings(message, known):
+    """As pendências desta resposta que ainda não estão registradas: mesmo texto ou mesmo ponto não conta de novo."""
+    fresh = []
+    for raw in message.splitlines():
+        m = _PENDING.match(raw.strip())
+        if not m:
+            continue
+        text = m.group(1).strip()
+        spots = {_spot(i["text"]) for i in known + fresh if i["status"] == "open"} - {None}
+        if any(i["text"] == text for i in known + fresh) or _spot(text) in spots:
+            continue
+        fresh.append({"text": text, "status": "open"})
+    return fresh
+
+
+def too_many_pendings(cwd, message, ticket) -> bool:
+    """O teto é do ticket: soma o que já está aberto nele, de qualquer revisor e de qualquer rodada."""
+    known = common.pendings(cwd)
+    already = sum(1 for i in known if i["status"] == "open" and ticket and i.get("ticket") == ticket)
+    return already + len(new_pendings(message, known)) > MAX_PENDINGS
+
+
+def track_pendings(cwd, message, verdict, ticket=None):
     """O caçador de bugs e o revisor de ambiente abrem pendência para achado simples e a fecha quando confere a correção.
 
     Pendência só nasce de uma revisão aprovada: se ele reprovou, tudo o que apontou vai para a
@@ -48,19 +72,19 @@ def track_pendings(cwd, message, verdict):
     now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     for raw in message.splitlines():
         line = raw.strip()
-        opened, closed = _PENDING.match(line), _RESOLVED.match(line)
+        closed = _RESOLVED.match(line)
         if closed:
             for item in known:
                 if item["id"] == closed.group(1) and item["status"] == "open":
                     item.update(status="resolved", resolved_at=now, resolved_commit=verdict["commit"])
                     _write(folder, item)
-        elif opened and verdict["verdict"] == "APPROVED":
-            text = opened.group(1).strip()
-            if any(item["text"] == text for item in known):
-                continue
-            item = {"id": f"P{len(known) + 1}", "text": text, "status": "open", "commit": verdict["commit"], "opened_at": now}
-            known.append(item)
-            _write(folder, item)
+    if verdict["verdict"] != "APPROVED":
+        return
+    for fresh in new_pendings(message, known):
+        item = {"id": f"P{len(known) + 1}", "text": fresh["text"], "status": "open", "commit": verdict["commit"],
+                "ticket": ticket, "opened_at": now}
+        known.append(item)
+        _write(folder, item)
 
 
 def _write(folder, item):
@@ -174,9 +198,15 @@ def main():
         return
     if gate in ("bugs", "ambiente"):
         message = final_message(payload) or ""
-        if verdict["verdict"] == "APPROVED" and too_many_pendings(message):
+        ticket = None
+        try:
+            with open(common.request_path(state, gate, verdict["commit"]), encoding="utf-8") as f:
+                ticket = json.load(f).get("ticket")
+        except (OSError, ValueError):
+            pass
+        if verdict["verdict"] == "APPROVED" and too_many_pendings(cwd, message, ticket):
             return
-        track_pendings(cwd, message, verdict)
+        track_pendings(cwd, message, verdict, ticket)
     path = common.approval_path(state, gate, verdict["commit"])
     if verdict["verdict"] == "REJECTED":
         if os.path.exists(path):

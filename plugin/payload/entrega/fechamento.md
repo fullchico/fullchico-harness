@@ -131,7 +131,7 @@ duas seções marcadas com obrigatória:
 
 ## Validação                    (obrigatória)
 
-<os quatro vereditos com o commit, e a linha final de `.harness/validate --profile push`>
+<os quatro vereditos com o commit, e a linha final de `.harness/validate --profile merge`>
 
 ## Riscos e pendências
 
@@ -158,7 +158,7 @@ sobre `fix`. Use só letras, números, espaço e pontuação simples: `&`, `$`, 
 ## 7. Deixar o aplicativo de pé e dizer onde
 
 A entrega só termina quando o dono consegue ver o resultado, sem ter de montar nada. Depois
-do envio, cada comando sozinho:
+do envio (`up` sozinho na chamada):
 
 1. `.harness/up` e `.harness/prepare`: o ambiente está de pé e o banco, pronto.
 2. `.harness/dev --background`: o aplicativo sobe.

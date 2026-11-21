@@ -3,9 +3,14 @@
 set -uo pipefail
 . "$(dirname "$0")/env-common.sh"
 
+kill_tree() {  # o processo e tudo o que ele iniciou: o app sobe filhos, que seguravam as portas
+  local child
+  for child in $(pgrep -P "$1" 2>/dev/null); do kill_tree "$child"; done
+  kill "$1" 2>/dev/null || true
+}
+
 if PID="$(dev_pid)"; then
-  pkill -P "$PID" 2>/dev/null || true
-  kill "$PID" 2>/dev/null || true
+  kill_tree "$PID"
   echo "App parado (PID $PID)."
 fi
 rm -f "$ROOT/.harness-run/dev.pid"

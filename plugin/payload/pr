@@ -24,6 +24,10 @@ if [ "$1" = "view" ]; then
 fi
 
 TITLE="$2"
+# O título vira o assunto do commit de merge: vale a mesma regra dos commits.
+PATTERN='^(feat|fix|chore|docs|refactor|test)(\([a-z0-9._/-]+\))?!?: .+'
+[[ "$TITLE" =~ $PATTERN ]] || die "o título do pull request segue tipo(escopo): descrição. Tipos: feat, fix, chore, docs, refactor, test."
+[ "${#TITLE}" -le 80 ] || die "título com ${#TITLE} caracteres; o limite é 80."
 BODY="$(python3 -I - "$ROOT" "$3" <<'PY'
 import os, sys
 root, path = os.path.realpath(sys.argv[1]), os.path.realpath(sys.argv[2])
@@ -32,6 +36,9 @@ PY
 )"
 [ -n "$BODY" ] || die "o arquivo do corpo precisa existir dentro do projeto."
 
+if grep -Eiq 'co-authored-by:.*(claude|anthropic|openai|gpt|codex|copilot|gemini)|generated with|🤖' "$BODY"; then
+  die "o corpo do pull request vai sem co-autoria nem assinatura de IA."
+fi
 # O corpo segue o padrão do harness: abertura dizendo o que e por quê, depois as seções que o
 # revisor procura. Sem elas o PR não abre.
 head -n 1 "$BODY" | grep -q '^[^#[:space:]]' || die "o corpo começa com um parágrafo dizendo o que muda e por quê, antes de qualquer título."

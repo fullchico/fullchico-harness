@@ -106,7 +106,7 @@ no fim) e `qualidade` (a checagem completa, com os testes de ponta a ponta, pass
 
 - Branch com commit `feat` precisa trazer a spec em `docs/specs/<slug>/spec.md`.
 - Achado simples de revisor não reprova: vira pendência (`.harness/pendings`), no máximo
-  duas por revisão, e o push é recusado enquanto houver uma aberta. Só o caçador de bugs fecha.
+  duas por ticket, e o push é recusado enquanto houver uma aberta. Só um revisor fecha.
 - Nenhum agente carimba aprovação. Ela nasce do veredito do revisor. O carimbo
   manual, `.harness/approve`, é do dono.
 - O remoto só é alcançado pelos scripts do harness: `.harness/push` (envia a

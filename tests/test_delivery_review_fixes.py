@@ -93,10 +93,10 @@ class TestImplementerFilesMustBeCommitted(unittest.TestCase):
         repo = make_repo()
         for path in ("docs/specs/x/spec.md", "docs/specs/x/issues/01-a.md"):
             (repo / path).parent.mkdir(parents=True, exist_ok=True)
-            (repo / path).write_text("x")
+            (repo / path).write_text("# t\n\nStatus: claimed\nBlocked by:\nOwns: src/t\n" if "issues" in path else "x")
         ask = lambda extra="": run_hook("dispatch_guard.py", {"tool_name": "Agent", "cwd": str(repo),
                                                              "agent_type": "harness:orquestrador", "tool_input": {
-            "subagent_type": "harness:implementador", "run_in_background": False,
+            "subagent_type": "harness:implementador", "run_in_background": False, "isolation": "worktree",
             "prompt": "spec: docs/specs/x/spec.md\nticket: docs/specs/x/issues/01-a.md" + extra}})
         rc, _, err = ask()
         self.assertEqual(rc, 2)

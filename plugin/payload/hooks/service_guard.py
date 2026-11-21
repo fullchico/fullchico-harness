@@ -46,6 +46,17 @@ DENY_MOVE = ("Revisor não muda o commit nem os arquivos deste worktree: ele é 
              "testes da branch de um implementador, entre no worktree dele: `git worktree list` mostra o caminho.")
 
 
+# Ambiente, remoto e pull request são de quem conduz a entrega. Implementador e revisor não
+# sobem nem derrubam nada, e não enviam.
+_CONDUCTOR = re.compile(r"(?:^|[\s;&|(/])\.harness/(?:up|down|destroy|dev|push|pr)(?=\s|$|[;&|)])")
+DENY_CONDUCTOR = ("Subir, parar ou remover o ambiente, rodar o aplicativo, enviar e abrir pull request são do "
+                  "orquestrador e do dono. Você trabalha com o ambiente que já está de pé; se falta algo, relate.")
+# Quem junta é o .harness/integrate: ele confere a posse, a revisão e a checagem, e desfaz se falhar.
+_JOINS = re.compile(r"\bgit\b(?:\s+-C\s+\S+|\s+-c\s+\S+)*\s+(?:merge|rebase|cherry-pick)\b(?!\s+--abort)")
+DENY_JOIN = ("O orquestrador não junta branch à mão (`git merge`, `rebase`, `cherry-pick`) nem resolve conflito: "
+             "use `.harness/integrate <ticket> <branch>`. Conflito mostra que o fatiamento está errado.")
+
+
 def classify(command: str, cwd=None):
     lowered = command.lower()
     if any(mark in lowered for mark in SKIP):
@@ -76,6 +87,7 @@ def destroy_reason(cwd: str) -> str:
 
 
 CONF_FORMS = (".harness/conf-apply", "./.harness/conf-apply")
+CHECKS = ("VALIDATE_PUSH", "VALIDATE_MERGE", "VALIDATE_ARCH", "MODULE_ROOTS", "CONTRACT_PATHS")
 CONF_LIMIT = 4000
 
 
@@ -102,6 +114,13 @@ def conf_check(cwd: str) -> None:
     if not common.read_conf(proposal).get("PROJECT"):
         common.deny("conf-apply: a proposta precisa trazer PROJECT.")
     proposed = common.read_conf(proposal)
+    # Checagem já gravada não some nem fica vazia: senão o agente que não passa nela a desliga.
+    current = common.read_conf(os.path.join(root, "harness.conf"))
+    for key in CHECKS:
+        if current.get(key) and not proposed.get(key):
+            common.deny(f"conf-apply: a proposta remove ou esvazia {key}, que já está no harness.conf. "
+                        "Uma checagem gravada pode mudar de comando, não sumir. Se ela falha, o que se corrige "
+                        "é o código ou o ticket; desligar é decisão do dono, à mão.")
     profile = proposed.get("PROFILE") or common.read_conf(os.path.join(root, "harness.conf")).get("PROFILE") or "fullstack-typescript"
     if profile == "fullstack-typescript" and not proposed.get("MODULE_ROOTS"):
         common.deny("conf-apply: a proposta precisa trazer MODULE_ROOTS, a pasta dos módulos do back "
@@ -128,8 +147,13 @@ def main():
     if not isinstance(command, str) or not command.strip():
         common.deny("service-guard: comando ausente na entrada do hook; negado.")
     cwd = payload.get("cwd")
-    if payload.get("agent_type") in REVIEWERS and _MOVES.search(command):
+    agent = payload.get("agent_type")
+    if agent in REVIEWERS and _MOVES.search(command):
         common.deny(DENY_MOVE)
+    if isinstance(agent, str) and agent != "harness:orquestrador" and _CONDUCTOR.search(command):
+        common.deny(DENY_CONDUCTOR)
+    if agent == "harness:orquestrador" and _JOINS.search(command):
+        common.deny(DENY_JOIN)
     reason = classify(command, cwd if isinstance(cwd, str) else None)
     if reason:
         common.deny(reason)

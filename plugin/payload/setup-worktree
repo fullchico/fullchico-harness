@@ -5,6 +5,14 @@ set -uo pipefail
 . "$(dirname "$0")/env-common.sh"
 
 cd "$ROOT" || exit 1
+# Cada worktree instala dependências e compila. Sem espaço, a entrega morre no meio, com
+# trabalho pela metade: melhor não começar e dizer por quê.
+MIN_FREE_MB="${HARNESS_MIN_FREE_MB:-2048}"
+FREE_MB="$(df -Pm "$ROOT" 2>/dev/null | awk 'NR==2 {print $4}')"
+case "$FREE_MB" in ""|*[!0-9]*) FREE_MB="" ;; esac
+if [ -n "$FREE_MB" ] && [ "$FREE_MB" -lt "$MIN_FREE_MB" ]; then
+  die "pouco espaço em disco: ${FREE_MB} MB livres, e o mínimo para começar é ${MIN_FREE_MB} MB. Libere espaço (worktrees de agente antigos, imagens do Docker sem uso) e rode de novo."
+fi
 # O .env não é versionado. Um worktree de feature começa com o do checkout principal; um
 # worktree de agente, que fica dentro de uma feature, começa com o da feature.
 AGENT_WORKTREE=""

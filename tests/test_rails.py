@@ -42,7 +42,7 @@ class TestOnlyTheOrchestratorDispatchesImplementers(unittest.TestCase):
         self.repo = make_repo()
         for path in ("docs/specs/x/spec.md", "docs/specs/x/issues/01-a.md"):
             (self.repo / path).parent.mkdir(parents=True, exist_ok=True)
-            (self.repo / path).write_text("x")
+            (self.repo / path).write_text("# t\n\nStatus: claimed\nBlocked by:\nOwns: src/t\n" if "issues" in path else "x")
         (self.repo / "harness.conf").write_text("PROJECT=p\nSERVICES=web\n")
         commit_all(self.repo, "docs: add spec")
 
@@ -51,6 +51,7 @@ class TestOnlyTheOrchestratorDispatchesImplementers(unittest.TestCase):
         if caller:
             payload["agent_type"] = caller
             payload["tool_input"]["run_in_background"] = False
+            payload["tool_input"]["isolation"] = "worktree"
         return run_hook("dispatch_guard.py", payload)
 
     def test_main_session_cannot_dispatch_an_implementer(self):
@@ -157,12 +158,13 @@ class TestOrchestratorWaitsForItsAgents(unittest.TestCase):
         self.repo = make_repo()
         for path in ("docs/specs/x/spec.md", "docs/specs/x/issues/01-a.md"):
             (self.repo / path).parent.mkdir(parents=True, exist_ok=True)
-            (self.repo / path).write_text("x")
+            (self.repo / path).write_text("# t\n\nStatus: claimed\nBlocked by:\nOwns: src/t\n" if "issues" in path else "x")
         (self.repo / "harness.conf").write_text("PROJECT=p\n")
         commit_all(self.repo, "docs: add spec")
 
     def dispatch(self, background, caller="harness:orquestrador", agent="harness:implementador"):
-        tool_input = {"subagent_type": agent, "prompt": "spec: docs/specs/x/spec.md\nticket: docs/specs/x/issues/01-a.md"}
+        tool_input = {"subagent_type": agent, "isolation": "worktree",
+                      "prompt": "spec: docs/specs/x/spec.md\nticket: docs/specs/x/issues/01-a.md"}
         if background is not None:
             tool_input["run_in_background"] = background
         return run_hook("dispatch_guard.py", {"tool_name": "Agent", "cwd": str(self.repo), "agent_type": caller,

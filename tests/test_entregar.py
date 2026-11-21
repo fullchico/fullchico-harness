@@ -90,7 +90,7 @@ class TestEntregar(unittest.TestCase):
         for path in ("docs/specs/exemplo/spec.md", "docs/specs/exemplo/issues/01-nome.md",
                      "docs/specs/exemplo/achados/01-rodada-1.md", "GLOSSARY.md", "docs/adr/0001-exemplo.md"):
             (repo / path).parent.mkdir(parents=True, exist_ok=True)
-            (repo / path).write_text("x")
+            (repo / path).write_text("# t\n\nStatus: claimed\nBlocked by:\nOwns: src/t\n" if "issues" in path else "x")
         (repo / "harness.conf").write_text("PROJECT=p\n")
         base = git(repo, "rev-parse", "HEAD")
         git(repo, "checkout", "-q", "-b", "feat/exemplo")
@@ -104,6 +104,7 @@ class TestEntregar(unittest.TestCase):
                 if agent == "harness:implementador":
                     payload["agent_type"] = "harness:orquestrador"
                     payload["tool_input"]["run_in_background"] = False
+                    payload["tool_input"]["isolation"] = "worktree"
                 rc, _, err = run_hook("dispatch_guard.py", payload)
                 self.assertEqual(rc, 0, f"{name} ({agent}): {err}")
         self.assertGreaterEqual(found, 6)

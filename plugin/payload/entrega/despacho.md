@@ -5,7 +5,7 @@
 **O `harness.conf`** já foi gravado antes de fatiar (`.harness/entrega/tickets.md`).
 
 **O ambiente.** Se os testes da entrega precisam de banco ou de outro serviço, suba com
-`.harness/up` e depois `.harness/prepare`, cada um sozinho, sem `&&` nem `;`: só a forma exata
+`.harness/up` e depois `.harness/prepare`. O `up` vai sozinho, sem `&&` nem `;`: só a forma exata
 sai do sandbox. Em projeto novo o compose chega com o ticket de contrato: integre-o primeiro, e
 só então suba o ambiente e despache os demais. Ticket que depende do ambiente não é concluído
 com teste contra um substituto em memória: sem ambiente de verdade ele fica `claimed`. O
@@ -14,7 +14,8 @@ ambiente fica de pé até o envio. Integrado um ticket que muda o schema do banc
 
 **A base prova que roda.** Logo depois de integrar o ticket de contrato (e o de fundação, se
 foram separados), e antes de despachar qualquer outro, confira o que os revisores não têm
-como ver, porque rodam antes de o ambiente existir. Cada comando sozinho:
+como ver, porque rodam antes de o ambiente existir. `up` e `down` vão sozinhos na chamada;
+`prepare` e `dev` rodam dentro do sandbox e não têm essa exigência:
 
 1. `.harness/up`: os serviços sobem.
 2. `.harness/prepare`: as migrations e o seed rodam.
@@ -92,10 +93,10 @@ commit: HASH_DO_COMMIT
    pasta de quem escreveu. O `.harness/integrate` exige os dois nesse commit. Os demais
    tickets passam só pelo `harness:revisor-bugs`, no modelo do agente.
 
-   **Achado simples não reprova.** O revisor responde `APPROVED` com até duas linhas
-   `PENDENCIA:`, o hook as registra e o ticket segue. Com mais de duas a aprovação não é
-   gravada, mesmo que ele tenha escrito `APPROVED`: é rodada de correção, com as pendências
-   como achado. Você não corrige pendência agora nem a discute: elas
+   **Achado simples não reprova.** O revisor responde `APPROVED` com linhas `PENDENCIA:`, o
+   hook as registra e o ticket segue. O teto é de duas pendências abertas por ticket, somando
+   as rodadas e os revisores: passou disso, a aprovação não é gravada, mesmo que ele tenha
+   escrito `APPROVED`. É rodada de correção, com as pendências como achado. Você não corrige pendência agora nem a discute: elas
    são tratadas no fechamento, e o push é recusado enquanto houver uma aberta
    (`.harness/pendings` lista).
 

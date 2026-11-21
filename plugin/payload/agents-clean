@@ -46,6 +46,8 @@ finish() {
     */.claude/worktrees/*)
       if [ -n "$LOCKED" ]; then
         echo "fica (em uso): $PATH_"
+      elif [ -n "$(git -C "$PATH_" status --porcelain 2>/dev/null | head -n 1)" ]; then
+        echo "fica (alteração sem commit): $PATH_"
       elif [ -n "$HEAD_" ] && git merge-base --is-ancestor "$HEAD_" HEAD 2>/dev/null; then
         if git worktree remove --force "$PATH_" 2>/dev/null; then
           [ -n "$BRANCH" ] && git branch -q -D "$BRANCH" 2>/dev/null

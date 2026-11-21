@@ -63,8 +63,10 @@ vocabulário e as decisões difíceis de reverter com a skill `domain-modeling`.
 
 Se o pedido é um bug, use a skill `diagnosing-bugs` no lugar da entrevista. Bug não tem
 spec nem tickets: corrija você mesmo, com teste, em commits `fix`, e feche seguindo
-`.harness/entrega/fechamento.md`. Se a checagem ou um revisor reprovar, é você quem corrige,
-e a revisão recomeça; não há orquestrador nem implementador a despachar sem spec.
+`.harness/entrega/fechamento.md`, do qual valem a checagem, a revisão, o envio e o pull
+request. Onde ele manda despachar implementador ou reabrir ticket, é você quem corrige: sem
+spec não há orquestrador nem implementador, e o guard nega o despacho. A revisão recomeça a
+cada correção.
 
 ## 2. Especificar
 

@@ -17,6 +17,7 @@ class TestDispatchGuard(unittest.TestCase):
         if agent == "harness:implementador":
             payload["agent_type"] = "harness:orquestrador"
             payload["tool_input"]["run_in_background"] = False
+            payload["tool_input"]["isolation"] = "worktree"
         return run_hook("dispatch_guard.py", payload)[0]
 
     def test_fixed_format_passes(self):
@@ -50,9 +51,9 @@ class TestDispatchGuard(unittest.TestCase):
 
     def implementer(self, prompt):
         (self.repo / "docs/specs/x/issues").mkdir(parents=True, exist_ok=True)
-        (self.repo / "docs/specs/x/issues/01-a.md").write_text("t")
+        (self.repo / "docs/specs/x/issues/01-a.md").write_text("# t\n\nStatus: claimed\nBlocked by:\nOwns: src/t\n")
         (self.repo / "docs/specs/y/issues").mkdir(parents=True, exist_ok=True)
-        (self.repo / "docs/specs/y/issues/01-a.md").write_text("t")
+        (self.repo / "docs/specs/y/issues/01-a.md").write_text("# t\n\nStatus: claimed\nBlocked by:\nOwns: src/t\n")
         (self.repo / "docs/specs/y/spec.md").write_text("s")
         if git(self.repo, "status", "--short"):
             self.sha = commit_all(self.repo, "docs: add tickets")

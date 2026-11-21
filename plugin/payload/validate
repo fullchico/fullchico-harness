@@ -29,6 +29,28 @@ for SPEC in "$ROOT"/docs/specs/*/; do
   python3 -I "$HERE/tickets_check.py" "${SPEC%/}" >/dev/null || exit 1
 done
 
+# Uma checagem de cada vez na máquina. Cada uma compila e roda testes; várias ao mesmo tempo,
+# de implementadores e do orquestrador, esgotam a memória. Quem chega depois espera a vez.
+LOCK_ROOT="${HARNESS_LOCK_DIR:-/tmp/harness-locks}"
+LOCK="$LOCK_ROOT/validate.lock"
+if mkdir -p "$LOCK_ROOT" 2>/dev/null; then
+  WAITED=0
+  until mkdir "$LOCK" 2>/dev/null; do
+    OWNER="$(cat "$LOCK/pid" 2>/dev/null || true)"
+    case "$OWNER" in ""|*[!0-9]*) OWNER="" ;; esac
+    # Trava de processo que já morreu, ou espera longa demais: segue, para a entrega não parar.
+    if { [ -n "$OWNER" ] && ! kill -0 "$OWNER" 2>/dev/null; } || [ "$WAITED" -ge 1800 ]; then
+      rm -rf "$LOCK"
+      continue
+    fi
+    [ "$WAITED" -ne 0 ] || echo "validate: outra checagem está rodando nesta máquina; esperando a vez." >&2
+    sleep 2
+    WAITED=$((WAITED + 2))
+  done
+  echo $$ > "$LOCK/pid" 2>/dev/null || true
+  trap 'rm -rf "$LOCK"' EXIT
+fi
+
 # Fronteira entre módulos, do próprio harness e por lista branca (MODULE_ROOTS no harness.conf):
 # não depende de regra escrita pelo projeto.
 python3 -I "$HERE/arch_check.py" "$ROOT" || { echo "validate: um módulo importa do que não é dele." >&2; exit 1; }
