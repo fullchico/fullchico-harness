@@ -63,7 +63,8 @@ podem ser feitos agora, em paralelo.
      rodada tem um ticket só;
    - o modelo: `haiku`. O ticket de contrato vai em `sonnet`: é ele que define o que todos
      os outros seguem;
-   - `run_in_background` como `false`: você espera os implementadores no mesmo turno. Em
+   - `run_in_background` como `false`, se a sua ferramenta de subagente tiver esse parâmetro
+     (se não tiver, ela já despacha em primeiro plano): você espera os implementadores no mesmo turno. Em
      segundo plano o aviso de término iria para a sessão do dono, não para você;
    - o pedido, só com ponteiros:
 
@@ -78,7 +79,7 @@ leitura: GLOSSARY.md
 
 4. Quando todos voltarem, cada um diz em que branch ficaram os commits. Antes de integrar,
    cada ticket passa pela caça a bugs: dispare um `harness:revisor-bugs` por ticket, todos na
-   mesma mensagem, com `run_in_background` como `false`:
+   mesma mensagem, em primeiro plano (`run_in_background` como `false`, se o parâmetro existir):
 
 ```pedido harness:revisor-bugs
 spec: docs/specs/exemplo/spec.md

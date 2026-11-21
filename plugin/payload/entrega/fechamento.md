@@ -83,7 +83,8 @@ diff: BASE...HASH_DO_COMMIT
 commit: HASH_DO_COMMIT
 ```
 
-Dispare os quatro na mesma mensagem, com `run_in_background` como `false`, e espere todos
+Dispare os quatro na mesma mensagem, em primeiro plano (`run_in_background` como `false`, se o
+parâmetro existir), e espere todos
 voltarem. O push exige os quatro vereditos sobre o mesmo commit.
 
 Cada revisor termina com `VEREDITO: APPROVED` ou `VEREDITO: REJECTED`. A aprovação é

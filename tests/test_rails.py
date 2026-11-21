@@ -172,10 +172,14 @@ class TestOrchestratorWaitsForItsAgents(unittest.TestCase):
 
     def test_orchestrator_must_dispatch_in_the_foreground(self):
         self.assertEqual(self.dispatch(False)[0], 0)
-        for background in (True, None):
-            rc, _, err = self.dispatch(background)
-            self.assertEqual(rc, 2, background)
-            self.assertIn("run_in_background", err)
+        rc, _, err = self.dispatch(True)
+        self.assertEqual(rc, 2)
+        self.assertIn("run_in_background", err)
+
+    def test_a_tool_without_the_parameter_is_already_foreground(self):
+        # Há versões do Claude Code em que a ferramenta de subagente de um subagente não tem
+        # `run_in_background`: ele só despacha em primeiro plano. Exigir o parâmetro travava a entrega.
+        self.assertEqual(self.dispatch(None)[0], 0)
 
     def test_the_owner_session_may_still_run_the_orchestrator_in_the_background(self):
         rc = run_hook("dispatch_guard.py", {"tool_name": "Agent", "cwd": str(self.repo), "tool_input": {
