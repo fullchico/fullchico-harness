@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Um ticket só passa a `Status: done` num commit em que a checagem do projeto passa.
+# Fechar ticket sem ter visto os testes rodarem deixa de ser possível por descuido.
+set -uo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+H="$ROOT/.harness"
+TICKETS_GLOB='docs/specs/*/issues/*.md'
+[ -f "$H/map.env" ] && . "$H/map.env"
+
+git diff --cached -U0 -- "$TICKETS_GLOB" | grep -q '^+Status: done' || exit 0
+
+echo "Este commit fecha um ticket (Status: done): rodando a checagem do projeto."
+if ! "$H/validate" --profile push </dev/null; then
+  echo "commit recusado: um ticket só vira Status: done com a checagem do projeto passando." >&2
+  echo "  Corrija o que falhou. Se o ambiente da feature não responde, não feche o ticket: relate." >&2
+  exit 1
+fi
+exit 0

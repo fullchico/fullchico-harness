@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Checagens sem custo de IA: arquivos gerenciados íntegros e o comando do projeto.
+# Uso: .harness/validate --profile <push|merge>
+set -uo pipefail
+
+[ "${1:-}" = "--profile" ] || { echo "uso: validate --profile <push|merge>" >&2; exit 2; }
+case "${2:-}" in
+  push) KEY=VALIDATE_PUSH ;;
+  merge) KEY=VALIDATE_MERGE ;;
+  *) echo "uso: validate --profile <push|merge>" >&2; exit 2 ;;
+esac
+
+. "$(dirname "$0")/env-common.sh"
+# Os comandos do projeto recebem o .env da feature (portas, endereços), como em prepare e dev.
+load_env
+
+DRIFT="$(python3 -I "$HERE/manifest_check.py" "$ROOT")" || {
+  echo "validate: arquivos gerenciados pelo harness foram alterados fora do update:" >&2
+  echo "$DRIFT" | sed 's/^/  /' >&2
+  echo "  Desfaça a alteração, ou rode .harness/update para regravá-los." >&2
+  exit 1
+}
+
+# O grafo de tickets de cada spec precisa estar íntegro antes de alguém trabalhar nele.
+# Spec com todos os tickets concluídos é histórico e não é conferida.
+for SPEC in "$ROOT"/docs/specs/*/; do
+  [ -d "${SPEC}issues" ] || continue
+  grep -lqE '^Status: (open|claimed)' "${SPEC}issues"/*.md 2>/dev/null || continue
+  python3 -I "$HERE/tickets_check.py" "${SPEC%/}" >/dev/null || exit 1
+done
+
+# Uma checagem de cada vez na máquina. Cada uma compila e roda testes; várias ao mesmo tempo,
+# de implementadores e do orquestrador, esgotam a memória. Quem chega depois espera a vez.
+LOCK_ROOT="${HARNESS_LOCK_DIR:-/tmp/harness-locks}"
+LOCK="$LOCK_ROOT/validate.lock"
+if mkdir -p "$LOCK_ROOT" 2>/dev/null; then
+  WAITED=0
+  until mkdir "$LOCK" 2>/dev/null; do
+    OWNER="$(cat "$LOCK/pid" 2>/dev/null || true)"
+    case "$OWNER" in ""|*[!0-9]*) OWNER="" ;; esac
+    # Trava de processo que já morreu, ou espera longa demais: segue, para a entrega não parar.
+    if { [ -n "$OWNER" ] && ! kill -0 "$OWNER" 2>/dev/null; } || [ "$WAITED" -ge 1800 ]; then
+      rm -rf "$LOCK"
+      continue
+    fi
+    [ "$WAITED" -ne 0 ] || echo "validate: outra checagem está rodando nesta máquina; esperando a vez." >&2
+    sleep 2
+    WAITED=$((WAITED + 2))
+  done
+  echo $$ > "$LOCK/pid" 2>/dev/null || true
+  trap 'rm -rf "$LOCK"' EXIT
+fi
+
+# Fronteira entre módulos, do próprio harness e por lista branca (MODULE_ROOTS no harness.conf):
+# não depende de regra escrita pelo projeto.
+python3 -I "$HERE/arch_check.py" "$ROOT" || { echo "validate: um módulo importa do que não é dele." >&2; exit 1; }
+
+# Fronteiras da arquitetura, pela ferramenta que o projeto escolheu (direção das dependências,
+# entrada pública dos módulos). Roda nos dois perfis: arquitetura não espera o merge.
+ARCH="$(python3 -I - "$HERE/hooks" "$ROOT/harness.conf" VALIDATE_ARCH <<'PY'
+import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, sys.argv[1])
+import common
+print(common.read_conf(sys.argv[2]).get(sys.argv[3], ""))
+PY
+)"
+if [ -n "$ARCH" ]; then
+  (cd "$ROOT" && bash -c "$ARCH") || { echo "validate: a checagem de arquitetura falhou ($ARCH)." >&2; exit 1; }
+fi
+
+CMD="$(python3 -I - "$HERE/hooks" "$ROOT/harness.conf" "$KEY" <<'PY'
+import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, sys.argv[1])
+import common
+print(common.read_conf(sys.argv[2]).get(sys.argv[3], ""))
+PY
+)"
+# A última linha diz o resultado com todas as letras: quem lê a saída não tem de adivinhar
+# pelo silêncio se a checagem passou.
+if [ -n "$CMD" ]; then
+  (cd "$ROOT" && bash -c "$CMD")
+  RC=$?
+  if [ "$RC" -ne 0 ]; then
+    echo "validate: FALHOU (perfil $2): $CMD" >&2
+    exit "$RC"
+  fi
+fi
+echo "validate: passou (perfil $2)"

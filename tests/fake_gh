@@ -1,0 +1,4 @@
+#!/bin/sh
+# gh falso para os testes: registra os argumentos, um por linha, separados por um marcador.
+{ for a in "$@"; do printf '%s\n' "$a"; done; echo "--fim--"; } >> "${FAKE_GH_LOG:-/dev/null}"
+exit "${FAKE_GH_RC:-0}"

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Lista as pendências abertas desta feature: achados simples do caçador de bugs, que não
+# bloquearam o ticket. Cada uma precisa ser conferida por ele antes do push.
+# Uso: .harness/pendings
+set -uo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd -P)"
+exec python3 -I "$HERE/hooks/common.py" pendings

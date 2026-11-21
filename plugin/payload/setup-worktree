@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Prepara um worktree recém-criado de uma feature. Chamado pelo Orca e pelo
+# Conductor ao abrir o worktree, e pode ser rodado à mão. Não sobe ambiente.
+set -uo pipefail
+. "$(dirname "$0")/env-common.sh"
+
+cd "$ROOT" || exit 1
+# Cada worktree instala dependências e compila. Sem espaço, a entrega morre no meio, com
+# trabalho pela metade: melhor não começar e dizer por quê.
+MIN_FREE_MB="${HARNESS_MIN_FREE_MB:-2048}"
+FREE_MB="$(df -Pm "$ROOT" 2>/dev/null | awk 'NR==2 {print $4}')"
+case "$FREE_MB" in ""|*[!0-9]*) FREE_MB="" ;; esac
+if [ -n "$FREE_MB" ] && [ "$FREE_MB" -lt "$MIN_FREE_MB" ]; then
+  die "pouco espaço em disco: ${FREE_MB} MB livres, e o mínimo para começar é ${MIN_FREE_MB} MB. Libere espaço (worktrees de agente antigos, imagens do Docker sem uso) e rode de novo."
+fi
+# O .env não é versionado. Um worktree de feature começa com o do checkout principal; um
+# worktree de agente, que fica dentro de uma feature, começa com o da feature.
+AGENT_WORKTREE=""
+case "$ROOT" in
+  */.claude/worktrees/*) AGENT_WORKTREE=1; SOURCE="$(python3 -I "$HERE/hooks/common.py" feature-root "$ROOT")" ;;
+  *) SOURCE="$(git worktree list --porcelain | sed -n '1s/^worktree //p')" ;;
+esac
+if [ ! -f .env ] && [ -n "$SOURCE" ] && [ -f "$SOURCE/.env" ] && [ "$(cd "$SOURCE" && pwd -P)" != "$ROOT" ]; then
+  cp "$SOURCE/.env" .env
+fi
+
+if [ -z "$(conf_get PROJECT)" ]; then
+  echo "setup-worktree: o harness.conf ainda não tem PROJECT; portas e dependências ficam para quando ele for preenchido."
+  "$HERE/learn" remember >/dev/null 2>&1 || true
+  exit 0
+fi
+# Projeto sem serviço que precise de porta (uma biblioteca, por exemplo) não tem ambiente a derivar.
+if [ -n "$(conf_get SERVICES)" ]; then
+  "$HERE/worktree-env" || exit $?
+fi
+
+# Guarda o caminho deste worktree: é por ele que as sessões são achadas depois que ele for removido.
+"$HERE/learn" remember >/dev/null 2>&1 || true
+
+INSTALL="$(conf_get INSTALL_CMD)"
+if [ -n "$INSTALL" ]; then
+  bash -c "$INSTALL"
+  RC=$?
+  if [ "$RC" -ne 0 ]; then
+    # Num worktree de agente de um projeto que acabou de nascer ainda não há o que instalar:
+    # quem traz o manifesto é o primeiro ticket. Ali a falha é avisada e o trabalho segue.
+    [ -n "$AGENT_WORKTREE" ] || exit "$RC"
+    echo "setup-worktree: o INSTALL_CMD ($INSTALL) falhou. Se o projeto ainda não tem manifesto de dependências, é esperado; senão, rode-o à mão e veja o erro." >&2
+  fi
+fi
+
+# Plugin declarado no projeto não se instala sozinho numa máquina nova.
+if [ -z "$AGENT_WORKTREE" ] && [ -z "${HARNESS_SKIP_PLUGIN:-}" ] && command -v claude >/dev/null 2>&1 && [ -f .claude/settings.json ]; then
+  python3 -I - <<'PY' | while IFS= read -r plugin; do claude plugin install "$plugin" --scope project >/dev/null 2>&1 || echo "setup-worktree: não instalei o plugin $plugin; rode à mão." >&2; done
+import json
+for name, enabled in json.load(open(".claude/settings.json")).get("enabledPlugins", {}).items():
+    if enabled:
+        print(name)
+PY
+fi
+exit 0

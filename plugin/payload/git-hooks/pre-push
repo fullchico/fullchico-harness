@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Hook de git para o push feito à mão, no terminal. O agente não chega ao remoto por
+# aqui: dentro do sandbox a rede para o servidor de git é negada, e o caminho dele é
+# .harness/push. Este hook existe para o dono passar pelo mesmo portão.
+set -uo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+H="$ROOT/.harness"
+
+"$H/gate-check" "${2:-${1:-}}" || exit 1
+"$H/validate" --profile push </dev/null || {
+  echo "push negado: .harness/validate --profile push falhou." >&2
+  exit 1
+}
+exit 0

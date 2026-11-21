@@ -1,0 +1,9 @@
+{
+  "name": "harness",
+  "version": "0.1.0",
+  "description": "Orquestração, guardrails e memória para projetos desenvolvidos com agentes.",
+  "license": "MIT",
+  "author": {
+    "name": "FullChico"
+  }
+}

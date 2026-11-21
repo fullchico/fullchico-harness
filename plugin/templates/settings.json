@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "extraKnownMarketplaces": {
+    "fullchico": {
+      "source": {
+        "source": "github",
+        "repo": "FullChico/fullchico-harness",
+        "ref": "__VERSION__"
+      }
+    },
+    "ponytail": {
+      "source": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "harness@fullchico": true,
+    "mattpocock-skills@claude-plugins-official": true,
+    "ponytail@ponytail": true,
+    "frontend-design@claude-plugins-official": true
+  },
+  "worktree": {
+    "baseRef": "head"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/service_guard.py\"",
+            "timeout": 30,
+            "statusMessage": "Conferindo guard de comandos..."
+          },
+          {
+            "type": "command",
+            "command": "if command -v rtk >/dev/null 2>&1; then rtk hook claude; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/dispatch_guard.py\"",
+            "timeout": 30,
+            "statusMessage": "Conferindo pedido ao revisor..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/managed_guard.py\"",
+            "timeout": 30,
+            "statusMessage": "Conferindo arquivos gerenciados..."
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "^harness:(seguranca|revisor|qualidade|revisor-bugs|revisor-ambiente)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/gate_stamp.py\"",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.harness/ports-free\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/subagent_context.py\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/session_context.py\"",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "filesystem": {
+      "denyWrite": [
+        ".harness",
+        "harness.conf",
+        "harness.d",
+        ".claude/skills",
+        "skills-lock.json",
+        "CLAUDE.md",
+        "docs/agents",
+        "orca.yaml",
+        ".conductor"
+      ],
+      "allowWrite": [
+        "~/.npm",
+        "~/Library/pnpm",
+        "~/.local/share/pnpm",
+        "~/.yarn",
+        "~/.bun/install/cache"
+      ]
+    },
+    "excludedCommands": [
+      ".harness/up",
+      "./.harness/up",
+      ".harness/down",
+      "./.harness/down",
+      ".harness/destroy",
+      "./.harness/destroy",
+      ".harness/conf-apply",
+      "./.harness/conf-apply",
+      ".harness/push",
+      "./.harness/push",
+      ".harness/push --force",
+      "./.harness/push --force",
+      ".harness/fetch",
+      "./.harness/fetch",
+      ".harness/pr *",
+      ".harness/skills-search *",
+      "./.harness/skills-search *",
+      ".harness/skills-show *",
+      "./.harness/skills-show *",
+      ".harness/skills-add *",
+      "./.harness/skills-add *",
+      "./.harness/pr *",
+      ".harness/ports-free",
+      "./.harness/ports-free"
+    ],
+    "network": {
+      "allowLocalBinding": true,
+      "allowedDomains": [
+        "registry.npmjs.org"
+      ],
+      "deniedDomains": [
+        "github.com",
+        "*.github.com"
+      ]
+    },
+    "autoAllowBashIfSandboxed": true
+  },
+  "permissions": {
+    "deny": [
+      "Edit(/.harness/**)",
+      "Edit(/.claude/settings.json)",
+      "Edit(/.claude/settings.local.json)",
+      "Edit(/CLAUDE.md)",
+      "Edit(/docs/agents/**)",
+      "Edit(/harness.conf)",
+      "Edit(/.claude/skills/**)",
+      "Edit(/skills-lock.json)",
+      "Edit(/harness.d/**)"
+    ],
+    "ask": [
+      "Bash(.harness/destroy)",
+      "Bash(./.harness/destroy)",
+      "Bash(.harness/skills-add *)",
+      "Bash(./.harness/skills-add *)"
+    ],
+    "allow": [
+      "Bash(.harness/up)",
+      "Bash(./.harness/up)",
+      "Bash(.harness/down)",
+      "Bash(./.harness/down)",
+      "Bash(.harness/conf-apply)",
+      "Bash(./.harness/conf-apply)",
+      "Bash(.harness/fetch)",
+      "Bash(./.harness/fetch)",
+      "Bash(.harness/push)",
+      "Bash(./.harness/push)",
+      "Bash(.harness/push --force)",
+      "Bash(./.harness/push --force)",
+      "Bash(.harness/pr *)",
+      "Bash(.harness/skills-search *)",
+      "Bash(./.harness/skills-search *)",
+      "Bash(.harness/skills-show *)",
+      "Bash(./.harness/skills-show *)",
+      "Bash(./.harness/pr *)",
+      "Bash(.harness/ports-free)",
+      "Bash(./.harness/ports-free)"
+    ]
+  }
+}

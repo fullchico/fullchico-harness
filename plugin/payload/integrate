@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# Integra o trabalho de um implementador na branch da feature, um ticket por vez.
+# Uso: .harness/integrate <arquivo do ticket> <branch do implementador>
+#
+# Em ordem: confere que a branch só mexeu no que o ticket possui (`Owns:`), junta com
+# `git merge --no-ff`, roda a checagem do projeto e, se ela falhar, desfaz a junção.
+# No fim remove os worktrees de agente já integrados. Conflito de texto é recusado: com
+# um dono por arquivo ele não deveria existir, e resolver à mão esconde o erro de fatiamento.
+set -uo pipefail
+. "$(dirname "$0")/env-common.sh"
+
+[ "$#" -eq 2 ] || { echo "uso: integrate <arquivo do ticket> <branch do implementador>" >&2; exit 2; }
+TICKET="$1" BRANCH="$2"
+cd "$ROOT" || exit 1
+[ -f "$TICKET" ] || die "o ticket $TICKET não existe."
+git rev-parse -q --verify "refs/heads/$BRANCH" >/dev/null || die "a branch $BRANCH não existe."
+[ -z "$(git status --porcelain --untracked-files=no)" ] || die "há alteração sem commit neste worktree; faça o commit antes de integrar."
+
+BASE="$(git merge-base HEAD "$BRANCH")" || die "a branch $BRANCH não tem histórico em comum com esta."
+git show "$BRANCH:$TICKET" 2>/dev/null | grep -q '^Status: done' \
+  || die "o ticket não está como Status: done na branch $BRANCH. O implementador fecha o ticket; quem integra não."
+
+# Só entra o que o caçador de bugs aprovou, naquele commit exato. Diff de um ticket é pequeno:
+# é aqui que revisão funda funciona, e o defeito não chega aos tickets que dependem deste.
+TIP="$(git rev-parse "refs/heads/$BRANCH")"
+STATE="$(python3 -I "$HERE/hooks/common.py" state-dir)" || die "não achei o estado do harness."
+python3 -I -c 'import json, sys
+try:
+    d = json.load(open(sys.argv[1], encoding="utf-8"))
+except (OSError, ValueError):
+    sys.exit(1)
+sys.exit(0 if d.get("status") == "PASS" and d.get("gate") == "bugs" and d.get("sha") == sys.argv[2] else 1)' \
+  "$STATE/approvals/bugs/$TIP.json" "$TIP" || {
+  echo "integrate: falta a caça a bugs do ticket, no commit $TIP." >&2
+  echo "  Dispare o harness:revisor-bugs com spec, ticket, diff (<branch da feature>...$TIP) e commit ($TIP)." >&2
+  echo "  Se ele reprovou, ou aprovou com mais de duas pendências, é rodada de correção para este ticket;" >&2
+  echo "  commit novo pede revisão nova." >&2
+  exit 1
+}
+
+# O ticket de contrato é a base de todos os outros: além da caça a bugs, alguém conferiu, nesse
+# mesmo commit, que o que ele monta funciona fora da máquina de quem escreveu.
+IS_CONTRACT="$(python3 -I -c 'import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, sys.argv[1])
+import os, tickets_check
+ticket = sys.argv[2]
+common = tickets_check.contract_paths(os.path.dirname(os.path.dirname(os.path.abspath(ticket))))
+owns = tickets_check.owned(ticket)
+print("yes" if any(tickets_check._overlap(o, c) for o in owns for c in common) else "no")' "$HERE" "$TICKET")" \
+  || die "não consegui ler a posse do ticket (linha Owns:)."
+if [ "$IS_CONTRACT" = "yes" ]; then
+  python3 -I -c 'import json, sys
+try:
+    d = json.load(open(sys.argv[1], encoding="utf-8"))
+except (OSError, ValueError):
+    sys.exit(1)
+sys.exit(0 if d.get("status") == "PASS" and d.get("gate") == "ambiente" and d.get("sha") == sys.argv[2] else 1)' \
+    "$STATE/approvals/ambiente/$TIP.json" "$TIP" || {
+    echo "integrate: este é o ticket de contrato, e falta a conferência de ambiente no commit $TIP." >&2
+    echo "  Dispare o harness:revisor-ambiente com spec, ticket, diff (<branch da feature>...$TIP) e commit ($TIP)," >&2
+    echo "  na mesma mensagem do harness:revisor-bugs. Commit novo pede as duas de novo." >&2
+    exit 1
+  }
+fi
+
+# O programa vai por -c: a entrada padrão é a lista de arquivos alterados.
+CHECK='import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, sys.argv[1])
+import tickets_check
+ticket = sys.argv[2]
+owns = tickets_check.owned(ticket)
+for name in filter(None, sys.stdin.read().split("\0")):
+    if name != ticket and not any(name == p or name.startswith(p + "/") for p in owns):
+        print(name)'
+OUTSIDE="$(git diff --name-only -z "$BASE" "$BRANCH" | python3 -I -c "$CHECK" "$HERE" "$TICKET")" \
+  || die "não consegui ler a posse do ticket (linha Owns:)."
+if [ -n "$OUTSIDE" ]; then
+  echo "integrate: a branch $BRANCH mexeu em arquivos que não são do ticket (Owns:):" >&2
+  echo "$OUTSIDE" | sed 's/^/  /' >&2
+  echo "  Um dono por arquivo. Se o ticket precisa mesmo desses arquivos, corrija a posse no ticket" >&2
+  echo "  (e o grafo) e faça o commit. Depois é uma rodada de correção: veja .harness/entrega/despacho.md." >&2
+  exit 1
+fi
+
+HEAD_BEFORE="$(git rev-parse HEAD)"
+NAME="$(basename "$TICKET" .md)"
+if ! git merge --no-ff -q "$BRANCH" -m "Merge ticket $NAME" >/dev/null 2>&1; then
+  git merge --abort 2>/dev/null
+  die "conflito ao juntar $BRANCH. Outro ticket já mexeu nos mesmos arquivos: o fatiamento está errado. Corrija a posse dos tickets; depois é uma rodada de correção (.harness/entrega/despacho.md)."
+fi
+# O ticket pode ter trazido dependência nova: sem instalar, a checagem falharia por ela.
+INSTALL="$(conf_get INSTALL_CMD)"
+if [ -n "$INSTALL" ] && ! bash -c "$INSTALL" >/dev/null 2>&1; then
+  git reset -q --hard "$HEAD_BEFORE"
+  die "a instalação de dependências ($INSTALL) falhou com o ticket $NAME integrado; a junção foi desfeita."
+fi
+if ! "$HERE/validate" --profile push; then
+  git reset -q --hard "$HEAD_BEFORE"
+  die "a checagem do projeto falhou com o ticket $NAME integrado; a junção foi desfeita. É uma rodada de correção para esse ticket."
+fi
+# O worktree integrado pode continuar travado pela sessão que o criou e não sair agora. O que
+# se reconstrói (dependências, build: tudo que o git ignora) sai já, para a entrega não encher o disco.
+DONE_TREE="$(git worktree list --porcelain | awk -v b="refs/heads/$BRANCH" '/^worktree /{p=substr($0,10)} $0=="branch " b {print p}')"
+case "$DONE_TREE" in
+  */.claude/worktrees/*) git -C "$DONE_TREE" clean -fdXq 2>/dev/null || true ;;
+esac
+"$HERE/agents-clean" >/dev/null 2>&1 || true
+echo "Ticket $NAME integrado ($(git rev-parse --short HEAD)); checagem passou."

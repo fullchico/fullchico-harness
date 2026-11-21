@@ -1,0 +1,14 @@
+{
+  "name": "fullchico",
+  "description": "Marketplace do FullChico Harness.",
+  "owner": {
+    "name": "FullChico"
+  },
+  "plugins": [
+    {
+      "name": "harness",
+      "source": "./plugin",
+      "description": "Ambiente de desenvolvimento com agentes: orquestração, portões de push, memória ancorada em git."
+    }
+  ]
+}

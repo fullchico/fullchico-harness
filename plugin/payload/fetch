@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Atualiza as referências do remoto. Dentro do sandbox a rede para o servidor de git
+# é negada; este script roda fora dele. Depois, merge ou rebase são comandos comuns.
+set -uo pipefail
+. "$(dirname "$0")/env-common.sh"
+for VAR in $(env | sed -n 's/^\(GIT_[A-Za-z0-9_]*\)=.*/\1/p'); do unset "$VAR"; done
+
+[ "$#" -eq 0 ] || { echo "uso: fetch" >&2; exit 2; }
+cd "$ROOT" || exit 1
+git fetch --prune origin || die "não consegui buscar do remoto origin."
