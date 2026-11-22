@@ -11,9 +11,15 @@ const root = path.resolve(__dirname, "..");
 const [command, ...rest] = process.argv.slice(2);
 const usage = "uso: fullchico-harness install [pasta do projeto] [--profile fullstack-typescript|livre|existente] [--force]\n" +
   "     fullchico-harness update [pasta do projeto] [--force]\n" +
+  "     fullchico-harness puro [pasta do projeto]\n" +
   "     fullchico-harness --version";
 
-if (command === "--version" || command === "-v") {
+if (command === "puro") {
+  // Marca o projeto como puro e traz do global só a ferramenta pessoal (Orca, rtk), para o escopo local.
+  const project = rest.find((arg) => !arg.startsWith("-")) || ".";
+  const run = spawnSync("python3", ["-I", path.join(root, "plugins/trilho/scripts/make_pure.py"), project], { stdio: "inherit" });
+  process.exit(run.status === null ? 1 : run.status);
+} else if (command === "--version" || command === "-v") {
   console.log(require(path.join(root, "package.json")).version);
 } else if (command === "install" || command === "update") {
   const env = { ...process.env };

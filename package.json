@@ -12,11 +12,26 @@
   "bugs": {
     "url": "https://github.com/fullchico/fullchico-harness/issues"
   },
-  "keywords": ["claude-code", "agents", "harness", "guardrails", "hooks"],
+  "keywords": [
+    "claude-code",
+    "agents",
+    "harness",
+    "guardrails",
+    "hooks"
+  ],
   "bin": {
-    "fullchico-harness": "bin/harness.js"
+    "fullchico-harness": "bin/harness.js",
+    "claude-projeto": "bin/claude-projeto"
   },
-  "files": ["bin/", "install", "plugin/", ".claude-plugin/", "LICENSE", "README.md"],
+  "files": [
+    "bin/",
+    "install",
+    "plugin/",
+    "plugins/",
+    ".claude-plugin/",
+    "LICENSE",
+    "README.md"
+  ],
   "engines": {
     "node": ">=18"
   },
