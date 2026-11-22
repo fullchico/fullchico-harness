@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Mostra o estado e o fim do log do ambiente desta feature. Só lê: não sobe nem derruba nada.
+# Uso: .harness/logs            todos os serviços
+#      .harness/logs <serviço>  um só
+# Roda fora do sandbox do Bash, onde o Docker é alcançável. Por isso aceita só o nome de um serviço.
+set -uo pipefail
+. "$(dirname "$0")/env-common.sh"
+
+case "${1:-}" in -*|*[!a-zA-Z0-9_-]*) die "uso: logs [serviço]" ;; esac
+[ "$#" -le 1 ] || die "uso: logs [serviço]"
+[ -f "$ROOT/.env" ] || { echo "Sem .env neste worktree: não há ambiente."; exit 0; }
+need_compose
+compose ps
+if [ -n "${1:-}" ]; then compose logs --tail 80 "$1"; else compose logs --tail 40; fi

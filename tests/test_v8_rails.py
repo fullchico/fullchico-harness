@@ -153,6 +153,26 @@ class TestDownStopsTheWholeApp(unittest.TestCase):
                 subprocess.run(["kill", pid])
 
 
+    def test_a_child_that_detached_from_the_app_stops_too(self):
+        # `pnpm` e `concurrently` deixam o servidor como neto solto: `pgrep -P` não o alcança.
+        repo = make_repo()
+        self.assertEqual(sync(repo).returncode, 0)
+        (repo / "harness.conf").write_text("PROFILE=livre\nDEV_CMD=\"sh -c '(sleep 31338 &); sleep 31338'\"\n")
+        alive = lambda: subprocess.run(["pgrep", "-f", "sleep 31338"], capture_output=True, text=True).stdout.split()
+        before = set(alive())
+        r = subprocess.run([str(repo / ".harness/dev"), "--background"], cwd=repo, capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        time.sleep(1)
+        self.assertGreaterEqual(len(set(alive()) - before), 2)
+        try:
+            self.assertEqual(subprocess.run([str(repo / ".harness/down")], cwd=repo, capture_output=True).returncode, 0)
+            time.sleep(1)
+            self.assertEqual(set(alive()) - before, set())
+        finally:
+            for pid in set(alive()) - before:
+                subprocess.run(["kill", pid])
+
+
 class TestPendingsPerTicket(unittest.TestCase):
     """O teto de pendências é do ticket, somando rodadas e revisores, e o mesmo ponto não conta duas vezes."""
 
@@ -301,3 +321,16 @@ class TestDeliveryWithoutRemote(unittest.TestCase):
         self.assertIn("sem remoto", r.stdout)
         self.assertIn("git remote add origin", r.stdout)
         self.assertNotIn("enviada", r.stdout)
+
+
+class TestEnvironmentLogsAreForEveryone(unittest.TestCase):
+    """Com o app em contêiner, quem corrige e quem revisa precisa ver o log sem subir nem derrubar nada."""
+
+    def test_any_agent_reads_the_logs_alone_in_the_call(self):
+        repo = make_repo()
+        for agent in (None, "harness:implementador", "harness:revisor-ambiente", "harness:orquestrador"):
+            self.assertEqual(bash(repo, ".harness/logs", agent)[0], 0, agent)
+            self.assertEqual(bash(repo, ".harness/logs app", agent)[0], 0, agent)
+        rc, _, err = bash(repo, ".harness/logs app | tail -5")
+        self.assertEqual(rc, 2)
+        self.assertIn("sozinho", err)

@@ -132,11 +132,13 @@ Uma feature é um worktree, e cada worktree tem o próprio ambiente: projeto Doc
 e bloco de portas derivados do nome da pasta. Subagentes trabalham em cima do
 worktree da feature e usam o ambiente dela.
 
+- **Tudo o que fica de pé é serviço do compose:** front, back e infra. Na máquina rodam só
+  comandos que terminam (teste, build, migration).
 - O ambiente só sobe quando a validação exige. Teste que roda sem infra não sobe nada.
-- `.harness/up` sobe a infra, `.harness/down` para, `.harness/destroy` remove e
+- `.harness/up` sobe o ambiente, `.harness/down` para, `.harness/destroy` remove e
   apaga os dados. Só o `destroy` pergunta ao dono. Rodam sozinhos, sem `&&` nem `;`.
-- `.harness/prepare` roda migration e seed; `.harness/dev` roda o app
-  (`--background` para deixar rodando). Os dois usam as portas da feature.
+- `.harness/prepare` roda migration e seed; `.harness/logs` mostra o log. `.harness/dev` só
+  existe para o app que ainda roda na máquina.
 - As portas estão no `.env` do worktree. Não se escolhe porta à mão.
 - `docker` solto não funciona dentro do sandbox: o caminho é `.harness/up`.
 

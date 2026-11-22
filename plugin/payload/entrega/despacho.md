@@ -14,20 +14,23 @@ ambiente fica de pé até o envio. Integrado um ticket que muda o schema do banc
 
 **A base prova que roda.** Logo depois de integrar o ticket de contrato (e o de fundação, se
 foram separados), e antes de despachar qualquer outro, confira o que os revisores não têm
-como ver, porque rodam antes de o ambiente existir. `up` e `down` vão sozinhos na chamada;
-`prepare` e `dev` rodam dentro do sandbox e não têm essa exigência:
+como ver, porque rodam antes de o ambiente existir. `up`, `down` e `logs` vão sozinhos na
+chamada; `prepare` e `dev` rodam dentro do sandbox e não têm essa exigência:
 
-1. `.harness/up`: os serviços sobem.
+1. `.harness/up`: os serviços sobem. Se o aplicativo é um serviço do compose (o
+   `harness.conf` não tem `DEV_CMD`), ele sobe aqui também.
 2. `.harness/prepare`: as migrations e o seed rodam.
-3. `.harness/dev --background`: o aplicativo sobe. Espere e confira que o front e a API
-   respondem nos endereços do `.env` (`curl -s -o /dev/null -w "%{http_code}"`); o log fica
-   em `.harness-run/dev.log`.
-4. `.harness/down` encerra o aplicativo que você subiu; depois `.harness/up` de novo, porque
-   os implementadores precisam dos serviços.
+3. O aplicativo responde: confira o front e a API nos endereços do `.env`
+   (`curl -s -o /dev/null -w "%{http_code}"`). Com o app no compose, o log sai por
+   `.harness/logs <serviço>`. Com `DEV_CMD`, suba antes com `.harness/dev --background`
+   (log em `.harness-run/dev.log`) e, conferido, `.harness/down` e `.harness/up` de novo,
+   porque os implementadores precisam dos serviços.
+4. Mude um arquivo do front e confira que a página servida muda: a recarga a quente funciona.
 
 Falhou qualquer um: reabra o ticket dono com o erro como achado. É ajuste de ambiente, e
 não conta como reprovação de revisor no teto de rodadas. Só despache a primeira onda com os
-quatro passos passando.
+quatro passos passando. Se o que falha é uma ferramenta de desenvolvimento dentro do sandbox, o
+conserto é levar o app para o compose (`docs/agents/stack.md`), não trocar a ferramenta do projeto.
 
 **A tela é exercitada desde a primeira.** Depois de integrar uma onda que tem ticket de tela,
 rode `.harness/validate --profile merge` uma vez: ele compila o aplicativo e roda os testes de
@@ -63,9 +66,11 @@ podem ser feitos agora, em paralelo.
      rodada tem um ticket só;
    - o modelo: `haiku`. O ticket de contrato vai em `sonnet`: é ele que define o que todos
      os outros seguem;
-   - `run_in_background` como `false`, se a sua ferramenta de subagente tiver esse parâmetro
-     (se não tiver, ela já despacha em primeiro plano): você espera os implementadores no mesmo turno. Em
-     segundo plano o aviso de término iria para a sessão do dono, não para você;
+   - `run_in_background` como `false`, se a sua ferramenta de subagente tiver esse parâmetro.
+     Se ela responder que o agente foi lançado em segundo plano, o trabalho **não terminou**:
+     você não sabe nada do resultado até o aviso de término dele chegar. Espere o aviso de cada
+     agente antes do passo que depende dele (revisar, integrar), não dispare de novo o mesmo
+     pedido, e não encerre a sua resposta final com agente em andamento;
    - o pedido, só com ponteiros:
 
 ```pedido harness:implementador

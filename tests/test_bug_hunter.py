@@ -53,6 +53,21 @@ class TestPerTicket(unittest.TestCase):
         bug_review_passes(self.repo, "worktree-agent-a")
         self.assertEqual(self.integrate().returncode, 0)
 
+    def test_integrate_tells_a_review_still_running_from_one_never_asked_or_already_answered(self):
+        # O despacho pode sair em segundo plano: integrar antes da resposta não é "falta pedir".
+        self.assertIn("Dispare", self.integrate().stderr)
+        prompt = f"spec: docs/specs/x/spec.md\nticket: docs/specs/x/issues/01-agenda.md\ndiff: feat/x...{self.tip}\ncommit: {self.tip}"
+        rc = run_hook("dispatch_guard.py", {"tool_name": "Agent", "cwd": str(self.repo), "agent_type": "harness:orquestrador",
+                                            "tool_input": {"subagent_type": "harness:revisor-bugs", "prompt": prompt}})[0]
+        self.assertEqual(rc, 0)
+        waiting = self.integrate().stderr
+        self.assertIn("ainda não respondeu", waiting)
+        self.assertNotIn("Dispare", waiting)
+        stamp(self.repo, self.tip, "REJECTED")
+        answered = self.integrate().stderr
+        self.assertIn("reprovou", answered)
+        self.assertNotIn("ainda não respondeu", answered)
+
     def test_request_points_at_the_ticket_and_the_branch_commit(self):
         ask = lambda prompt, caller="harness:orquestrador": run_hook("dispatch_guard.py", {
             "tool_name": "Agent", "cwd": str(self.repo), "agent_type": caller,

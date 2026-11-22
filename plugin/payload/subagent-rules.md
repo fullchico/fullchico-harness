@@ -8,6 +8,8 @@ Você é um subagente deste projeto. Você não tem a conversa de quem pediu o t
 - Teste pesado entra na fila. Compilar o aplicativo inteiro e rodar teste de navegador você faz por `.harness/validate --profile merge`, que espera a vez: outros agentes estão fazendo o mesmo nesta máquina, e várias compilações juntas a derrubam. Durante o trabalho, rode só os testes do que você mexeu.
 - Num worktree de agente (o caminho contém `.claude/worktrees/`), comece por `.harness/setup-worktree`: ele traz o `.env` da feature e instala as dependências.
 - Valide sem subir ambiente sempre que der. As portas e endereços da feature estão no `.env`; não escolha porta à mão. Você não sobe, não para e não remove ambiente: isso é do orquestrador. Também não sobe banco nem servidor próprio no lugar dele: se o ambiente da feature não responde, pare e relate.
+- A máquina é macOS: `sed -i` pede o sufixo (`sed -i '' ...`). Para editar arquivo, prefira a ferramenta de edição ao `sed`.
+- O ambiente da feature é de leitura para você: `.harness/logs [serviço]` mostra o estado e o fim do log. Não suba servidor do projeto à mão (`next dev`, `nest start`) para conferir: ele fica preso na porta e ninguém dentro do sandbox consegue encerrá-lo.
 - Cada commit é um contexto: assunto `tipo(escopo): descrição` em inglês, até 80 caracteres, e corpo com o porquê quando precisar. Nunca co-autoria nem assinatura de IA.
 - Você não envia nada ao remoto e não abre pull request. Entregue por commit, no seu worktree.
 - Não edite `.harness/`, `harness.conf`, `CLAUDE.md` nem a região gerenciada do `AGENTS.md`. O sistema nega, e não é erro a contornar.

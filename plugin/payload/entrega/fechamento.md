@@ -8,10 +8,10 @@ O ambiente da feature (banco, fila, contêiner do navegador) já está de pé de
 fica assim até o envio. Confira com `.harness/up`, sozinho: se já está no ar, ele só avisa.
 Depois de integrar um ticket que mudou o schema, rode `.harness/prepare` de novo.
 
-Você não sobe o aplicativo à mão antes do envio. Os testes de ponta a ponta compilam e sobem
-o aplicativo do commit atual por conta própria (o `webServer` do Playwright), e o derrubam ao
-terminar. Se o aplicativo ficou de pé de uma execução anterior, ele ocupa as portas de que os
-testes precisam: rode `.harness/down` e depois `.harness/up`.
+Você não sobe o aplicativo à mão antes do envio. Quando ele é serviço do compose (o padrão), já está de pé com o `up`, e os testes de ponta a ponta rodam
+contra ele: confira antes que ele serve o commit atual (`.harness/logs <serviço>`). Quando o
+projeto usa `DEV_CMD`, é a suíte que compila e sobe o aplicativo, e um aplicativo que ficou de pé
+de uma execução anterior ocupa as portas dela: rode `.harness/down` e depois `.harness/up`.
 
 ## 2. Checagem
 
@@ -166,7 +166,8 @@ A entrega só termina quando o dono consegue ver o resultado, sem ter de montar 
 do envio (`up` sozinho na chamada):
 
 1. `.harness/up` e `.harness/prepare`: o ambiente está de pé e o banco, pronto.
-2. `.harness/dev --background`: o aplicativo sobe.
+2. `.harness/dev --background`: o aplicativo sobe. Se ele é um serviço do compose (sem
+   `DEV_CMD`), já subiu no passo 1.
 3. Confira que ele responde: o front e a API nos endereços do `.env` desta feature
    (`curl -s -o /dev/null -w "%{http_code}"`). Se uma porta estiver ocupada, `.harness/ports-free`.
 

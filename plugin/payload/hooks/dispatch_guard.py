@@ -180,7 +180,8 @@ def foreground(caller, tool_input):
     passava a receber cada término e a repassar, por mensagem, ao orquestrador.
     """
     # Só o pedido explícito de segundo plano é recusado. Sem o parâmetro, vale o que a ferramenta
-    # faz: há versões em que a de um subagente nem o tem, e só despacha em primeiro plano.
+    # faz: há versões do Claude Code em que a de um subagente nem o tem e despacha em segundo
+    # plano por conta própria, avisando quem despachou. O roteiro manda esperar esse aviso.
     if caller == "harness:orquestrador" and tool_input.get("run_in_background") is True:
         return ("O orquestrador despacha em primeiro plano: não passe `run_in_background: true`. Dispare os "
                 "tickets da rodada na mesma mensagem, que eles rodam juntos, e espere todos voltarem.")

@@ -507,6 +507,7 @@ O que é só do projeto (hooks, permissões, servidores MCP, sites liberados) va
 | `.harness/dev` | o aplicativo (`DEV_CMD`); `--background` deixa rodando | você ou o orquestrador |
 | `.harness/down` | para o aplicativo e os contêineres, mantém os dados | você ou o orquestrador |
 | `.harness/destroy` | remove o ambiente da feature e apaga os dados | você, ou o agente com a sua permissão |
+| `.harness/logs [serviço]` | mostra o estado e o fim do log do ambiente | qualquer agente; só lê |
 | `.harness/ports-free` | encerra processo esquecido numa porta da feature | o orquestrador; roda sozinho quando um revisor termina |
 | `.harness/setup-worktree` | prepara um worktree: `.env` e dependências | o Orca ao abrir o worktree, você, ou cada implementador |
 | `.harness/worktree-env` | deriva o projeto Docker e as portas da feature e grava no `.env` | chamado pelos outros scripts |

@@ -179,6 +179,19 @@ def final_message(payload):
     return "\n".join(parts) if parts else None
 
 
+def _answered(state, gate, commit, answer):
+    """Anota no pedido que o revisor respondeu sem aprovar: o `integrate` deixa de mandar esperar."""
+    path = common.request_path(state, gate, commit)
+    try:
+        with open(path, encoding="utf-8") as f:
+            request = json.load(f)
+        request["answer"] = answer
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(request, f)
+    except (OSError, ValueError):
+        pass
+
+
 def main():
     payload = common.read_payload()
     gate = gate_for(payload.get("agent_type"))
@@ -205,8 +218,11 @@ def main():
         except (OSError, ValueError):
             pass
         if verdict["verdict"] == "APPROVED" and too_many_pendings(cwd, message, ticket):
+            _answered(state, gate, verdict["commit"], "PENDINGS")
             return
         track_pendings(cwd, message, verdict, ticket)
+        if verdict["verdict"] == "REJECTED":
+            _answered(state, gate, verdict["commit"], "REJECTED")
     path = common.approval_path(state, gate, verdict["commit"])
     if verdict["verdict"] == "REJECTED":
         if os.path.exists(path):

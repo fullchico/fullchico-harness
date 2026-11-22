@@ -57,12 +57,14 @@ Arquitetura do `AGENTS.md`.
     versão do pacote instalado e `shm_size` (não `ipc: host`, que o `up` recusa), alcançado por
     `PW_TEST_CONNECT_WS_ENDPOINT`. Dentro do sandbox o navegador não abre, e não se instala
     navegador na máquina.
-  - O aplicativo é o build do commit atual, compilado e servido pela própria suíte, com o
-    `webServer` do Playwright, nas portas do `.env`. Isso não é "subir servidor próprio": é a
-    suíte cuidando do que testa. Ninguém deixa o aplicativo rodando por fora.
-  - Do contêiner, o aplicativo é `http://host.docker.internal:<porta do web>`. O navegador só
-    fala com essa origem: as chamadas à API passam pelo servidor do front (um proxy), porque
-    dentro do contêiner `localhost` é o próprio contêiner.
+  - O aplicativo testado é o do compose, o mesmo do desenvolvimento: `.harness/up` o deixa de
+    pé e a suíte só confere que ele responde antes de começar. A suíte não compila nem sobe
+    servidor na máquina (sem `webServer` do Playwright), e ninguém roda o aplicativo por fora.
+  - Do contêiner do navegador, o aplicativo é `http://<serviço do app>:<porta>`, pela rede do
+    compose. O navegador só fala com essa origem: as chamadas à API passam pelo servidor do
+    front (um proxy).
+  - O app do compose roda em modo de desenvolvimento, que não prova o build de produção: o
+    `VALIDATE_MERGE` roda `pnpm build` além da suíte.
   - A suíte entra só no `VALIDATE_MERGE`. O `VALIDATE_PUSH`, que roda ao fechar e ao integrar
     cada ticket, fica com o que não precisa do sistema inteiro no ar.
 - **Next com Feature-Sliced Design.** A pasta `app/` do Next fica na raiz do aplicativo, com um
@@ -91,6 +93,27 @@ Arquitetura do `AGENTS.md`.
 - **Porta com uma implementação só não é abstração prematura.** O `clean-code-guard` manda
   embutir: para o que sai do processo, a porta fica. E cópia marcada com `shortcut:` no front
   não é duplicação a extrair.
+- **Cada parte do sistema é um serviço do compose** (regra do `AGENTS.md`). Nesta stack: um
+  serviço para o front, um para a API, um por peça de infra (Postgres, Redis) e o do navegador.
+  - Front e API usam a imagem `node`, montam a pasta do projeto e rodam o `dev` normal de cada
+    um, com recarga a quente: `next dev` e `nest start --watch`. Não se troca o bundler nem se
+    usa `next build && next start` para contornar o sandbox: no contêiner as ferramentas que
+    vigiam arquivos funcionam.
+  - As dependências são de Linux lá dentro e de macOS na máquina. Cada `node_modules` do
+    workspace (a raiz e um por pacote) é um volume nomeado, e um serviço de passagem única roda
+    o `pnpm install` e a compilação do contrato; front e API dependem dele com
+    `condition: service_completed_successfully`, para não instalarem ao mesmo tempo.
+  - Um serviço alcança o outro pelo nome (`postgres:5432`, `http://api:<porta>`), definido no
+    `environment` de cada um. O `.env` do worktree continua valendo para o que roda na máquina
+    (testes, migration, seed), com as portas publicadas.
+  - Front e API têm `healthcheck` que só passa quando respondem: é o que faz o `.harness/up`
+    esperar o sistema ficar pronto.
+  - O `harness.conf` fica sem `DEV_CMD`. Os trilhos do harness entram nos contêineres só para
+    leitura, sem nada a declarar no compose.
+- **O `INSTALL_CMD` deixa o worktree pronto para testar:** instala e compila o pacote de
+  contrato (`pnpm install --frozen-lockfile && pnpm --filter <contrato> build`). Worktree de
+  agente nasce sem o `dist` do contrato, e sem ele `typecheck` e teste falham por motivo alheio
+  ao ticket.
 - **`@InjectQueue` e `@Processor` ficam no adaptador.** O processor só traduz o job e chama
   o use case. A conexão vem do `.env`, nunca de `localhost:6379`.
 - **Sem `vi.mock` de módulo nosso.** As skills de teste preferem mock: aqui a porta recebe o

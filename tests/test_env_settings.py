@@ -29,10 +29,10 @@ class TestEnvSettings(unittest.TestCase):
             self.assertEqual(f"Bash({form})" in self.s["permissions"]["ask"], asks, form)
             self.assertEqual(f"Bash({form})" in self.s["permissions"]["allow"], not asks, form)
         # nada além dos scripts do harness sai do sandbox, e nenhum deles com argumento livre,
-        # exceto o pr e os de skills, que recebem nomes simples como argumento e os conferem
+        # exceto o pr, os de skills e o logs, que recebem nomes simples como argumento e os conferem
         self.assertTrue(all(c.lstrip("./").startswith("harness/") for c in excluded), excluded)
         with_args = {f"{prefix}.harness/{name} *" for prefix in ("", "./")
-                     for name in ("pr", "skills-search", "skills-show", "skills-add")}
+                     for name in ("pr", "skills-search", "skills-show", "skills-add", "logs")}
         self.assertEqual({c for c in excluded if "*" in c}, with_args)
 
     def test_network(self):

@@ -17,5 +17,6 @@ MAIN_CONTEXT="$(sed -n 's/^HARNESS_ENV_CONTEXT=//p' "$MAIN/.env" 2>/dev/null | s
 
 "$HERE/down" >/dev/null 2>&1 || true
 compose down -v --rmi local --remove-orphans || die "o Docker não removeu o ambiente."
-rm -f "$(env_record)"
+RECORD="$(env_record)"
+rm -f "$RECORD" "${RECORD%.json}.protect.json"
 echo "Ambiente $(env_get COMPOSE_PROJECT_NAME) removido."
