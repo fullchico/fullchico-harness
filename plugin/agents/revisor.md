@@ -63,8 +63,20 @@ a regra:
 - nome que não diz o que é (`v`, `data`, `item`, `handle`) e função que faz mais de uma coisa;
 - identificador, arquivo, pasta ou rota fora da língua que o `AGENTS.md` define para o código;
 - retorno que obriga quem lê a decifrar: prefira nomear o resultado a encadear expressões;
-- em tela nova ou alterada, falha de acessibilidade que a skill `accessibility` aponta como
-  nível A ou AA.
+- em tela nova ou alterada, o que a máquina não vê em acessibilidade e uso. Contraste, rótulo,
+  nome de botão e erro ligado ao campo já têm portão: não os repita. A skill `accessibility` é a
+  referência dos critérios. Confira, cada um com o
+  arquivo e a linha, ou o nome do teste que o prova:
+  - a mensagem de erro diz o que houve e como corrigir, sem código técnico e sem culpar;
+  - o rótulo fica visível acima do campo, e o placeholder não faz o papel dele;
+  - o botão de envio não fica desabilitado sem dizer por quê;
+  - toda ação assíncrona mostra carregando, sucesso e erro;
+  - lista vazia tem estado vazio com uma ação clara;
+  - ação destrutiva pede confirmação ou oferece desfazer;
+  - a informação não depende só de cor;
+  - um termo por conceito, e rótulo de botão é verbo mais objeto;
+  - uma ação principal por tela;
+  - a suíte chama `a11y()` em cada estado da tela (se falta, é achado: o portão não rodou ali).
 
 Porta em fronteira de entrada e saída não é excesso, mesmo com uma implementação só.
 

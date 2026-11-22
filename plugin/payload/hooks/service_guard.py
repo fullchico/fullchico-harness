@@ -131,7 +131,7 @@ def destroy_reason(cwd: str) -> str:
 
 
 CONF_FORMS = (".harness/conf-apply", "./.harness/conf-apply")
-CHECKS = ("VALIDATE_PUSH", "VALIDATE_MERGE", "VALIDATE_ARCH", "MODULE_ROOTS", "CONTRACT_PATHS")
+CHECKS = ("VALIDATE_PUSH", "VALIDATE_MERGE", "VALIDATE_ARCH", "MODULE_ROOTS", "CONTRACT_PATHS", "TOKENS_CSS")
 CONF_LIMIT = 4000
 
 
