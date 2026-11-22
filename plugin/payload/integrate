@@ -100,6 +100,13 @@ if [ -n "$OUTSIDE" ]; then
   exit 1
 fi
 
+# Daqui em diante os arquivos deste worktree mudam. O marcador avisa a conferência feita depois de
+# cada comando (hooks/code_watch.py) que quem mexeu foi o integrate, e não o agente que rodava ao lado.
+# Dentro do sandbox o estado não é gravável e isto falha calado: aí quem marca é o próprio hook.
+mark() { { mkdir -p "$STATE/writers" && echo "$1" > "$STATE/writers/integrate"; } 2>/dev/null || true; }
+mark running
+trap 'mark done' EXIT
+
 HEAD_BEFORE="$(git rev-parse HEAD)"
 NAME="$(basename "$TICKET" .md)"
 if ! git merge --no-ff -q "$BRANCH" -m "Merge ticket $NAME" >/dev/null 2>&1; then
