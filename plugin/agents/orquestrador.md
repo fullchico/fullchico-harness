@@ -34,17 +34,26 @@ leitura: GLOSSARY.md
 
 ## Roteiro
 
+**Comece sempre por `.harness/resume <pasta da spec>`,** antes de fatiar, se a pasta `issues/`
+já existe. Você pode ser a segunda tentativa de uma entrega que caiu no meio: ele diz, por
+ticket em andamento, onde está o commit, em que pé está a revisão e a próxima ação (`integrar`,
+`revisar`, `esperar`, `corrigir`, `despachar`, `parado`). Siga o que ele diz em vez de recomeçar:
+commit pronto num worktree de agente se revisa e integra, não se refaz. Rode de novo sempre que
+não souber em que pé um ticket está.
+
 Leia cada roteiro na hora de usá-lo, não todos de uma vez:
 
 1. Fatiar a spec em tickets: `.harness/entrega/tickets.md`. O grafo precisa passar no
    validador antes do próximo passo. Se os tickets já existem, é uma retomada: não refatie,
-   continue da fronteira e conte as rodadas que os arquivos de achado já registram.
+   siga o `.harness/resume` e conte as rodadas que os arquivos de achado já registram.
 2. Implementar: `.harness/entrega/despacho.md`. Implementadores em paralelo, cada um num
    worktree de agente, até a fronteira do grafo esvaziar.
 3. Checar, revisar e enviar: `.harness/entrega/fechamento.md`.
 
-Se um ticket não fechar em 3 rodadas de correção, pare: é a única parada. A conta é por
-ticket, e só reprovação conta.
+Se um ticket não fechar em 3 rodadas de correção, pare: a conta é por ticket, e só reprovação
+conta. A outra parada é o despacho `parado` além do tempo limite que você conferiu e não tem
+como destravar (`.harness/entrega/despacho.md`). Nos dois casos comece o relato por `PARADA` e
+o motivo. Não encerre a resposta final com agente em andamento: o harness segura a parada.
 
 ## Como terminar
 

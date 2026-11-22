@@ -139,6 +139,11 @@ não acompanhe, não confira o repositório, não repita o trabalho dele.
 leitura do motivo. Se ele voltar por lacuna na spec, corrija a spec, faça o commit e dispare
 de novo.
 
+**Se o orquestrador voltar sem terminar** (a API caiu, ou ele devolveu `PARADA` e o motivo já
+foi resolvido), dispare-o de novo com o mesmo pedido de uma linha. Ele retoma sozinho: começa por
+`.harness/resume`, que acha o commit de cada ticket nos worktrees de agente e diz a próxima
+ação. Não cole commit, branch nem relato no pedido: o guard recusa, e ele não precisa.
+
 ## 5. Relatar
 
 Diga ao dono o que o orquestrador devolveu: o link do pull request, o endereço do aplicativo
