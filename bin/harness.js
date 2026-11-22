@@ -9,7 +9,8 @@ const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
 const [command, ...rest] = process.argv.slice(2);
-const usage = "uso: fullchico-harness install [pasta do projeto] [--profile fullstack-typescript|livre|existente] [--force]\n" +
+const usage = "uso: fullchico-harness install [pasta do projeto] [--padrao]   (plugins por projeto e portões)\n" +
+  "     fullchico-harness install [pasta do projeto] --legado [--profile ...] [--force]   (modelo anterior)\n" +
   "     fullchico-harness update [pasta do projeto] [--force]\n" +
   "     fullchico-harness puro [pasta do projeto]\n" +
   "     fullchico-harness portoes [--analisar] [--gravar] [--padrao] [--projeto <pasta>]\n" +
@@ -26,7 +27,6 @@ if (command === "puro") {
   const run = spawnSync("python3", ["-I", path.join(root, "plugins/trilho/scripts/portoes.py"), ...rest], { stdio: "inherit" });
   process.exit(run.status === null ? 1 : run.status);
 } else if (command === "add") {
-  // Instala plugins do marketplace do FullChico no escopo do projeto, pelo `claude`.
   const names = [];
   let project = ".";
   for (let i = 0; i < rest.length; i++) {
@@ -37,6 +37,50 @@ if (command === "puro") {
     console.error(usage);
     process.exit(2);
   }
+  process.exit(addPlugins(names, project));
+} else if (command === "--version"|| command === "-v") {
+  console.log(require(path.join(root, "package.json")).version);
+} else if (command === "install" && !rest.includes("--legado")) {
+  // O harness do projeto no modelo novo: plugins por projeto e registro de portões. O dono escolhe
+  // o padrão da lib (--padrao) ou a análise do que o projeto já usa (o padrão do comando).
+  const project = rest.find((arg) => !arg.startsWith("-")) || ".";
+  const inGit = spawnSync("git", ["-C", project, "rev-parse", "--show-toplevel"], { encoding: "utf8" });
+  if (inGit.status !== 0) {
+    console.error(`install: ${project} não é um repositório git.`);
+    process.exit(2);
+  }
+  const status = addPlugins(["trilho", "bugs", "qualidade", "memoria"], project);
+  const mode = rest.includes("--padrao") ? "--padrao" : "--analisar";
+  console.log(`\n$ fullchico-harness portoes ${mode} --gravar`);
+  const gates = spawnSync("python3", ["-I", path.join(root, "plugins/trilho/scripts/portoes.py"), mode, "--gravar",
+    "--projeto", project], { stdio: "inherit" });
+  console.log("\nPróximos passos:\n" +
+    "  1. Confira os portões em .claude/trilho.json (só você os altera: `fullchico-harness portoes`).\n" +
+    "  2. Para rodar o projeto só com o que ele declara: `fullchico-harness puro`, e abra com `claude-projeto`.\n" +
+    "  3. Abra uma sessão nova no projeto e rode `portao` para ver o que cada etapa pede.\n" +
+    "O modelo anterior (plugin único `harness`) continua em `fullchico-harness install --legado`.");
+  process.exit(status || (gates.status === null ? 1 : gates.status));
+} else if (command === "install" || command === "update") {
+  const env = { ...process.env };
+  if (command === "update") {
+    // Atualizar é instalar por cima, na versão deste pacote: os mesmos arquivos, plugins e skills.
+    const project = rest.find((arg) => !arg.startsWith("-")) || ".";
+    if (!fs.existsSync(path.join(project, ".harness"))) {
+      console.error(`update: ${path.resolve(project)} ainda não tem o harness. Use: fullchico-harness install`);
+      process.exit(2);
+    }
+    env.HARNESS_UPDATE = "1";
+  }
+  const legacy = rest.filter((arg) => arg !== "--legado");
+  const run = spawnSync("bash", [path.join(root, "install"), ...legacy], { stdio: "inherit", env });
+  process.exit(run.status === null ? 1 : run.status);
+} else {
+  console.error(usage);
+  process.exit(command === "--help" || command === "-h" ? 0 : 2);
+}
+
+// Instala plugins do marketplace do FullChico no escopo do projeto, pelo `claude`. Devolve o status.
+function addPlugins(names, project) {
   const commands = [["plugin", "marketplace", "add", "FullChico/fullchico-harness"],
     ...names.map((n) => ["plugin", "install", `${n}@fullchico`, "--scope", "project"])];
   let status = 0;
@@ -65,23 +109,5 @@ if (command === "puro") {
       "Sem ele, o agente consegue gravar no estado dos carimbos e, em tese, forjar um carimbo: o portão avisa,\n" +
       "mas deixa de ser barreira. Para ligar: https://code.claude.com/docs/en/sandboxing");
   }
-  process.exit(status);
-} else if (command === "--version"|| command === "-v") {
-  console.log(require(path.join(root, "package.json")).version);
-} else if (command === "install" || command === "update") {
-  const env = { ...process.env };
-  if (command === "update") {
-    // Atualizar é instalar por cima, na versão deste pacote: os mesmos arquivos, plugins e skills.
-    const project = rest.find((arg) => !arg.startsWith("-")) || ".";
-    if (!fs.existsSync(path.join(project, ".harness"))) {
-      console.error(`update: ${path.resolve(project)} ainda não tem o harness. Use: fullchico-harness install`);
-      process.exit(2);
-    }
-    env.HARNESS_UPDATE = "1";
-  }
-  const run = spawnSync("bash", [path.join(root, "install"), ...rest], { stdio: "inherit", env });
-  process.exit(run.status === null ? 1 : run.status);
-} else {
-  console.error(usage);
-  process.exit(command === "--help" || command === "-h" ? 0 : 2);
+  return status;
 }

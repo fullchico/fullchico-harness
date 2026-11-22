@@ -84,8 +84,10 @@ artefato, carimba de novo.
 
 ### 8. Memória organizada
 
-Mapa do código e notas ancoradas, por projeto. Ainda está no modelo anterior e será migrada para
-um plugin `memoria`.
+Mapa do código e notas ancoradas, por projeto, no plugin `memoria`: o mapa e as notas em dia entram
+no começo de cada sessão; `/memoria:mapear` atualiza o mapa, a skill `memoria:dream` consolida o que
+as sessões ensinaram (proposto por um extrator isolado, conferido contra o código) e
+`/memoria:aprender` mede o consumo e faz a retrospectiva depois de uma entrega.
 
 ## Plugins
 
@@ -96,7 +98,7 @@ um plugin `memoria`.
 | `qualidade` | roda a checagem do projeto; passou, carimbo no fim | disponível |
 | `planejamento` | o portão de começo, com a entrevista | a vir |
 | `orquestracao` | grafo de cards e loops | a vir |
-| `memoria` | mapa do código e notas ancoradas | a vir |
+| `memoria` | mapa do código e notas ancoradas, injetados no começo da sessão | disponível |
 | `seguranca` | revisão de segurança, carimbo no fim | a vir |
 
 Cada plugin é independente e se liga só no projeto (`--scope project`).
@@ -120,12 +122,15 @@ O `qualidade` lê o comando do projeto em `.claude/trilho.json`:
 ### O harness completo
 
 ```bash
-npx @fullchico/harness@latest add trilho bugs qualidade
-npx @fullchico/harness portoes --analisar   # propõe os portões a partir do que o projeto já usa
-npx @fullchico/harness portoes --gravar     # grava em .claude/trilho.json e o protege no sandbox
+npx @fullchico/harness@latest install       # trilho, bugs, qualidade e memoria, e os portões a partir do projeto
+npx @fullchico/harness@latest install --padrao   # o mesmo, com o registro padrão da lib
 npx @fullchico/harness puro                 # liga o modo puro
 claude-projeto                              # abre o Claude Code no modo do projeto
 ```
+
+O `install` analisa o que o projeto já usa (specs, OpenSpec, scripts do `package.json`, skills de
+entrevista) e grava os portões em `.claude/trilho.json`. Para ver a proposta sem gravar, ou
+mudá-la depois: `npx @fullchico/harness portoes --analisar` e `portoes --gravar`.
 
 `portoes --analisar` mostra o porquê de cada portão proposto. `portoes --padrao` grava o registro
 padrão da lib.
@@ -196,7 +201,7 @@ Antes dos plugins por projeto, o harness era um plugin só, com orquestrador, ti
 revisores sobre a branch inteira. Ele continua instalável:
 
 ```bash
-npx @fullchico/harness install .
+npx @fullchico/harness install . --legado
 ```
 
 Em resumo:

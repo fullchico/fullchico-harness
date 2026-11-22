@@ -253,8 +253,8 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
     </div>
 
     <div class="install">
-      <div class="cmd"><code id="c1">npx @fullchico/harness@latest add bugs qualidade</code><button type="button" data-copy="c1">Copiar</button></div>
-      <p class="note">No seu terminal, na pasta do projeto. Só o que você quiser, sem tocar na configuração global.</p>
+      <div class="cmd"><code id="c1">npx @fullchico/harness@latest install</code><button type="button" data-copy="c1">Copiar</button></div>
+      <p class="note">No seu terminal, na pasta do projeto: os plugins e os portões a partir do que o projeto já usa, sem tocar na configuração global. Só alguns? <code>npx @fullchico/harness@latest add bugs qualidade</code>.</p>
     </div>
   </div>
 
@@ -270,7 +270,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
         <li><h3>Guardrails</h3><p>Barreiras imediatas que não são etapa: o sandbox do Claude Code e a proteção do registro de portões (o agente não edita os portões que o barram). Custam zero e não se customizam.</p></li>
         <li><h3>Portões</h3><p>Só no começo (barra a escrita de código) ou no fim (barra o envio: <code>git push</code>, <code>gh pr create</code>). O meio do fluxo é livre. São customizáveis por projeto.</p></li>
         <li><h3>Validações</h3><p>O que assina um carimbo: um <strong>comando</strong> que passa (<code>portao &lt;nome&gt;</code>), o <strong>veredito de um agente</strong> (ex.: o caçador de bugs) ou um <strong>artefato</strong> validado. O carimbo de fim é do commit: commit novo pede carimbo novo. O de começo é do plano: mudou o artefato, carimba de novo.</p></li>
-        <li><span class="tag">no modelo anterior</span><h3>Memória organizada</h3><p>Mapa do código e notas ancoradas, por projeto. Será migrada para o plugin <code>memoria</code>.</p></li>
+        <li><h3>Memória organizada</h3><p>Mapa do código e notas ancoradas, por projeto, no plugin <code>memoria</code>: entram no começo de cada sessão, e uma nota só nasce se o código de hoje a confirma.</p></li>
       </ul>
     </div>
   </section>
@@ -323,7 +323,8 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
         <div><dt><code>trilho</code></dt><dd>O núcleo: modo puro, registro de portões, comando <code>portao</code> e o aplicador único que barra.</dd></div>
         <div><dt><code>bugs</code></dt><dd>O caçador de bugs lê o diff. Aprovado, o hook carimba o commit no fim.</dd></div>
         <div><dt><code>qualidade</code></dt><dd>Roda a checagem do projeto. Passou, carimbo no fim.</dd></div>
-        <div><dt>A vir</dt><dd><code>planejamento</code>, <code>orquestracao</code>, <code>memoria</code> e <code>seguranca</code>.</dd></div>
+        <div><dt><code>memoria</code></dt><dd>Mapa do código e notas ancoradas, no começo de cada sessão.</dd></div>
+        <div><dt>A vir</dt><dd><code>planejamento</code>, <code>orquestracao</code> e <code>seguranca</code>.</dd></div>
       </dl>
     </div>
   </section>
@@ -400,7 +401,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
     <div class="wrap">
       <h2>Modelo anterior (plugin <code>harness</code>)</h2>
       <p class="intro">Antes dos plugins por projeto, o harness era um plugin só, com orquestrador, tickets e quatro revisores sobre a branch inteira. Ele continua instalável e está sendo migrado para os plugins novos.</p>
-      <div class="cmd" style="margin-top:1.5rem"><code id="c7">npx @fullchico/harness install .</code><button type="button" data-copy="c7">Copiar</button></div>
+      <div class="cmd" style="margin-top:1.5rem"><code id="c7">npx @fullchico/harness install . --legado</code><button type="button" data-copy="c7">Copiar</button></div>
       <dl class="facts">
         <div><dt><code>/harness:entregar</code></dt><dd>Conduz a mudança do pedido ao pull request: entrevista, spec, revisão da spec, tickets em paralelo, integração e envio.</dd></div>
         <div><dt>Tickets com dono</dt><dd>Cada ticket declara as pastas que possui. O contrato fecha antes da implementação, e a integração recusa a branch que sair da posse.</dd></div>
