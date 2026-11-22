@@ -128,7 +128,7 @@ class TestAdd(unittest.TestCase):
             path = f"{self.bin}:{os.environ['PATH']}"
         else:  # sem claude: o PATH só tem uma pasta vazia (o node é chamado pelo caminho)
             path = str(self.bin)
-        self.project = _tmpdir()
+        self.project = getattr(self, "project", None) or _tmpdir()
         return subprocess.run([shutil.which("node"), str(ROOT / "bin/harness.js"), "add", *args, "--project", str(self.project)],
                               capture_output=True, text=True, env=dict(os.environ, PATH=path))
 
@@ -148,6 +148,15 @@ class TestAdd(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("claude plugin marketplace add FullChico/fullchico-harness", r.stdout)
         self.assertIn("claude plugin install bugs@fullchico --scope project", r.stdout)
+
+    def test_warns_when_the_project_has_no_sandbox(self):
+        # Sem sandbox o agente consegue gravar no estado dos carimbos: o portão vira sugestão.
+        r = self.run_add("bugs")
+        self.assertIn("sandbox", r.stdout)
+        self.assertIn("forjar", r.stdout)
+        (self.project / ".claude").mkdir(exist_ok=True)
+        (self.project / ".claude/settings.json").write_text('{"sandbox": {"enabled": true}}')
+        self.assertNotIn("forjar", self.run_add("bugs").stdout)
 
     def test_without_plugin_names_it_shows_usage(self):
         r = subprocess.run(["node", str(ROOT / "bin/harness.js"), "add"], capture_output=True, text=True)

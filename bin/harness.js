@@ -51,6 +51,20 @@ if (command === "puro") {
     // o marketplace já registrado não é erro; a instalação que falha é
     if (i > 0 && run.status !== 0) status = run.status === null ? 1 : run.status;
   }
+  // O carimbo fica fora do projeto, onde o sandbox impede o agente de gravar. Sem sandbox, o agente
+  // consegue gravar lá: o portão continua avisando, mas deixa de ser barreira.
+  let sandboxed = false;
+  for (const file of ["settings.json", "settings.local.json"]) {
+    try {
+      const data = JSON.parse(fs.readFileSync(path.join(project, ".claude", file), "utf8"));
+      if (data.sandbox && data.sandbox.enabled === true) sandboxed = true;
+    } catch (e) { /* arquivo ausente ou inválido: segue */ }
+  }
+  if (!sandboxed) {
+    console.log("\nAviso: este projeto não liga o sandbox do Claude Code (`sandbox.enabled` em .claude/settings.json).\n" +
+      "Sem ele, o agente consegue gravar no estado dos carimbos e, em tese, forjar um carimbo: o portão avisa,\n" +
+      "mas deixa de ser barreira. Para ligar: https://code.claude.com/docs/en/sandboxing");
+  }
   process.exit(status);
 } else if (command === "--version"|| command === "-v") {
   console.log(require(path.join(root, "package.json")).version);
