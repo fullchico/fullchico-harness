@@ -97,7 +97,7 @@ class TestServiceGuardIsNarrow(unittest.TestCase):
         for c in ["grep -rn harness.conf plugin/",
                   'git commit -m "docs: document .harness/ layout"',
                   'git commit -m "fix: husky=0 was breaking CI"',
-                  'echo "see .claude/settings.json for hooks" >> notes.txt',
+                  'echo "see .claude/settings.json for hooks" >> notes.md',
                   "cat .harness/MANIFEST", "ls -la .harness", 'find . -name "harness.d"',
                   "docker compose up -d", "pnpm install && pnpm test"]:
             self.assertEqual(self.bash(c), 0, c)

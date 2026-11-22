@@ -66,6 +66,50 @@ def classify(command: str, cwd=None):
     return None
 
 
+# Escrita de código por fora da ferramenta de edição: redirecionamento e os comandos que alteram
+# arquivo no lugar. Não é análise completa de shell: pega as formas usuais, e o push continua
+# exigindo a spec de toda `feat`.
+_HEREDOC = re.compile(r"<<-?\s*['\"]?\w+['\"]?[^\n]*")
+_QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
+_REDIRECT = re.compile(r"(?<![0-9&>])>>?\s*([^\s;&|()<>]+)")
+_SPLIT = re.compile(r"\s*(?:&&|\|\||[;|\n])\s*")
+_CD = re.compile(r"^\s*cd\s+(?:\"([^\"]+)\"|'([^']+)'|(\S+))\s*(?:&&|;)")
+_INPLACE = re.compile(r"^-(?:-in-place|[a-zA-Z]*i[a-zA-Z]*)$")
+
+
+def writes_code(command: str, cwd: str) -> bool:
+    heredoc = _HEREDOC.search(command)
+    head = _QUOTED.sub(" Q ", command[:heredoc.end()] if heredoc else command)
+    where = cwd
+    first = _CD.match(command)  # os agentes costumam abrir com `cd <pasta> &&`, às vezes entre aspas
+    if first:
+        where = os.path.join(cwd, os.path.expanduser(next(g for g in first.groups() if g)))
+    for segment in _SPLIT.split(head):
+        made = [t for t in _REDIRECT.findall(segment) if not t.startswith(("&", "/dev/"))]
+        tokens = _REDIRECT.sub(" ", segment).split()
+        if not tokens:
+            continue
+        if tokens[0] == "cd":
+            continue
+        name, args = os.path.basename(tokens[0]), [t for t in tokens[1:] if not t.startswith("-")]
+        touched = []
+        if name == "git" and len(tokens) > 2 and tokens[1] in ("mv", "rm", "apply"):
+            touched, made = args[1:], made + (args[-1:] if tokens[1] == "mv" else [])
+        elif name in ("sed", "perl") and any(_INPLACE.match(t) for t in tokens[1:]):
+            touched = args
+        elif name in ("rm", "mv"):
+            touched, made = args, made + (args[-1:] if name == "mv" else [])
+        elif name in ("tee", "cp"):
+            made += args if name == "tee" else args[-1:]
+        # Caminho com variável não se resolve aqui: é quase sempre a pasta temporária.
+        made, touched = [t for t in made if "$" not in t], [t for t in touched if "$" not in t]
+        if any(common.is_code(where, t) for t in made):
+            return True
+        if any(os.path.exists(os.path.join(where, os.path.expanduser(t))) and common.is_code(where, t) for t in touched):
+            return True
+    return False
+
+
 DESTROY_FORMS = (".harness/destroy", "./.harness/destroy")
 PAYLOAD = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -157,6 +201,8 @@ def main():
     reason = classify(command, cwd if isinstance(cwd, str) else None)
     if reason:
         common.deny(reason)
+    if isinstance(cwd, str) and writes_code(command, cwd) and not common.direct_open(cwd, payload.get("session_id")):
+        common.deny(common.DENY_CODE)
     if command.strip() in CONF_FORMS and isinstance(cwd, str):
         conf_check(cwd)
     elif command.strip() in DESTROY_FORMS and isinstance(cwd, str):

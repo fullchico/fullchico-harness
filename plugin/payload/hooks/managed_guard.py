@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""PreToolUse (Edit|Write): a região gerenciada do AGENTS.md só muda por atualização do harness.
+"""PreToolUse (Edit|Write): a região gerenciada do AGENTS.md só muda por atualização do harness,
+e o código do aplicativo só muda pelo fluxo (common.is_code).
 
 Os outros arquivos gerenciados são negados por `permissions.deny`. O AGENTS.md é
 meio do projeto, meio do harness, então a edição é aplicada em memória e negada
@@ -65,6 +66,8 @@ def main():
     for protected in common.git_dirs(cwd) + [os.path.realpath(common.state_root())]:
         if target == protected or target.startswith(protected + os.sep):
             common.deny(DENY_GIT)
+    if common.is_code(cwd, file_path) and not common.direct_open(cwd, payload.get("session_id")):
+        common.deny(common.DENY_CODE)
     agents = os.path.realpath(os.path.join(root, "AGENTS.md")) if root else None
     # Num disco que não distingue maiúsculas, `agents.md` é o mesmo arquivo.
     same = bool(agents) and (target == agents or (os.path.exists(target) and os.path.exists(agents)

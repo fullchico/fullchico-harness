@@ -35,7 +35,8 @@ class TestManagedGuard(unittest.TestCase):
         self.assertEqual(self.edit("regra 1", "regra 2", path="./docs/../AGENTS.md"), 2)
 
     def test_other_files_pass(self):
-        self.assertEqual(self.edit("a", "b", path=str(self.repo / "src/x.py")), 0)
+        # código do aplicativo tem regra própria (test_code_rail); aqui, o que não é gerenciado nem código
+        self.assertEqual(self.edit("a", "b", path=str(self.repo / "docs/x.md")), 0)
         self.assertEqual(self.edit("a", "b", path=str(self.repo / "docs/AGENTS.md")), 0)
 
     def test_file_without_region_or_missing_passes(self):

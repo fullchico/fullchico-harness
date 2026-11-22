@@ -272,3 +272,47 @@ if __name__ == "__main__":
         print(out)
         sys.exit(0)
     sys.exit(1)
+
+
+# --- Código do aplicativo só muda pelo fluxo -------------------------------------------------
+# No worktree da feature ninguém escreve código direto: os implementadores escrevem nos
+# worktrees deles. O que não é código (documentos, arquivos do harness, o que o git ignora)
+# segue livre. Só o dono libera a edição direta, por sessão (prompt_context.py).
+FREE_DIRS = ("docs/", ".harness-run/", ".harness/", ".claude/", "harness.d/")
+FREE_FILES = ("harness.conf", ".gitignore", "skills-lock.json", "orca.yaml")
+DENY_CODE = ("Neste worktree o código do aplicativo só muda pelo fluxo: invoque a skill `harness:entregar` com o "
+             "pedido (quem escreve são os implementadores, nos worktrees deles). Edição direta só quando o dono "
+             "liberar nesta sessão com `/harness:direto`. Não contorne por outro comando: diga ao dono o que falta.")
+
+
+def is_code(cwd, path) -> bool:
+    """O caminho é código do aplicativo no worktree de uma feature (e não num worktree de agente)?"""
+    if not isinstance(cwd, str) or not isinstance(path, str) or not path:
+        return False
+    target = os.path.realpath(os.path.join(cwd, os.path.expanduser(path)))
+    if AGENT_MARK in target + os.sep:
+        return False
+    root = repo_root(cwd)
+    base = os.path.realpath(root) if root else None
+    if not base or AGENT_MARK in base + os.sep or not target.startswith(base + os.sep):
+        return False
+    rel = os.path.relpath(target, base)
+    if rel.endswith(".md") or rel in FREE_FILES or (rel + "/").startswith(FREE_DIRS):
+        return False
+    try:
+        ignored = subprocess.run(["git", "-C", base, "check-ignore", "-q", "--", rel], capture_output=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return True
+    return ignored.returncode != 0
+
+
+def direct_path(cwd, session):
+    state = state_dir(cwd)
+    if not state or not isinstance(session, str) or not session:
+        return None
+    return os.path.join(state, "direct", re.sub(r"[^\w-]", "_", session))
+
+
+def direct_open(cwd, session) -> bool:
+    path = direct_path(cwd, session)
+    return bool(path) and os.path.exists(path)
