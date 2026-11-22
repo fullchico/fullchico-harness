@@ -172,7 +172,7 @@ def main(argv):
         elif argv[i] in ("--analisar", "--gravar", "--padrao"):
             flags.add(argv[i])
         else:
-            print("uso: fullchico-harness portoes [--analisar] [--gravar] [--padrao] [--definir <portão> "<comando>"] [--projeto <pasta>]", file=sys.stderr)
+            print('uso: fullchico-harness portoes [--analisar] [--gravar] [--padrao] [--definir <portão> "<comando>"] [--projeto <pasta>]', file=sys.stderr)
             return 2
         i += 1
     project = os.path.abspath(project)
