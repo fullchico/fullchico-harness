@@ -43,6 +43,9 @@ class TestInstall(unittest.TestCase):
         # ponytail (código mínimo e reutilizável) vem junto, do marketplace dele
         self.assertIn("plugin marketplace add DietrichGebert/ponytail", self.calls())
         self.assertIn("plugin install ponytail@ponytail --scope project", self.calls())
+        # mattpocock-skills (processo: grilling, tdd, revisão) vem junto, do marketplace oficial
+        self.assertIn("plugin marketplace add anthropics/claude-plugins-official", self.calls())
+        self.assertIn("plugin install mattpocock-skills@claude-plugins-official --scope project", self.calls())
         # rtk não é plugin: é um programa da máquina; entra como hook do projeto, que só roda se ele existir
         settings = json.loads((self.repo / ".claude/settings.json").read_text())
         hooks = [h["command"] for g in settings["hooks"]["PreToolUse"] for h in g["hooks"]]

@@ -1,6 +1,6 @@
 {
   "name": "harness",
-  "version": "0.7.3",
+  "version": "1.0.0",
   "description": "Orquestração, guardrails e memória para projetos desenvolvidos com agentes.",
   "license": "MIT",
   "author": {

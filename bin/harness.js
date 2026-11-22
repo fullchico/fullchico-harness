@@ -50,18 +50,20 @@ if (command === "puro") {
     process.exit(2);
   }
   // A lib cuida do caminho e da aprendizagem; começo e fim são das ferramentas do projeto, ligadas pelos
-  // portões. O ponytail (código mínimo e reutilizável) vem junto, do marketplace dele.
-  const status = addPlugins(["trilho", "memoria"], project, [["ponytail", "DietrichGebert/ponytail", "ponytail"]]);
+  // portões. O ponytail (código mínimo) e o mattpocock-skills (processo: grilling, tdd, revisão) vêm junto.
+  const status = addPlugins(["trilho", "memoria"], project, [
+    ["ponytail", "DietrichGebert/ponytail", "ponytail"],
+    ["claude-plugins-official", "anthropics/claude-plugins-official", "mattpocock-skills"],
+  ]);
   addRtkHook(project);
   const mode = rest.includes("--padrao") ? "--padrao" : "--analisar";
   console.log(`\n$ fullchico-harness portoes ${mode} --gravar`);
   const gates = spawnSync("python3", ["-I", path.join(root, "plugins/trilho/scripts/portoes.py"), mode, "--gravar",
     "--projeto", project], { stdio: "inherit" });
   console.log("\nPróximos passos:\n" +
-    "  1. Confira os portões em .claude/trilho.json (só você os altera: `fullchico-harness portoes`).\n" +
-    "  2. Para rodar o projeto só com o que ele declara: `fullchico-harness puro`, e abra com `cc`.\n" +
-    "  3. Abra uma sessão nova no projeto e rode `portao` para ver o que cada etapa pede.\n" +
-    "O modelo anterior (plugin único `harness`) continua em `fullchico-harness install --legado`.");
+    "  1. Ligue o modo puro: `fullchico-harness puro`, e abra o projeto com `cc` (claude clean).\n" +
+    "  2. Na sessão, peça `/trilho:configurar` para a entrevista preencher `.claude/trilho.json`.\n" +
+    "  3. Confira com `portao` o que cada etapa pede.");
   process.exit(status || (gates.status === null ? 1 : gates.status));
 } else if (command === "install" || command === "update") {
   const env = { ...process.env };

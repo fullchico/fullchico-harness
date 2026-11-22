@@ -51,8 +51,8 @@ O portão de começo, assinado por um artefato (OpenSpec, `docs/specs/*/spec.md`
 lib não entrevista produto nem força uma stack de processo: ela liga a etapa à ferramenta que o
 projeto já usa.
 
-*Status: o portão existe no `trilho`; a skill `trilho:configurar` entrevista a configuração usando
-a `grilling` de `mattpocock-skills` como dependência mole (em construção).*
+*Status: disponível. O portão vem no `trilho`; a skill `trilho:configurar` entrevista o dono
+(usando a `grilling` do `mattpocock-skills` quando ligado) e escreve o registro.*
 
 ### 3. Paralelismo com grafo
 
@@ -130,8 +130,7 @@ cc                                          # abre a sessão no modo do projeto
 
 `cc` (de "claude clean") passa a ser o lançador. O `install` traz `trilho`, `memoria`, `ponytail`
 (código mínimo) e `mattpocock-skills` (processo e revisão: `grilling`, `domain-modeling`, `tdd`,
-`clean-code-guard`...), e liga o hook do `rtk`. *O `mattpocock-skills` no `install` está em
-construção, previsto para uma versão seguinte.* O `install` analisa o que o projeto já usa (specs,
+`clean-code-guard`...), e liga o hook do `rtk`. O `install` analisa o que o projeto já usa (specs,
 OpenSpec, scripts do `package.json`) e grava os portões em `.claude/trilho.json`. Para ver a
 proposta sem gravar, ou mudá-la depois: `npx @fullchico/harness portoes --analisar` e
 `portoes --gravar`; `portoes --padrao` grava o registro padrão da lib.
