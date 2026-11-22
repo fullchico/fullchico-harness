@@ -1,2 +1,0 @@
-description = "Mostra o estado dos portões e o que falta carimbar (atalho para a skill trilho:portoes)"
-prompt = "Invoque a skill `trilho:portoes` e siga o passo a passo. Comece rodando `portao` sozinho numa chamada para listar cada portão com ok/falta e o que cumprir."

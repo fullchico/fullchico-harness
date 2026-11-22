@@ -1,4 +1,4 @@
-"""Plugin `trilho`: o registro de portões (`.claude/trilho.json`, chave `portoes`).
+"""Plugin `tr`: o registro de portões (`.claude/trilho.json`, chave `portoes`).
 
 O harness força a ETAPA do fluxo, não a ferramenta. O `portao` verifica, o hook assina o carimbo
 (fora do repositório) e o `gate.py` barra a escrita de código sem a etapa de início e o envio sem as de fim.
@@ -12,7 +12,7 @@ from unittest import mock
 
 from tests.helpers import ROOT, _tmpdir, commit_all, commit_file, git, make_repo
 
-PLUGIN = ROOT / "plugins/trilho"
+PLUGIN = ROOT / "plugins/tr"
 sys.path.insert(0, str(PLUGIN / "scripts"))
 import ledger  # noqa: E402
 import registry  # noqa: E402

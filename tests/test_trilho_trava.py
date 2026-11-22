@@ -1,4 +1,4 @@
-"""Só o plugin trilho escreve em `.claude/trilho.json`. O agente é negado nas três camadas:
+"""Só o plugin tr escreve em `.claude/trilho.json`. O agente é negado nas três camadas:
 pela ferramenta de edição, pelo terminal, e pelo sandbox (denyWrite)."""
 import json
 import os
@@ -8,7 +8,7 @@ import unittest
 
 from tests.helpers import ROOT, _tmpdir, commit_all, make_repo, run_hook
 
-PLUGIN = ROOT / "plugins/trilho"
+PLUGIN = ROOT / "plugins/tr"
 GATE = PLUGIN / "scripts/gate.py"
 STAMP = PLUGIN / "scripts/sign.py"
 

@@ -71,7 +71,7 @@ def main():
     ti = payload.get("tool_input") or {}
     root = registry.toplevel(payload.get("cwd") or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
     # O arquivo de portões é protegido sempre, mesmo sem registro ainda: o agente não cria um
-    # registro fraco por conta própria. Só o plugin trilho (os scripts do dono) escreve ali.
+    # registro fraco por conta própria. Só o plugin tr (os scripts do dono) escreve ali.
     if tool in EDICAO:
         path = ti.get("file_path") or ti.get("notebook_path")
         targets_pre = [path] if isinstance(path, str) else []
@@ -83,7 +83,7 @@ def main():
         if registry.relative(root, t) == ".claude/trilho.json":
             return deny(root, f"registro: {t}",
                         "Barrado pelo trilho: `.claude/trilho.json` só o dono altera, por "
-                        "`fullchico-harness portoes` (o plugin trilho escreve ali; o agente não).")
+                        "`fullchico-harness portoes` (o plugin tr escreve ali; o agente não).")
 
     try:
         reg = registry.load(root)
