@@ -138,8 +138,29 @@ Arquitetura do `AGENTS.md`.
 - **Playwright nunca usa servidor de desenvolvimento** nem `reuseExistingServer`; endereço e
   portas vêm do `.env`. O teste prepara dado pela API, não pelo banco. `data-testid` só
   quando papel e texto não alcançam.
-- **Auditoria ao vivo (Lighthouse, axe, Search Console) não roda no sandbox.** As skills `seo`
-  e `accessibility` valem como lista de conferência sobre o código.
+- **Acessibilidade é portão de máquina, no nível WCAG 2.2 AA.** O que a máquina confere não
+  fica para o revisor:
+  - **Contraste dos tokens:** o `harness.conf` aponta o arquivo dos tokens em `TOKENS_CSS`
+    (o `globals.css`), e todo `.harness/validate` reprova texto abaixo de 4,5:1 e anel de foco
+    abaixo de 3:1, no claro e no escuro. O tema padrão do shadcn reprova: ajuste-o no ticket
+    de contrato.
+  - **Tela:** a suíte de ponta a ponta usa `@axe-core/playwright` (roda no contêiner do
+    navegador, sem rede), numa fixture `a11y()` com as etiquetas `wcag2a`, `wcag2aa`,
+    `wcag21a`, `wcag21aa` e `wcag22aa`, mais as regras `aria-dialog-name`, `heading-order` e
+    `landmark-one-main`. Cada teste chama `a11y()` depois de cada estado que a tela tem:
+    carregada, diálogo aberto, formulário enviado inválido. Violação reprova o teste. Exceção
+    é `disableRules` com o motivo escrito, nunca lista inteira aceita.
+  - **Código:** o ESLint soma as regras de `eslint-plugin-jsx-a11y` em modo `strict` sobre o
+    `eslint-config-next` (espalhe só `flatConfigs.strict.rules`: registrar o plugin de novo
+    quebra), com `Button`, `Input` e `Label` mapeados em `settings`, e nega campo com
+    `aria-invalid` sem `aria-describedby`.
+  - **Teclado:** cada tela com formulário e cada diálogo tem teste de que o erro fica ligado ao
+    campo (`toHaveAccessibleDescription`), o foco aparece, o diálogo fecha com Esc e devolve
+    o foco, e não há rolagem lateral em 320 px.
+  - **Formulário usa o `Form`/`FormControl` do shadcn,** que liga a mensagem de erro ao campo
+    sozinho. O `Field`/`FieldError` não liga: com ele, o `id` e o `aria-describedby` são seus.
+- **Lighthouse e Search Console não rodam no sandbox.** A skill `seo` vale como lista de
+  conferência sobre o código.
 - **Fatia-se por comportamento, na vertical,** nunca por camada. Sem sub-branch nem commit
   direto na principal. O contrato fica no pacote comum, não em `src/types`.
 - **Todo revisor fecha com o bloco `VEREDITO`,** não com o formato de achado da skill.

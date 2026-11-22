@@ -6,7 +6,8 @@ disable-model-invocation: true
 
 # Aprender com a entrega
 
-Rode depois de o pull request ter sido mesclado. São quatro coisas, nesta ordem.
+Rode depois de o pull request ter sido mesclado. São quatro coisas, nesta ordem. Espere os
+subagentes de cada passo terminarem antes de seguir para o próximo.
 
 ## 1. Atualizar
 
@@ -14,7 +15,33 @@ Rode `.harness/fetch` e traga a branch padrão do remoto para onde você está, 
 `git merge origin/<branch padrão>`. Depois use a skill `mapear`: ela refaz só o que a
 entrega mudou no mapa, e relata termos do glossário e decisões de arquitetura a rever.
 
-## 2. Medir
+## 2. Retrospectiva
+
+O assunto é o ambiente em que o agente trabalhou, não o agente. Leia o resumo das sessões da
+entrega (`.harness/learn sessions`, depois `.harness/learn digest <id> .harness-run/dream/<id>.md`)
+e procure:
+
+- **Onde se perdeu tempo para achar algo.** Um ponteiro no mapa ou no `AGENTS.md` teria evitado?
+- **Que erro uma checagem automática pegaria.** O que dá para checar por máquina vira
+  proposta de checagem (lint, teste, validação), não de texto.
+- **Que regra faltou,** e fez um revisor reprovar algo que o implementador não tinha como saber.
+- **Que instrução não mudou nada,** e só ocupa espaço.
+- **Que comando foi negado** pelo sandbox ou por um guard, e se a negação estava certa.
+- **Onde a spec ou os tickets falharam,** e um implementador teve de parar por lacuna.
+
+Escreva cada proposta num arquivo em `.harness-run/`, com o que aconteceu, a evidência e a
+mudança sugerida, e guarde com `.harness/learn propose <assunto> <arquivo>`. O comando grava
+no repositório, fora do worktree: a proposta continua lá depois que o worktree da feature for
+removido. `.harness/learn proposals` lista as guardadas. Diga se a mudança é do projeto (o `harness.conf`,
+a parte do projeto no `AGENTS.md`, uma checagem do próprio projeto) ou do harness.
+
+O que é do harness não se altera aqui. O dono leva a proposta ao repositório do harness,
+decide, publica uma versão, e todos os projetos recebem pela atualização.
+
+## 3. Medir
+
+Meça depois do mapa e da retrospectiva, com os subagentes deles já terminados: medir antes
+deixa de fora o custo do próprio ciclo.
 
 ```bash
 .harness/learn usage
@@ -29,27 +56,6 @@ que os outros comandos do `learn` aceitam. Leve ao relato:
   um implementador que consumiu várias vezes mais que os outros.
 
 Não tire conclusão de um número só. Uma entrega é uma amostra.
-
-## 3. Retrospectiva
-
-O assunto é o ambiente em que o agente trabalhou, não o agente. Leia o resumo das sessões da
-entrega (`.harness/learn sessions`, depois `.harness/learn digest <id> .harness-run/dream/<id>.md`)
-e procure:
-
-- **Onde se perdeu tempo para achar algo.** Um ponteiro no mapa ou no `AGENTS.md` teria evitado?
-- **Que erro uma checagem automática pegaria.** O que dá para checar por máquina vira
-  proposta de checagem (lint, teste, validação), não de texto.
-- **Que regra faltou,** e fez um revisor reprovar algo que o implementador não tinha como saber.
-- **Que instrução não mudou nada,** e só ocupa espaço.
-- **Que comando foi negado** pelo sandbox ou por um guard, e se a negação estava certa.
-- **Onde a spec ou os tickets falharam,** e um implementador teve de parar por lacuna.
-
-Grave as propostas em `.harness-run/propostas/<data>-<assunto>.md`, cada uma com o que
-aconteceu, a evidência, e a mudança sugerida. Diga se a mudança é do projeto (o `harness.conf`,
-a parte do projeto no `AGENTS.md`, uma checagem do próprio projeto) ou do harness.
-
-O que é do harness não se altera aqui. O dono leva a proposta ao repositório do harness,
-decide, publica uma versão, e todos os projetos recebem pela atualização.
 
 ## 4. Consolidar
 

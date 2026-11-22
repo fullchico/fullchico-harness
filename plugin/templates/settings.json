@@ -31,9 +31,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/service_guard.py\"",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.harness/hooks/service_guard.py\" ] || exit 0; python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/service_guard.py\"",
             "timeout": 30,
-            "statusMessage": "Conferindo guard de comandos..."
+            "statusMessage": "Conferindo guard de comandos...",
+            "onFailure": "block"
           },
           {
             "type": "command",
@@ -46,9 +47,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/dispatch_guard.py\"",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.harness/hooks/dispatch_guard.py\" ] || exit 0; python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/dispatch_guard.py\"",
             "timeout": 30,
-            "statusMessage": "Conferindo pedido ao revisor..."
+            "statusMessage": "Conferindo pedido ao revisor...",
+            "onFailure": "block"
           }
         ]
       },
@@ -57,9 +59,20 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/managed_guard.py\"",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.harness/hooks/managed_guard.py\" ] || exit 0; python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/managed_guard.py\"",
             "timeout": 30,
-            "statusMessage": "Conferindo arquivos gerenciados..."
+            "statusMessage": "Conferindo arquivos gerenciados...",
+            "onFailure": "block"
+          }
+        ]
+      },
+      {
+        "matcher": "SubagentHandback",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.harness/hooks/gate_stamp.py\" ] || exit 0; python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/gate_stamp.py\"",
+            "timeout": 30
           }
         ]
       }
@@ -70,12 +83,22 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/gate_stamp.py\"",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.harness/hooks/gate_stamp.py\" ] || exit 0; python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/gate_stamp.py\"",
             "timeout": 30
           },
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR/.harness/ports-free\"",
+            "timeout": 30
+          }
+        ]
+      },
+      {
+        "matcher": "^harness:extrator$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.harness/hooks/gate_stamp.py\" ] || exit 0; python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/gate_stamp.py\"",
             "timeout": 30
           }
         ]
@@ -86,7 +109,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/subagent_context.py\"",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.harness/hooks/subagent_context.py\" ] || exit 0; python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/subagent_context.py\"",
             "timeout": 15
           }
         ]
@@ -97,7 +120,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/prompt_context.py\"",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.harness/hooks/prompt_context.py\" ] || exit 0; python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/prompt_context.py\"",
             "timeout": 10
           }
         ]
@@ -108,7 +131,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/session_context.py\"",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.harness/hooks/session_context.py\" ] || exit 0; python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/session_context.py\"",
             "timeout": 20
           }
         ]

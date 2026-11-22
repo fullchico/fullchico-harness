@@ -24,6 +24,7 @@ REQUIRED = {
     "harness:qualidade": ("commit",),
     "harness:revisor-bugs": ("diff", "commit"),
     "harness:revisor-ambiente": ("spec", "ticket", "diff", "commit"),
+    "harness:extrator": ("resumo",),
 }
 # O que cada um pode receber. O implementador recebe a spec e o ticket, e numa rodada
 # de correção o arquivo com o achado; quem revisa recebe o que vai ler, e mais nada.
@@ -42,8 +43,10 @@ ALLOWED = {
     "harness:revisor-bugs": ("diff", "commit", "spec", "ticket", "leitura", "achado"),
     # Só no ticket de contrato: confere que o que ele monta funciona fora da máquina de quem escreveu.
     "harness:revisor-ambiente": ("diff", "commit", "spec", "ticket", "leitura", "achado"),
+    # Quem propõe as notas lê só o resumo da sessão: nada do que o condutor acha que vale lembrar.
+    "harness:extrator": ("resumo",),
 }
-_LINE = re.compile(r"^(spec|ticket|diff|commit|leitura|achado): (\S.*)$")
+_LINE = re.compile(r"^(spec|ticket|diff|commit|leitura|achado|resumo): (\S.*)$")
 _SHA = re.compile(r"^[0-9a-f]{40}$")
 # Revisões do git: nomes, caminhos de ref, ~N, ^, @{N}. Nada de espaço, opção ou shell.
 _REV = r"[\w./~^@{}-]+"
@@ -93,6 +96,9 @@ def check(agent: str, prompt, root):
     for key in ("spec", "ticket", "achado"):
         if key in seen and not _inside(root, seen[key]):
             return f"{FORMAT} `{key}` precisa ser um caminho relativo existente no repositório."
+    if "resumo" in seen and not (re.match(r"^\.harness-run/dream/[\w.-]+\.md$", seen["resumo"]) and _inside(root, seen["resumo"])):
+        return (f"{FORMAT} `resumo` é o arquivo que `.harness/learn digest` gravou em `.harness-run/dream/`, "
+                "e mais nada: o extrator não recebe dica do que propor.")
     if agent == "harness:implementador":
         # Ele trabalha num worktree próprio, que só tem o que está em commit.
         for key in ("spec", "ticket", "achado"):
@@ -182,7 +188,8 @@ def foreground(caller, tool_input):
     # Só o pedido explícito de segundo plano é recusado. Sem o parâmetro, vale o que a ferramenta
     # faz: há versões do Claude Code em que a de um subagente nem o tem e despacha em segundo
     # plano por conta própria, avisando quem despachou. O roteiro manda esperar esse aviso.
-    if caller == "harness:orquestrador" and tool_input.get("run_in_background") is True:
+    wanted = tool_input.get("run_in_background")
+    if caller == "harness:orquestrador" and wanted not in (None, False) and str(wanted).strip().lower() != "false":
         return ("O orquestrador despacha em primeiro plano: não passe `run_in_background: true`. Dispare os "
                 "tickets da rodada na mesma mensagem, que eles rodam juntos, e espere todos voltarem.")
     return None
@@ -200,8 +207,14 @@ def ready_for_execution(prompt, root):
             if "harness.conf" not in f.read():
                 return ("Este projeto ainda não tem `harness.conf` preenchido, e a spec não diz o conteúdo dele. "
                         "Acrescente à spec uma seção `harness.conf` com as chaves (PROJECT, SERVICES, COMPOSE_FILE, "
-                        "INSTALL_CMD, AFTER_UP, DEV_CMD, VALIDATE_PUSH, VALIDATE_MERGE, VALIDATE_ARCH, CONTRACT_PATHS, MODULE_ROOTS, "
+                        "INSTALL_CMD, AFTER_UP, DEV_CMD, VALIDATE_PUSH, VALIDATE_MERGE, VALIDATE_ARCH, CONTRACT_PATHS, MODULE_ROOTS, TOKENS_CSS, "
                         "ENV_*) e faça o commit.")
+    # Projeto que declara os tokens do front tem tela: a execução espera o design escolhido pelo dono.
+    if common.read_conf(os.path.join(root, "harness.conf")).get("TOKENS_CSS") and not _committed(root, "DESIGN.md"):
+        return ("Este projeto tem telas (`TOKENS_CSS` no harness.conf) e ainda não tem `DESIGN.md` em commit. "
+                "O dono escolhe o design antes da execução: gere as direções, monte a vitrine com "
+                "`.harness/design gallery <pasta>`, espere a escolha dele, grave com `.harness/design choose "
+                "<pasta> <direção>` e faça o commit.")
     return None
 
 
@@ -216,6 +229,7 @@ def main():
         return
     tool_input = payload.get("tool_input") or {}
     cwd = payload.get("cwd")
+    common.watch("dispatch_guard", cwd)
     root = common.repo_root(cwd) if isinstance(cwd, str) else None
     agent = tool_input.get("subagent_type")
     reason = (chain(agent, payload.get("agent_type"))

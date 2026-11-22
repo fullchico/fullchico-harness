@@ -57,6 +57,9 @@ class TestNotes(unittest.TestCase):
     def test_forget_and_cli(self):
         run = lambda *a: subprocess.run([SCRIPT, *a], cwd=self.repo, capture_output=True, text=True)
         (self.repo / "n.md").write_text("Cancelamento libera o horário na hora.\n")
+        # nota nova nasce de um candidato do extrator (tests/test_dream_rails.py)
+        run_hook("gate_stamp.py", {"hook_event_name": "SubagentStop", "agent_type": "harness:extrator",
+                                   "cwd": str(self.repo), "last_assistant_message": "NOTA: cancelamento\nx\nCAMINHOS: a"})
         self.assertEqual(run("note", "add", "cancelamento", "n.md", "apps/api/booking.py").returncode, 0)
         (self.repo / "n.md").unlink()
         self.assertIn("Cancelamento libera", run("note", "show", "cancelamento").stdout)

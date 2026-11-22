@@ -56,7 +56,16 @@ def main():
         return
     if common.direct_open(cwd, session) or prompt.lstrip().startswith("/"):
         return
-    print(ENTER if _BUILD.search(prompt) and not _QUESTION.match(prompt) else REMIND)
+    # A ordem vem uma vez por sessão: depois dela vêm as respostas da entrevista ("quero azul"), e
+    # mandar entrar no fluxo de novo a cada uma faria o agente recomeçar.
+    entered = common.direct_path(cwd, session)
+    entered = entered.replace(os.sep + "direct" + os.sep, os.sep + "entered" + os.sep) if entered else None
+    if _BUILD.search(prompt) and not _QUESTION.match(prompt) and entered and not os.path.exists(entered):
+        os.makedirs(os.path.dirname(entered), exist_ok=True)
+        open(entered, "w").close()
+        print(ENTER)
+    else:
+        print(REMIND)
 
 
 if __name__ == "__main__":

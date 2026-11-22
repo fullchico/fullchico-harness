@@ -47,8 +47,11 @@ def _state(root) -> dict:
     except (OSError, ValueError):
         data = {}
     data = data if isinstance(data, dict) else {}
-    return {key: [v for v in data.get(key, []) if isinstance(v, str)] if isinstance(data.get(key), list) else []
-            for key in ("processed", "worktrees")}
+    state = {key: [v for v in data.get(key, []) if isinstance(v, str)] if isinstance(data.get(key), list) else []
+             for key in ("processed", "worktrees")}
+    sizes = data.get("sizes") if isinstance(data.get("sizes"), dict) else {}
+    state["sizes"] = {k: v for k, v in sizes.items() if isinstance(k, str) and isinstance(v, int)}
+    return state
 
 
 def _save(root, state) -> None:
@@ -92,21 +95,60 @@ def _processed(root) -> list:
     return _state(root)["processed"]
 
 
-def mark(root, ids) -> None:
+# Uma sessão marcada enquanto ainda estava em curso (a do próprio aprender) continua crescendo.
+# Passou disto depois da marca, volta à lista: senão o que veio depois nunca seria lido.
+GREW = 64 * 1024
+
+
+def mark(root, ids, home=None) -> None:
     state = _state(root)
-    _save(root, {**state, "processed": sorted(set(state["processed"]) | set(ids))})
+    sizes = dict(state["sizes"])
+    for session in sessions(root, home):
+        if session["id"] in ids:
+            sizes[session["id"]] = os.path.getsize(session["path"])
+    _save(root, {**state, "processed": sorted(set(state["processed"]) | set(ids)), "sizes": sizes})
 
 
 def sessions(root, home=None) -> list:
-    done = set(_processed(root))
+    state = _state(root)
+    done, sizes = set(state["processed"]), state["sizes"]
     found = []
     for folder in project_dirs(root, home):
         for name in os.listdir(folder):
             if name.endswith(".jsonl"):
-                path = os.path.join(folder, name)
-                found.append({"id": name[:-6], "path": path, "mtime": os.path.getmtime(path),
-                              "processed": name[:-6] in done})
+                path, sid = os.path.join(folder, name), name[:-6]
+                grew = sid in sizes and os.path.getsize(path) > sizes[sid] + GREW
+                found.append({"id": sid, "path": path, "mtime": os.path.getmtime(path),
+                              "processed": sid in done and not grew})
     return sorted(found, key=lambda s: s["mtime"])
+
+
+def _proposals_dir(root):
+    folder = common.memory_dir(root)
+    if not folder:
+        raise ValueError("fora de um repositório git")
+    return os.path.join(folder, "propostas")
+
+
+def propose(root, subject, source) -> str:
+    """Guarda uma proposta da retrospectiva no diretório git comum: sobrevive ao worktree da feature."""
+    if not re.match(r"^[a-z0-9][a-z0-9-]{0,80}$", subject or ""):
+        raise ValueError("o assunto usa só minúsculas, dígitos e hífen")
+    with open(source, encoding="utf-8") as f:
+        text = f.read()
+    if not text.strip():
+        raise ValueError("a proposta está vazia")
+    folder = _proposals_dir(root)
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.join(folder, f"{datetime.date.today().isoformat()}-{subject}.md")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+    return path
+
+
+def proposals(root) -> list:
+    folder = _proposals_dir(root)
+    return sorted(os.path.join(folder, n) for n in os.listdir(folder) if n.endswith(".md")) if os.path.isdir(folder) else []
 
 
 def _entries(path):
@@ -236,7 +278,8 @@ def _print_usage(root, ids) -> None:
 
 
 def main(argv) -> int:
-    usage_text = "uso: learn <sessions [--all]|digest <id> <arquivo>|usage [<id>...]|mark <id>...|remember>\n"
+    usage_text = ("uso: learn <sessions [--all]|digest <id> <arquivo>|usage [<id>...]|mark <id>...|"
+                  "propose <assunto> <arquivo>|proposals|remember>\n")
     if len(argv) < 2:
         sys.stderr.write(usage_text)
         return 2
@@ -261,6 +304,10 @@ def main(argv) -> int:
             print(args[1])
         elif command == "usage":
             _print_usage(root, args)
+        elif command == "propose" and len(args) == 2:
+            print(propose(root, args[0], args[1]))
+        elif command == "proposals":
+            print("\n".join(proposals(root)))
         elif command == "mark" and args:
             found, ids = sessions(root), []
             for wanted in args:  # id que não está nesta máquina é marcado como veio

@@ -58,6 +58,7 @@ def main():
         return
     tool_input = payload.get("tool_input") or {}
     cwd = payload.get("cwd")
+    common.watch("managed_guard", cwd)
     file_path = tool_input.get("file_path")
     if not isinstance(file_path, str) or not isinstance(cwd, str):
         common.deny("managed-guard: caminho ausente na entrada do hook; edição negada.")

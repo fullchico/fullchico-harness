@@ -22,7 +22,7 @@ class TestLearningSkills(unittest.TestCase):
                         ".harness/memory note add", ".harness/memory check", ".harness-run/dream/", "haiku"):
             self.assertIn(command, dream, command)
         aprender = APRENDER.read_text()
-        for command in (".harness/fetch", ".harness/learn usage", "`mapear`", "`dream`", ".harness-run/propostas/"):
+        for command in (".harness/fetch", ".harness/learn usage", "`mapear`", "`dream`", ".harness/learn propose"):
             self.assertIn(command, aprender, command)
 
     def test_skills_never_teach_a_denied_command_or_write_to_claude_home(self):

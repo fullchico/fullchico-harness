@@ -508,6 +508,7 @@ O que é só do projeto (hooks, permissões, servidores MCP, sites liberados) va
 | `.harness/dev` | o aplicativo (`DEV_CMD`); `--background` deixa rodando | você ou o orquestrador |
 | `.harness/down` | para o aplicativo e os contêineres, mantém os dados | você ou o orquestrador |
 | `.harness/destroy` | remove o ambiente da feature e apaga os dados | você, ou o agente com a sua permissão |
+| `.harness/design gallery <pasta>` e `choose <pasta> <direção>` | monta a vitrine das direções de design, com o selo de leitura, e grava a escolhida em `DESIGN.md` | o agente da entrevista; quem escolhe é você |
 | `.harness/logs [serviço]` | mostra o estado e o fim do log do ambiente | qualquer agente; só lê |
 | `.harness/ports-free` | encerra processo esquecido numa porta da feature | o orquestrador; roda sozinho quando um revisor termina |
 | `.harness/setup-worktree` | prepara um worktree: `.env` e dependências | o Orca ao abrir o worktree, você, ou cada implementador |
@@ -612,7 +613,7 @@ sandbox, e o caminho é `.harness/up`, que confere o compose antes de subir.
 - **Depois do merge.** `/harness:aprender` atualiza o mapa, mostra os tokens de cada papel
   (`.harness/learn usage`), faz a retrospectiva da entrega e, com `/harness:dream`, grava
   notas ancoradas no código. Uma nota só entra se o código de hoje a confirma. As propostas
-  de melhoria ficam em `.harness-run/propostas/`.
+  de melhoria ficam guardadas no repositório, fora do worktree (`.harness/learn proposals` lista).
 
 ## Projeto sem remoto
 

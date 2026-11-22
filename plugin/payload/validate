@@ -57,26 +57,19 @@ python3 -I "$HERE/arch_check.py" "$ROOT" || { echo "validate: um módulo importa
 
 # Fronteiras da arquitetura, pela ferramenta que o projeto escolheu (direção das dependências,
 # entrada pública dos módulos). Roda nos dois perfis: arquitetura não espera o merge.
-ARCH="$(python3 -I - "$HERE/hooks" "$ROOT/harness.conf" VALIDATE_ARCH <<'PY'
-import sys
-sys.dont_write_bytecode = True
-sys.path.insert(0, sys.argv[1])
-import common
-print(common.read_conf(sys.argv[2]).get(sys.argv[3], ""))
-PY
-)"
+ARCH="$(conf_get VALIDATE_ARCH)"
 if [ -n "$ARCH" ]; then
   (cd "$ROOT" && bash -c "$ARCH") || { echo "validate: a checagem de arquitetura falhou ($ARCH)." >&2; exit 1; }
 fi
 
-CMD="$(python3 -I - "$HERE/hooks" "$ROOT/harness.conf" "$KEY" <<'PY'
-import sys
-sys.dont_write_bytecode = True
-sys.path.insert(0, sys.argv[1])
-import common
-print(common.read_conf(sys.argv[2]).get(sys.argv[3], ""))
-PY
-)"
+# Contraste dos tokens de cor, quando o projeto diz onde eles estão (TOKENS_CSS): texto que não
+# se lê não espera a tela ficar pronta para reprovar.
+TOKENS="$(conf_get TOKENS_CSS)"
+if [ -n "$TOKENS" ]; then
+  python3 -I "$HERE/contrast_check.py" "$ROOT/$TOKENS" || { echo "validate: o contraste dos tokens reprova ($TOKENS)." >&2; exit 1; }
+fi
+
+CMD="$(conf_get "$KEY")"
 # A última linha diz o resultado com todas as letras: quem lê a saída não tem de adivinhar
 # pelo silêncio se a checagem passou.
 if [ -n "$CMD" ]; then
