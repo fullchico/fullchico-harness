@@ -12,6 +12,7 @@ const [command, ...rest] = process.argv.slice(2);
 const usage = "uso: fullchico-harness install [pasta do projeto] [--profile fullstack-typescript|livre|existente] [--force]\n" +
   "     fullchico-harness update [pasta do projeto] [--force]\n" +
   "     fullchico-harness puro [pasta do projeto]\n" +
+  "     fullchico-harness portoes [--analisar] [--gravar] [--padrao] [--projeto <pasta>]\n" +
   "     fullchico-harness add <plugin> [<plugin>...] [--project <pasta>]   (trilho, bugs, qualidade)\n" +
   "     fullchico-harness --version";
 
@@ -19,6 +20,10 @@ if (command === "puro") {
   // Marca o projeto como puro e traz do global só a ferramenta pessoal (Orca, rtk), para o escopo local.
   const project = rest.find((arg) => !arg.startsWith("-")) || ".";
   const run = spawnSync("python3", ["-I", path.join(root, "plugins/trilho/scripts/make_pure.py"), project], { stdio: "inherit" });
+  process.exit(run.status === null ? 1 : run.status);
+} else if (command === "portoes") {
+  // Propõe (--analisar, o padrão) ou grava (--gravar) o registro de portões do projeto em .claude/trilho.json.
+  const run = spawnSync("python3", ["-I", path.join(root, "plugins/trilho/scripts/portoes.py"), ...rest], { stdio: "inherit" });
   process.exit(run.status === null ? 1 : run.status);
 } else if (command === "add") {
   // Instala plugins do marketplace do FullChico no escopo do projeto, pelo `claude`.

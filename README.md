@@ -450,12 +450,47 @@ carimbo dele não existir. Nenhum depende do outro.
 
 | Plugin | O que faz |
 |---|---|
-| `trilho` | modo puro: o projeto roda só com as próprias configurações; base do passaporte de carimbos |
+| `trilho` | modo puro; e o registro de portões (abaixo), que barra a escrita de código sem a etapa de início e o envio sem as de fim |
 | `bugs` | o agente `bugs:cacador` caça defeito no diff; aprovado, o commit é carimbado |
 | `qualidade` | `qualidade-check` roda o comando de `.claude/trilho.json`; passou com a árvore limpa, o commit é carimbado |
 
 ```bash
 npx @fullchico/harness add bugs qualidade
+```
+
+#### Registro de portões
+
+O harness força a **etapa** do fluxo, não a ferramenta. Cada projeto registra os portões em
+`.claude/trilho.json`, chave `portoes`. Um portão tem um `momento` (`inicio`: antes de escrever
+código; `fim`: antes de enviar) e um modo de assinar:
+
+```json
+{
+  "codigo": ["apps", "packages"],
+  "portoes": {
+    "processo":  { "momento": "inicio", "assina": "artefato", "artefato": "docs/specs/*/spec.md", "valida": "python3 tools/check-spec.py", "descricao": "spec da mudança, saída da entrevista (grill-me)" },
+    "qualidade": { "momento": "fim", "assina": "comando", "comando": "pnpm lint && pnpm test" },
+    "bugs":      { "momento": "fim", "assina": "agente", "agente": "bugs:cacador" }
+  }
+}
+```
+
+- `assina: comando`: `portao <nome>` roda o comando; passou, com a árvore limpa, o hook carimba o commit.
+- `assina: artefato`: `portao <nome>` acha arquivos do glob alterados nesta branch (em relação à base) e,
+  se houver `valida`, o comando passa recebendo-os. O carimbo é do plano: mudou o artefato, carimbo novo.
+- `assina: agente`: o carimbo nasce do veredito APPROVED do agente nomeado.
+- `codigo`: as pastas que são código do app. Sem a chave, é tudo menos `docs/`, `.claude/`, `.md` e o ignorado pelo git.
+
+O `portao` sem argumento lista o que falta. A escrita de código sem os portões de início e o envio
+sem os de fim são barrados, e o agente não edita `.claude/trilho.json` nem `.claude/settings.json`.
+Com registro, `bugs` e `qualidade` deixam a aplicação para o `trilho`; sem registro, seguem sozinhos.
+
+O dono monta o registro pelo CLI:
+
+```bash
+npx @fullchico/harness portoes                 # lê o projeto e propõe o registro, com o porquê de cada portão
+npx @fullchico/harness portoes --gravar        # grava em .claude/trilho.json e o protege no sandbox
+npx @fullchico/harness portoes --padrao        # o registro padrão da lib
 ```
 
 ### Deixar o Claude instalar
