@@ -120,6 +120,21 @@
         ]
       },
       {
+        "matcher": "^harness:revisor-visual$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.harness/hooks/gate_stamp.py\" ] || exit 0; python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/gate_stamp.py\"",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.harness/ports-free\"",
+            "timeout": 30
+          }
+        ]
+      },
+      {
         "matcher": "^harness:orquestrador$",
         "hooks": [
           {
