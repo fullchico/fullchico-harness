@@ -93,22 +93,22 @@ Arquitetura do `AGENTS.md`.
 - **Porta com uma implementação só não é abstração prematura.** O `clean-code-guard` manda
   embutir: para o que sai do processo, a porta fica. E cópia marcada com `shortcut:` no front
   não é duplicação a extrair.
-- **O aplicativo de desenvolvimento roda em contêiner, não na máquina.** O compose tem um
-  serviço para o app (imagem `node`, a pasta do projeto montada, `pnpm install` e o `dev` do
-  projeto), ao lado do banco. Dentro do sandbox do Bash as ferramentas de desenvolvimento que
-  vigiam arquivos ou abrem socket local não funcionam (`next dev`, `tsx`, `steiger` em modo
-  vigia); no contêiner funcionam, com recarga a quente. Por isso:
-  - o `dev` do front é o `next dev` normal. Não se troca o bundler nem se usa
-    `next build && next start` para contornar o sandbox;
-  - cada `node_modules` do workspace é um volume do contêiner (a raiz e um por pacote), porque
-    os binários nativos de lá são de Linux e os da máquina não;
-  - dentro do contêiner o banco é alcançado pelo nome do serviço (`postgres:5432`), definido no
-    `environment` do serviço; o `.env` do worktree continua valendo para o que roda na máquina
-    (testes, migration, seed);
-  - o serviço tem `healthcheck` que só passa quando front e API respondem, para o
-    `.harness/up` esperar o app ficar pronto;
-  - o `harness.conf` fica sem `DEV_CMD`: `.harness/up` sobe tudo, `.harness/down` para tudo e
-    `.harness/logs <serviço>` mostra o log. Os trilhos do harness entram no contêiner só para
+- **Cada parte do sistema é um serviço do compose** (regra do `AGENTS.md`). Nesta stack: um
+  serviço para o front, um para a API, um por peça de infra (Postgres, Redis) e o do navegador.
+  - Front e API usam a imagem `node`, montam a pasta do projeto e rodam o `dev` normal de cada
+    um, com recarga a quente: `next dev` e `nest start --watch`. Não se troca o bundler nem se
+    usa `next build && next start` para contornar o sandbox: no contêiner as ferramentas que
+    vigiam arquivos funcionam.
+  - As dependências são de Linux lá dentro e de macOS na máquina. Cada `node_modules` do
+    workspace (a raiz e um por pacote) é um volume nomeado, e um serviço de passagem única roda
+    o `pnpm install` e a compilação do contrato; front e API dependem dele com
+    `condition: service_completed_successfully`, para não instalarem ao mesmo tempo.
+  - Um serviço alcança o outro pelo nome (`postgres:5432`, `http://api:<porta>`), definido no
+    `environment` de cada um. O `.env` do worktree continua valendo para o que roda na máquina
+    (testes, migration, seed), com as portas publicadas.
+  - Front e API têm `healthcheck` que só passa quando respondem: é o que faz o `.harness/up`
+    esperar o sistema ficar pronto.
+  - O `harness.conf` fica sem `DEV_CMD`. Os trilhos do harness entram nos contêineres só para
     leitura, sem nada a declarar no compose.
 - **O `INSTALL_CMD` deixa o worktree pronto para testar:** instala e compila o pacote de
   contrato (`pnpm install --frozen-lockfile && pnpm --filter <contrato> build`). Worktree de
