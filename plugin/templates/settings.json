@@ -140,6 +140,7 @@
         ]
       },
       {
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",

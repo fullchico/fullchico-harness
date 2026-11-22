@@ -335,7 +335,8 @@ class TestActivity(Base):
         for event in ("SubagentStart", "SubagentStop"):
             own = [g for g in hooks[event] if any("activity.py" in h["command"] for h in g["hooks"])]
             self.assertEqual(len(own), 1, event)
-            self.assertNotIn("matcher", own[0], "todo subagente")
+            # No SubagentStop o grupo diz "*": outros testes leem o `matcher` de todos os grupos de lá.
+            self.assertIn(own[0].get("matcher"), (None, "*"), "todo subagente")
             self.assertEqual([h["command"] for h in own[0]["hooks"]], [STANDARD])
             self.assertNotIn("onFailure", own[0]["hooks"][0])
             self.assertIs(hooks[event][-1], own[0], "grupo novo, no fim da lista")
