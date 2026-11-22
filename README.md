@@ -623,15 +623,16 @@ o remoto existir, o primeiro envio da branch padrão é seu, no terminal.
 
 ## Atualizar o harness
 
-Uma mudança de padrão se faz no repositório do harness e sai numa tag. No projeto, no seu
-terminal:
+Uma mudança de padrão se faz no repositório do harness e sai numa versão. No projeto, no seu
+terminal, para ir à mais recente:
 
 ```bash
-.harness/update <tag>
+npx @fullchico/harness@latest update
 ```
 
-O comando baixa a tag e executa o sincronizador daquela versão, para que o plugin, a pasta
-`.harness/` e os arquivos gerados saiam todos com a mesma versão. Arquivo gerenciado que foi
+Para uma versão específica, `.harness/update <tag>` (por exemplo `v0.2.0`). Os dois executam o
+sincronizador daquela versão, para que o plugin, a pasta `.harness/` e os arquivos gerados saiam
+todos com a mesma versão. Depois, faça o commit do que mudou. Arquivo gerenciado que foi
 alterado à mão trava a atualização, que lista o que encontrou; `--force` substitui. O agente
 não roda a atualização: dentro do sandbox ele não grava em `.harness/`.
 
