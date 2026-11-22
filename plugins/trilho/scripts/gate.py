@@ -32,13 +32,17 @@ def lista(root, reg, names):
                      f"{registry.howto(n, reg['portoes'][n])}" for n in names)
 
 
+# BSD: `sed -i '' 's/a/b/' alvo`; GNU: `sed -i 's/a/b/' alvo` ou `sed -i.bak ...`.
+_SED_INPLACE = re.compile(r"\bsed\s+-i\S*\s+(?:\S+\s+)+?(\S+?)\s*(?:$|[;|&\n])")
+
+
 def bash_targets(command):
     """Caminhos que o comando escreve nas formas óbvias: `>`/`>>`, `sed -i`, `tee`, `cp`/`mv`."""
     try:
         parts = ledger._split(command)
     except ValueError:
         return []
-    found = []
+    found = _SED_INPLACE.findall(command)
     for words in parts:
         for i, w in enumerate(words):
             m = re.fullmatch(r"\d*>>?(.*)", w)
@@ -66,6 +70,21 @@ def main():
     tool = payload.get("tool_name")
     ti = payload.get("tool_input") or {}
     root = registry.toplevel(payload.get("cwd") or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
+    # O arquivo de portões é protegido sempre, mesmo sem registro ainda: o agente não cria um
+    # registro fraco por conta própria. Só o plugin trilho (os scripts do dono) escreve ali.
+    if tool in EDICAO:
+        path = ti.get("file_path") or ti.get("notebook_path")
+        targets_pre = [path] if isinstance(path, str) else []
+    elif tool == "Bash" and isinstance(ti.get("command"), str):
+        targets_pre = bash_targets(ti["command"])
+    else:
+        targets_pre = []
+    for t in targets_pre:
+        if registry.relative(root, t) == ".claude/trilho.json":
+            return deny(root, f"registro: {t}",
+                        "Barrado pelo trilho: `.claude/trilho.json` só o dono altera, por "
+                        "`fullchico-harness portoes` (o plugin trilho escreve ali; o agente não).")
+
     try:
         reg = registry.load(root)
     except registry.RegistryError as e:
@@ -95,10 +114,10 @@ def main():
         return 0
 
     for t in targets:
-        if registry.relative(root, t) in PROTEGIDOS:
+        if registry.relative(root, t) == ".claude/settings.json":
             return deny(root, f"registro: {t}",
-                        f"Barrado pelo trilho: `{registry.relative(root, t)}` define os portões que barram você, "
-                        "então só o dono o altera, por `fullchico-harness portoes`.")
+                        "Barrado pelo trilho: `.claude/settings.json` só o dono altera (ele liga os plugins "
+                        "que barram você).")
     for t in targets:
         if registry.is_code(root, t, reg):
             faltam = registry.missing(root, "inicio", reg)
