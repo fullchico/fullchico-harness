@@ -1,0 +1,2 @@
+description = "Liga o modo puro do projeto (só o que o projeto declara, sem plugins/MCPs globais)"
+prompt = "Rode `fullchico-harness puro` no terminal para marcar este projeto como puro. Depois, explique ao dono que a próxima sessão precisa ser aberta com `cc` (claude clean) para o modo valer."
