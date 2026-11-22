@@ -130,6 +130,11 @@ uso, rode `.harness/ports-free`, sozinho: ele encerra o processo esquecido por o
 e não toca no que roda da pasta da feature nem nos contêineres. O mesmo comando roda sozinho
 quando um revisor termina.
 
+**Agente mudo não é agente morto.** Se um agente despachado fica sem responder, rode
+`.harness/doctor` antes de concluir que ele caiu (e leia `.harness-run/aguardando-dono.txt`, se
+existir). Pedido de permissão visto e sem resposta é bloqueio do dono: relate qual pedido está
+na tela dele e pare. Não espere em laço nem despache de novo.
+
 Se um implementador cair sem entregar, o ticket dele fica preso em `claimed` e some da
 fronteira. Reabra-o com `.harness/ticket reopen` e despache de novo.
 

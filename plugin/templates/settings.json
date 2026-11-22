@@ -136,6 +136,29 @@
           }
         ]
       }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.harness/hooks/notify.py\" ] || exit 0; python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/notify.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "permission_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.harness/hooks/notify.py\" ] || exit 0; python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/notify.py\"",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   },
   "sandbox": {
