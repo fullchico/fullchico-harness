@@ -21,7 +21,7 @@
   ],
   "bin": {
     "fullchico-harness": "bin/harness.js",
-    "claude-projeto": "bin/claude-projeto"
+    "cc": "bin/cc"
   },
   "files": [
     "bin/",

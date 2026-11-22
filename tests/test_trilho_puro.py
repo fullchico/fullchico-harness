@@ -14,7 +14,7 @@ import unittest
 from tests.helpers import ROOT, _tmpdir, make_repo
 
 PLUGIN = ROOT / "plugins/trilho"
-LAUNCHER = ROOT / "bin/claude-projeto"
+LAUNCHER = ROOT / "bin/cc"
 FLAGS = "--setting-sources project,local --strict-mcp-config"
 
 
@@ -81,7 +81,7 @@ class TestWatcher(unittest.TestCase):
         r = self.check("claude --model haiku")
         self.assertEqual(r.returncode, 0, "avisa, não impede a sessão")
         out = json.loads(r.stdout)
-        self.assertIn("claude-projeto", out["systemMessage"])
+        self.assertIn("`cc`", out["systemMessage"])
         self.assertIn("global", out["hookSpecificOutput"]["additionalContext"])
         self.assertEqual(out["hookSpecificOutput"]["hookEventName"], "SessionStart")
 
@@ -142,7 +142,7 @@ class TestMakePure(unittest.TestCase):
         self.assertIn("Stop", local["hooks"])
         self.assertIn("SubagentStop", local["hooks"], "o mesmo comando do Orca em vários eventos: copia em todos")
         self.assertNotIn("enabledPlugins", local)
-        self.assertIn("claude-projeto", r.stdout)
+        self.assertIn("`cc`", r.stdout)
 
     def test_keeps_what_the_local_file_already_has_and_is_idempotent(self):
         (self.repo / ".claude").mkdir()
@@ -173,7 +173,7 @@ class TestPackaging(unittest.TestCase):
 
     def test_the_package_ships_the_launcher_and_the_new_plugins(self):
         package = json.loads((ROOT / "package.json").read_text())
-        self.assertEqual(package["bin"]["claude-projeto"], "bin/claude-projeto")
+        self.assertEqual(package["bin"]["cc"], "bin/cc")
         self.assertIn("plugins/", package["files"])
         self.assertTrue(os.access(LAUNCHER, os.X_OK))
 

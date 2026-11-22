@@ -59,7 +59,7 @@ if (command === "puro") {
     "--projeto", project], { stdio: "inherit" });
   console.log("\nPróximos passos:\n" +
     "  1. Confira os portões em .claude/trilho.json (só você os altera: `fullchico-harness portoes`).\n" +
-    "  2. Para rodar o projeto só com o que ele declara: `fullchico-harness puro`, e abra com `claude-projeto`.\n" +
+    "  2. Para rodar o projeto só com o que ele declara: `fullchico-harness puro`, e abra com `cc`.\n" +
     "  3. Abra uma sessão nova no projeto e rode `portao` para ver o que cada etapa pede.\n" +
     "O modelo anterior (plugin único `harness`) continua em `fullchico-harness install --legado`.");
   process.exit(status || (gates.status === null ? 1 : gates.status));

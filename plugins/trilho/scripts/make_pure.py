@@ -64,7 +64,7 @@ def main(root: str) -> int:
           "Nada novo a trazer do global.")
     for line in copied:
         print(f"  {line}")
-    print("Abra a sessão com `claude-projeto` (no lugar de `claude`): só o projeto e o escopo local entram nela.")
+    print("Abra a sessão com `cc` (no lugar de `claude`): só o projeto e o escopo local entram nela.")
     return 0
 
 

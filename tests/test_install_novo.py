@@ -50,7 +50,7 @@ class TestInstall(unittest.TestCase):
         gates = json.loads((self.repo / ".claude/trilho.json").read_text())["portoes"]
         self.assertEqual(gates["qualidade"]["comando"], "pnpm lint && pnpm test", "veio do package.json do projeto")
         self.assertEqual(gates["processo"]["artefato"], "docs/specs/*/spec.md")
-        self.assertIn("claude-projeto", r.stdout)
+        self.assertIn("`cc`", r.stdout)
 
     def test_running_it_twice_does_not_duplicate_the_rtk_hook(self):
         self.install()
