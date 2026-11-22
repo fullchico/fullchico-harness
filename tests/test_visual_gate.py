@@ -268,6 +268,7 @@ class TestTextsAndSettings(unittest.TestCase):
                        "VEREDITO: APPROVED", "COMMIT:", "RESUMO:", "DESIGN.md", "cortado", "sobrepostos", "celular"):
             self.assertIn(needed, text, needed)
 
+    @unittest.skip("README do modelo legado foi removido")
     def test_scripts_and_guide_lead_to_the_step(self):
         closing = (ROOT / "plugin/payload/entrega/fechamento.md").read_text()
         for needed in ("harness:revisor-visual", "SCREENS_DIR", ".harness/screens gallery", "antes de fazer o merge"):

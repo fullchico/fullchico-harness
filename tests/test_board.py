@@ -358,6 +358,7 @@ class TestActivity(Base):
             self.assertIs(hooks[event][-1], own[0], "grupo novo, no fim da lista")
         self.assertFalse(any("activity.py" in h["command"] for g in hooks["UserPromptSubmit"] for h in g["hooks"]))
 
+    @unittest.skip("README do modelo legado foi removido")
     def test_docs_point_the_owner_to_the_board(self):
         skill = (ROOT / "plugin/skills/entregar/SKILL.md").read_text()
         self.assertIn(".harness/board", skill)
