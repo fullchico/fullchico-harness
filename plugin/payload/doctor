@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Diz, numa tela, se os trilhos do harness estão de pé neste projeto. Só lê.
+# Uso: .harness/doctor [--hours N] [--json]
+#      .harness/doctor --prune   apaga aprovações e pedidos de commit que não existe mais;
+#                                grava no estado do harness: rode no seu terminal, não pelo agente.
+# Sai 0 se está saudável, 1 se algo está quebrado.
+set -uo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd -P)"
+exec python3 -I "$HERE/doctor.py" "$@"
