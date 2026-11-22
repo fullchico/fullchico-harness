@@ -94,6 +94,16 @@
         ]
       },
       {
+        "matcher": "^harness:orquestrador$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.harness/hooks/orchestrator_stop.py\" ] || exit 0; python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/orchestrator_stop.py\"",
+            "timeout": 30
+          }
+        ]
+      },
+      {
         "matcher": "^harness:extrator$",
         "hooks": [
           {

@@ -1,5 +1,26 @@
 # Despachar os implementadores
 
+## Antes de tudo: a retomada
+
+```bash
+.harness/resume docs/specs/<slug>
+```
+
+Comece sempre por ele, e rode de novo quando não souber em que pé um ticket está. Ele cruza o
+ticket na feature, as branches dos worktrees de agente e os portões, e diz a próxima ação de
+cada ticket em andamento. Siga-a, em vez de recomeçar:
+
+- `integrar`: a branch foi aprovada. Rode o `.harness/integrate` que ele mostra.
+- `revisar`: há commit pronto que ninguém revisou. Despache o revisor com o `diff` e o `commit` que ele dá.
+- `esperar`: há implementador ou revisor trabalhando. Espere o aviso de término.
+- `corrigir`: o revisor reprovou. É rodada de correção.
+- `despachar`: não há commit do ticket em lugar nenhum. Despache o implementador.
+- `parado`: o despacho passou do tempo limite (`DISPATCH_TIMEOUT_MIN` no `harness.conf`, 30
+  minutos se não estiver lá) sem commit novo nem resposta. Veja "Despacho parado", abaixo.
+
+O harness recusa despachar implementador para ticket que já tem commit pronto e não integrado.
+Se o trabalho não presta, reabra o ticket com `.harness/ticket reopen` e pegue-o de novo.
+
 ## Antes da primeira rodada
 
 **O `harness.conf`** já foi gravado antes de fatiar (`.harness/entrega/tickets.md`).
@@ -111,7 +132,8 @@ commit: HASH_DO_COMMIT
    para aquele ticket, com a resposta como achado, e cada caso apontado entra como teste junto
    com a correção. Os que passaram seguem.
 5. Junte cada branch aprovada na da feature com
-   `.harness/integrate <arquivo do ticket> <branch>`, um ticket por vez. Ele recusa a branch
+   `.harness/integrate <arquivo do ticket> <branch>`, um ticket por vez, assim que ela aprova:
+   ticket aprovado não espera os outros da onda que não o bloqueiam. Ele recusa a branch
    que não passou pela caça a bugs naquele commit. O comando
    confere que a branch só mexeu no que o ticket possui, junta, roda a checagem e desfaz a
    junção se ela falhar; no fim apaga os worktrees de agente já integrados. Não junte com
@@ -131,7 +153,17 @@ e não toca no que roda da pasta da feature nem nos contêineres. O mesmo comand
 quando um revisor termina.
 
 Se um implementador cair sem entregar, o ticket dele fica preso em `claimed` e some da
-fronteira. Reabra-o com `.harness/ticket reopen` e despache de novo.
+fronteira. O `.harness/resume` diz se ele deixou commit: se deixou, revise e integre; se não,
+é `despachar`.
+
+**Despacho parado.** Você não espera em laço. Quando o `.harness/resume` diz `parado`:
+
+1. Confira o motivo: `.harness/logs` (sozinho na chamada), se há pedido de permissão esperando
+   resposta no worktree do agente, e `.harness/doctor`, se o projeto tiver esse comando.
+2. Se dá para destravar (porta ocupada: `.harness/ports-free`; lacuna no ticket: corrija o
+   documento), destrave, reabra o ticket com `.harness/ticket reopen`, pegue-o e despache de novo.
+3. Se não dá, pare: devolva o relato começando por `PARADA`, com o ticket, o que conferiu e o
+   que só o dono resolve. Os tickets que não dependem dele seguem antes de você parar.
 
 ## Quando o implementador diz que falta algo
 

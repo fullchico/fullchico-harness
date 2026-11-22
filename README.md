@@ -516,6 +516,7 @@ O que é só do projeto (hooks, permissões, servidores MCP, sites liberados) va
 | `.harness/conf-apply` | grava o `harness.conf` que o agente propôs, depois de conferido | o agente |
 | `.harness/ticket claim\|reopen` | marca tickets como em andamento, ou reabre um, já com o commit | o orquestrador |
 | `.harness/integrate <ticket> <branch>` | junta o trabalho de um implementador: revisão, posse, merge, checagem | o orquestrador |
+| `.harness/resume <pasta da spec>` | diz o estado real de cada ticket em andamento (commit, revisão) e a próxima ação; só lê | o orquestrador, ao começar e ao retomar |
 | `.harness/agents-clean` | remove os worktrees de agente já integrados | o orquestrador |
 | `.harness/pendings` | lista as pendências abertas da feature | você ou o agente |
 | `.harness/validate --profile push\|merge` | checagens do projeto, sem custo de IA | você ou o agente |
