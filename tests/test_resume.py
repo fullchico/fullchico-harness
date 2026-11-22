@@ -316,9 +316,9 @@ class TestOrchestratorStop(Base):
 class TestWiring(unittest.TestCase):
     def test_settings_wire_the_stop_hook_in_its_own_group(self):
         groups = json.loads((ROOT / "plugin/templates/settings.json").read_text())["hooks"]["SubagentStop"]
-        matchers = [g["matcher"] for g in groups]
+        matchers = [g.get("matcher") for g in groups]
         self.assertIn("^harness:(seguranca|revisor|qualidade|revisor-bugs|revisor-ambiente)$", matchers)
-        (own,) = [g for g in groups if g["matcher"] == "^harness:orquestrador$"]
+        (own,) = [g for g in groups if g.get("matcher") == "^harness:orquestrador$"]
         self.assertEqual([h["command"] for h in own["hooks"]],
                          ['[ -f "$CLAUDE_PROJECT_DIR/.harness/hooks/orchestrator_stop.py" ] || exit 0; '
                           'python3 -I "$CLAUDE_PROJECT_DIR/.harness/hooks/orchestrator_stop.py"'])

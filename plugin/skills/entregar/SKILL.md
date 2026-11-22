@@ -122,6 +122,10 @@ decidir, faça o commit, e só então siga.
 
 ## 4. Executar
 
+Antes do primeiro disparo, e só nele, rode `.harness/board` e diga ao dono, em uma linha, o
+caminho que ele imprime: é o painel da entrega, para abrir no navegador e acompanhar (atualiza
+sozinho; `.harness/board --watch`, no terminal dele, refaz a cada 5 segundos).
+
 Com a spec aprovada e em commit, dispare o `harness:orquestrador`, em segundo plano, só com
 ponteiros:
 

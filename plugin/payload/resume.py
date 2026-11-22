@@ -17,6 +17,7 @@ import os
 import re
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 sys.dont_write_bytecode = True
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -267,6 +268,11 @@ def report(root, spec) -> dict:
     contract = tickets_check.contract_paths(os.path.join(root, spec))
     branches, limit, when = agent_branches(root), timeout_min(root), now()
     is_contract = lambda t: any(tickets_check._overlap(o, c) for o in t["owns"] for c in contract)
+    claimed = [(n, t) for n, t in sorted(tickets.items()) if t["status"] == "claimed"]
+    # Cada ticket custa uma dezena de consultas ao git, que só leem: os tickets são vistos ao mesmo tempo.
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        states = list(pool.map(lambda nt: ticket_state(root, spec, nt[0], nt[1], is_contract(nt[1]), branches, limit, when),
+                               claimed))
     return {
         "spec": spec,
         "feature": common._git(root, "branch", "--show-current"),
@@ -274,8 +280,7 @@ def report(root, spec) -> dict:
         "done": sum(1 for t in tickets.values() if t["status"] == "done"),
         "open": sum(1 for t in tickets.values() if t["status"] == "open"),
         "frontier": [tickets[n]["path"] for n in tickets_check.frontier(tickets)],
-        "tickets": [ticket_state(root, spec, n, t, is_contract(t), branches, limit, when)
-                    for n, t in sorted(tickets.items()) if t["status"] == "claimed"],
+        "tickets": states,
     }
 
 

@@ -138,6 +138,15 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.harness/hooks/activity.py\" ] || exit 0; python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/activity.py\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "SubagentStart": [
@@ -147,6 +156,15 @@
             "type": "command",
             "command": "[ -f \"$CLAUDE_PROJECT_DIR/.harness/hooks/subagent_context.py\" ] || exit 0; python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/subagent_context.py\"",
             "timeout": 15
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.harness/hooks/activity.py\" ] || exit 0; python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/activity.py\"",
+            "timeout": 10
           }
         ]
       }
