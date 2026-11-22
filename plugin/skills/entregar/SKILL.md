@@ -1,7 +1,6 @@
 ---
 name: entregar
-description: Conduz uma mudança da entrevista ao pull request, dentro do worktree de uma feature. Entrevista, spec, revisão da spec, tickets, implementação em paralelo, checagem, revisão e envio.
-disable-model-invocation: true
+description: Conduz uma mudança da entrevista ao pull request, dentro do worktree de uma feature. Entrevista, spec, revisão da spec, tickets, implementação em paralelo, checagem, revisão e envio. Use sempre que o dono pedir, com ou sem o comando, algo que mude o aplicativo (feature, tela, comportamento), em vez de implementar direto.
 ---
 
 # Entregar uma mudança

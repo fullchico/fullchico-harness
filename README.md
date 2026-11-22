@@ -495,6 +495,7 @@ O que é só do projeto (hooks, permissões, servidores MCP, sites liberados) va
 | `/harness:setup` | configura o harness num projeto que já tinha código: propõe o `harness.conf` e a parte do projeto no `AGENTS.md` |
 | `/harness:buscar-skills` | procura skills públicas para a stack do projeto, lê cada candidata, mostra o que achou e só instala o que você aprovar |
 | `/harness:mapear` | gera ou atualiza o mapa do código e as âncoras do glossário e dos ADRs |
+| `/harness:direto <pedido>` | libera a edição direta de código nesta sessão, para ajuste pequeno. Sem ele, escrever código do aplicativo fora do ciclo de entrega é negado. Só você invoca |
 | `/harness:aprender` | depois do merge: atualiza o mapa, mede o consumo por papel, faz a retrospectiva e consolida as notas |
 | `/harness:dream` | transforma o que as sessões ensinaram sobre o projeto em notas curtas, ancoradas no código |
 

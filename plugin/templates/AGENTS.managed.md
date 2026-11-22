@@ -22,8 +22,9 @@ Três regras:
 
 ## Ciclo de uma mudança
 
-O dono roda `/harness:entregar` no worktree da feature. O elefante desenha (passos 1 a 3) e
-entrega a execução ao `orquestrador`, em modelo mais barato (passos 4 em diante).
+Pedido que muda o aplicativo entra por `/harness:entregar`: sem o comando, invoque a skill você
+mesmo. Não implemente direto (só com `/harness:direto` do dono). O elefante desenha (passos 1 a
+3); o `orquestrador` executa.
 
 | Passo | O que acontece |
 |---|---|
@@ -157,7 +158,7 @@ Spec já mesclada é histórico. A verdade é o código, os testes e o históric
   `docs/agents/` e esta região.
 - **Do projeto:** `harness.conf` muda por `.harness/conf-apply` ou pelo dono; `harness.d/` é
   só do dono. `.claude/skills/` e `skills-lock.json` são das skills dos autores: não edite.
-- **Livres:** `CLAUDE.local.md`, o código, e o que está abaixo desta região.
+- **Livres:** `CLAUDE.local.md` e o que está abaixo desta região.
 
 Mudança de padrão se faz no repositório do harness, não aqui.
 

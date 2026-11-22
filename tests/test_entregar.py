@@ -72,9 +72,8 @@ class TestEntregar(unittest.TestCase):
         for doc in RUN_DOCS:
             self.assertTrue((repo / ".harness/entrega" / doc).exists(), doc)
 
-    def test_skill_is_user_invoked_and_has_the_two_stops(self):
+    def test_skill_has_the_two_stops(self):
         text = (SKILL / "SKILL.md").read_text()
-        self.assertIn("disable-model-invocation: true", text)
         self.assertEqual(len(re.findall(r"\*\*PARADA", text)), 2)
         self.assertIn("aprov", text)
         self.assertIn("3 rodadas", text)
