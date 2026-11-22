@@ -84,6 +84,21 @@ class TestCodeRail(unittest.TestCase):
         self.assertEqual(say(self.repo, "")[0], 0)
         self.assertEqual(run_hook("prompt_context.py", None, raw="{nao json")[0], 0, "nunca bloqueia o dono")
 
+    def test_a_request_to_build_something_is_sent_straight_into_the_flow(self):
+        # Quem decide que é pedido de implementação é o hook, pelo texto: o modelo recebe a ordem pronta.
+        for prompt in ("agora quero definir interface, projeto ta muito simples", "implemente o cadastro de clientes",
+                       "adiciona um filtro por data na agenda", "monte a tela de relatórios", "crie um tema escuro",
+                       "Preciso que o barbeiro veja a comissão", "muda o botão de cancelar para vermelho",
+                       "add a dark theme", "faz um dashboard"):
+            out = say(self.repo, prompt)[1]
+            self.assertIn("PRIMEIRA ação", out, prompt)
+            self.assertIn("harness:entregar", out, prompt)
+        for prompt in ("como estamos no andamento?", "qual a nota da entrega?", "explica esse erro", "status",
+                       "o que é um implementador?"):
+            out = say(self.repo, prompt)[1]
+            self.assertNotIn("PRIMEIRA ação", out, prompt)
+            self.assertIn("harness:entregar", out, prompt)
+
     def test_bash_cannot_write_code_around_the_edit_tool(self):
         for command in ("sed -i '' s/old/new/ apps/web/page.tsx", "cat > apps/web/new.tsx <<'EOF'\nexport {}\nEOF",
                         "echo x >> apps/web/page.tsx", "git mv apps/web/page.tsx apps/web/home.tsx",
