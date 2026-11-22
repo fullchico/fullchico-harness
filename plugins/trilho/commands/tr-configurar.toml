@@ -1,0 +1,2 @@
+description = "Entrevista o dono e escreve .claude/trilho.json pelo CLI (atalho para a skill trilho:configurar)"
+prompt = "Invoque a skill `trilho:configurar` e siga ela à risca: entreviste o dono, olhe o projeto antes de perguntar, e escreva `.claude/trilho.json` só via `fullchico-harness portoes --definir`/`--registrar`. Nunca edite o registro com Write/Edit — o hook do trilho barra."
