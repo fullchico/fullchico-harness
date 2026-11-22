@@ -205,6 +205,11 @@ def _cards(root, spec, tickets, report, dispatches, when) -> list:
     return cards
 
 
+# Ajudantes de busca e de uso geral começam e terminam dezenas de vezes numa entrega: na linha do
+# tempo são ruído. Entram os agentes do harness e os do projeto.
+HELPERS = {"explore", "general-purpose", "claude", "plan", "web-fetch", "statusline-setup", "claude-code-guide", "fork"}
+
+
 def _timeline(root, log, activity, when) -> list:
     events = []
     for line in (common._git(root, "log", "-30", "--format=%ct%x09%s") or "").splitlines():
@@ -222,7 +227,7 @@ def _timeline(root, log, activity, when) -> list:
         events.append({"at": row["_at"], "kind": {"negou": "denied", "carimbou": "stamp"}.get(what, "rail"),
                        "text": f"{wording.get(what, what)} ({row.get('hook', '?')}): {_text(row.get('detail'))}"})
     for row in activity:
-        if row.get("event") in ("start", "stop"):
+        if row.get("event") in ("start", "stop") and str(row.get("agent_type", "")).lower() not in HELPERS:
             verb = "Começou" if row["event"] == "start" else "Terminou"
             events.append({"at": row["_at"], "kind": row["event"],
                            "text": f"{verb}: {_role(row.get('agent_type'))}"

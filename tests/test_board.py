@@ -327,8 +327,24 @@ class TestActivity(Base):
                                                   "agent_type": 7, "last_assistant_message": ["x"]}), (0, "", ""))
         self.assertEqual(run_hook("activity.py", {"hook_event_name": "Stop", "cwd": str(self.repo)}), (0, "", ""))
         self.assertEqual(len(self.rows()), 1, "só os dois eventos de subagente são registrados")
-        # hooks/__pycache__ é do próprio teste, que importa o common; o hook não pode deixar o dele ao lado do board.py
-        self.assertFalse([p for p in tree(HOOKS.parent) if "__pycache__" in p and not p.startswith("hooks")])
+        # O hook não deixa bytecode ao lado do board.py. Outros testes importam módulos daqui e deixam o deles:
+        # o que vale é não aparecer nada novo por causa do hook.
+        cached = lambda: sorted(p for p in tree(HOOKS.parent) if "__pycache__" in p and not p.startswith("hooks"))
+        before = cached()
+        run_hook("activity.py", {"hook_event_name": "SubagentStart", "cwd": str(self.repo), "agent_id": "z9",
+                                 "agent_type": "harness:implementador"})
+        self.assertEqual(cached(), before)
+
+    def test_the_timeline_tells_the_delivery_not_every_helper(self):
+        # Subagente de busca (Explore, general-purpose) começa e termina dezenas de vezes: é ruído para o dono.
+        for agent_id, agent in (("e1", "Explore"), ("g1", "general-purpose"), ("i1", "harness:implementador")):
+            for event in ("SubagentStart", "SubagentStop"):
+                run_hook("activity.py", {"hook_event_name": event, "cwd": str(self.repo), "agent_id": agent_id,
+                                         "agent_type": agent})
+        texts = " | ".join(e["text"] for e in json.loads(self.board("--json"))["timeline"])
+        self.assertIn("implementador", texts)
+        self.assertNotIn("Explore", texts)
+        self.assertNotIn("general-purpose", texts)
 
     def test_settings_wire_the_hook_on_both_events_in_new_groups(self):
         hooks = json.loads((ROOT / "plugin/templates/settings.json").read_text())["hooks"]
