@@ -1,6 +1,8 @@
 """A entrega mostra o que fez: o ambiente e a tela são exercitados cedo, e o app fica de pé no fim."""
 import unittest
 
+# ver também: o aplicativo fica de pé durante a entrega (test_the_owner_watches_the_app_change)
+
 from tests.helpers import ROOT
 
 RUN = ROOT / "plugin/payload/entrega"
