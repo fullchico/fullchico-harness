@@ -45,7 +45,8 @@ O que ficar de fora daqui vira um ticket reaberto no meio da entrega, e uma roda
 para todos os que dependem dele.
 
 **Ambiente e execução.** Quem executa a spec não tem a quem perguntar, então diga aqui:
-os serviços de que os testes dependem (banco, fila) e como cada implementador isola o seu
+os serviços de que os testes dependem (banco, fila), o serviço do compose em que o aplicativo
+roda em desenvolvimento, e como cada implementador isola o seu
 quando vários rodam ao mesmo tempo no mesmo ambiente (um banco de teste por ticket, por
 exemplo); e, se o projeto ainda não tem `harness.conf` preenchido, uma subseção `harness.conf`
 com o conteúdo do arquivo, incluindo `CONTRACT_PATHS` (os caminhos do contrato e do que é

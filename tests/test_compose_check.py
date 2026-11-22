@@ -140,6 +140,42 @@ class TestComposeCheck(unittest.TestCase):
             self.assertIn(token, s)
         self.assertNotIn(str(self.root), s)
 
+    def app(self, source, **volume):
+        return cfg(volumes=[dict({"type": "bind", "source": str(source), "target": "/work"}, **volume)])
+
+    def test_project_mount_gets_the_rails_read_only(self):
+        (self.root / ".harness").mkdir()
+        (self.root / "harness.conf").write_text("PROJECT=x\n")
+        extra = compose_check.protection(self.app(self.root), str(self.root))["services"]["db"]["volumes"]
+        targets = {v["target"]: v for v in extra}
+        self.assertIn("/work/.harness", targets)
+        self.assertIn("/work/harness.conf", targets)
+        self.assertIn("/work/.git", targets)
+        self.assertTrue(all(v["read_only"] and v["type"] == "bind" for v in extra))
+        self.assertEqual(targets["/work/.harness"]["source"], os.path.realpath(self.root / ".harness"))
+        self.assertNotIn("/work/CLAUDE.md", targets)  # não existe neste projeto: nada a montar
+
+    def test_mounts_that_cannot_write_the_rails_need_no_protection(self):
+        (self.root / ".harness").mkdir()
+        self.assertEqual(compose_check.protection(self.app(self.root / "data"), str(self.root)), {})
+        self.assertEqual(compose_check.protection(self.app(self.root, read_only=True), str(self.root)), {})
+        self.assertEqual(compose_check.protection(cfg(), str(self.root)), {})
+
+    def test_writable_mount_of_a_rail_is_a_violation(self):
+        (self.root / ".harness" / "hooks").mkdir(parents=True)
+        (self.root / ".claude").mkdir()
+        for path in (".harness", ".harness/hooks", ".claude"):
+            self.assertTrue(any("trilho" in x for x in self.v(self.app(self.root / path))), path)
+        self.assertEqual(self.v(self.app(self.root / ".harness", read_only=True)), [])
+
+    def test_cli_protect_prints_the_override(self):
+        (self.root / ".harness").mkdir()
+        r = subprocess.run([sys.executable, SCRIPT, str(self.root), "--protect"], input=json.dumps(self.app(self.root)),
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("/work/.harness", r.stdout)
+        json.loads(r.stdout)
+
     def test_cli(self):
         def run(data, *args):
             return subprocess.run([sys.executable, SCRIPT, str(self.root), *args], input=data,

@@ -6,11 +6,16 @@ num contêiner. Sem esta checagem, bastaria editar o compose do projeto para um
 contêiner escrever fora dele. A entrada é o JSON que o próprio Docker devolve em
 `docker compose config --format json`, já com variáveis e caminhos resolvidos.
 
-Uso: compose_check.py <raiz do projeto> [--summary] < config.json
+O app do projeto pode rodar num contêiner que monta a pasta do projeto: lá dentro ele
+fica fora do sandbox do Bash. Para o código do projeto não alcançar os trilhos por esse
+caminho, `--protect` devolve um compose complementar que monta cada trilho só para leitura.
+
+Uso: compose_check.py <raiz do projeto> [--summary | --protect] < config.json
 Sai 0 se pode subir; sai 1 com os motivos em stderr.
 """
 import json
 import os
+import posixpath
 import sys
 
 sys.dont_write_bytecode = True
@@ -31,6 +36,33 @@ CHECKED_FIELDS = {"volumes", "build", "env_file", "secrets", "configs", "privile
 HOST_NAMESPACES = ("pid", "ipc")
 BUILD_FIELDS = {"context", "dockerfile", "args", "target", "additional_contexts", "labels", "cache_from",
                 "platforms", "tags", "pull", "no_cache", "network", "shm_size", "dockerfile_inline"}
+# O que o sandbox do Bash não deixa o agente gravar (templates/settings.json), mais o `.git`.
+RAILS = (".harness", "harness.conf", "harness.d", ".claude", "skills-lock.json", "CLAUDE.md",
+         "docs/agents", "orca.yaml", ".conductor", ".git")
+
+
+def _writable_binds(service):
+    for volume in service.get("volumes") or [] if isinstance(service, dict) else []:
+        if isinstance(volume, dict) and volume.get("type") == "bind" and not volume.get("read_only"):
+            yield os.path.realpath(str(volume.get("source", ""))), str(volume.get("target", ""))
+
+
+def _rails(root: str):
+    base = os.path.realpath(root)
+    return [os.path.join(base, rail) for rail in RAILS if os.path.lexists(os.path.join(base, rail))]
+
+
+def protection(config, root: str) -> dict:
+    """Compose complementar: cada trilho dentro de uma pasta montada com escrita entra só para leitura."""
+    services = {}
+    for name, service in (_services(config) or {}).items():
+        mounts = [{"type": "bind", "source": rail, "target": posixpath.join(target, os.path.relpath(rail, source)),
+                   "read_only": True}
+                  for source, target in _writable_binds(service)
+                  for rail in _rails(root) if rail.startswith(source + os.sep)]
+        if mounts:
+            services[name] = {"volumes": mounts}
+    return {"services": services} if services else {}
 
 
 def _inside(path: str, root: str) -> bool:
@@ -99,6 +131,9 @@ def _service(name: str, service: dict, config: dict, root: str) -> list:
                 found.append(f"serviço {name}: o volume {volume.get('source')} {reason}")
         elif kind != "tmpfs":
             found.append(f"serviço {name}: volume de tipo não permitido ({kind})")
+    for source, _ in _writable_binds(service):
+        if _inside(source, root) and any(source == rail or source.startswith(rail + os.sep) for rail in _rails(root)):
+            found.append(f"serviço {name}: monta com escrita um trilho do harness ({source})")
     if "build" in service:
         found += _build(name, service["build"], root)
     for entry in service.get("env_file") or []:
@@ -173,6 +208,9 @@ def main() -> int:
         return 1
     if "--summary" in sys.argv[2:]:
         print(summary(config, sys.argv[1]))
+        return 0
+    if "--protect" in sys.argv[2:]:
+        print(json.dumps(protection(config, sys.argv[1])))
         return 0
     found = violations(config, sys.argv[1])
     for item in found:

@@ -11,6 +11,7 @@ kill_tree() {  # o processo e tudo o que ele iniciou: o app sobe filhos, que seg
 
 if PID="$(dev_pid)"; then
   kill_tree "$PID"
+  kill -- "-$PID" 2>/dev/null || true  # o grupo que o dev criou: pega quem se soltou do pai
   echo "App parado (PID $PID)."
 fi
 rm -f "$ROOT/.harness-run/dev.pid"

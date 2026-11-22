@@ -28,11 +28,11 @@ SKIP = ("--no-verif", "hookspath")
 
 # Os scripts que saem do sandbox. Só a forma exata é excluída dele: encadeados ou embrulhados,
 # rodariam dentro do sandbox e falhariam sem dizer o motivo (Docker e remoto inalcançáveis).
-_OUTSIDE = "up|down|destroy|conf-apply|push|fetch|pr|skills-search|skills-show|skills-add|ports-free"
+_OUTSIDE = "up|down|destroy|conf-apply|push|fetch|pr|skills-search|skills-show|skills-add|ports-free|logs"
 _CALLED = re.compile(rf"(?:^|[;&|(\n]|\b(?:bash|sh|zsh|exec|env|source)\s)\s*(?:[\w./-]*/)?\.harness/(?:{_OUTSIDE})(?=\s|$|[;&|)<>])")
-_EXACT = re.compile(r"^(?:\./)?\.harness/(?:(?:up|down|destroy|conf-apply|fetch|push|ports-free)|push --force|(?:pr|skills-search|skills-show|skills-add)(?: [^\n;&|`$<>]*)?)$")
+_EXACT = re.compile(r"^(?:\./)?\.harness/(?:(?:up|down|destroy|conf-apply|fetch|push|ports-free)|push --force|logs(?: \w[\w-]*)?|(?:pr|skills-search|skills-show|skills-add)(?: [^\n;&|`$<>]*)?)$")
 DENY_ALONE = ("Os scripts do harness que saem do sandbox rodam sozinho, um por chamada, na forma exata "
-              "(`.harness/up`, `.harness/conf-apply`, `.harness/push`, `.harness/fetch`, `.harness/ports-free`, `.harness/pr ...`): "
+              "(`.harness/up`, `.harness/conf-apply`, `.harness/push`, `.harness/fetch`, `.harness/ports-free`, `.harness/logs`, `.harness/pr ...`): "
               "sem `&&`, `;`, `|`, redirecionamento nem `bash` na frente. Rode os outros comandos numa chamada separada.")
 
 

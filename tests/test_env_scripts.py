@@ -89,6 +89,22 @@ class TestUp(EnvCase):
         self.assertFalse((self.repo / "out-after.txt").exists())
         self.assertFalse((self.repo / "ran-dev").exists())
 
+    def test_up_mounts_the_rails_read_only_in_a_container_that_sees_the_project(self):
+        app = {"image": "node:24", "volumes": [{"type": "bind", "source": str(self.repo), "target": "/work"}]}
+        self.config.write_text(json.dumps({"name": "p", "services": {"app": app}}))
+        self.assertEqual(self.run_script("up").returncode, 0)
+        up = next(c for c in self.calls() if "up -d --wait" in c)
+        override = up.split(" -f ")[2].split(" ")[0]
+        self.assertFalse(override.startswith(str(self.repo)), "o agente não pode alcançar este arquivo")
+        with open(override) as f:
+            mounts = json.load(f)["services"]["app"]["volumes"]
+        self.assertIn("/work/.harness", [m["target"] for m in mounts])
+
+    def test_up_without_project_mount_uses_only_the_project_compose(self):
+        self.assertEqual(self.run_script("up").returncode, 0)
+        up = next(c for c in self.calls() if "up -d --wait" in c)
+        self.assertEqual(up.count(" -f "), 1)
+
     def test_up_prints_summary(self):
         out = self.run_script("up").stdout
         self.assertIn("db", out)
@@ -152,6 +168,23 @@ class TestPrepareAndDev(EnvCase):
         r = self.run_script("dev", "--background")
         self.assertEqual(r.returncode, 1)
         self.assertIn("já", r.stderr)
+
+    def test_logs_shows_state_and_tail_of_the_environment(self):
+        self.run_script("up")
+        self.assertEqual(self.run_script("logs").returncode, 0)
+        self.assertEqual(self.run_script("logs", "app").returncode, 0)
+        calls = self.calls()
+        self.assertTrue(any(c.endswith(" ps") for c in calls))
+        self.assertTrue(any("logs --tail" in c and c.endswith(" app") for c in calls))
+        r = self.run_script("logs", "--follow")
+        self.assertEqual(r.returncode, 1)
+        self.assertFalse(any("--follow" in c for c in self.calls()))
+
+    def test_logs_is_reachable_from_the_sandbox_by_everyone(self):
+        s = json.loads((self.repo / ".claude/settings.json").read_text())
+        for form in (".harness/logs", ".harness/logs *"):
+            self.assertIn(form, s["sandbox"]["excludedCommands"])
+            self.assertIn(f"Bash({form})", s["permissions"]["allow"])
 
     def test_dev_without_command_explains(self):
         (self.repo / "harness.conf").write_text('PROJECT=x\nSERVICES=web\nCOMPOSE_FILE=docker-compose.dev.yml\n')

@@ -91,6 +91,27 @@ Arquitetura do `AGENTS.md`.
 - **Porta com uma implementação só não é abstração prematura.** O `clean-code-guard` manda
   embutir: para o que sai do processo, a porta fica. E cópia marcada com `shortcut:` no front
   não é duplicação a extrair.
+- **O aplicativo de desenvolvimento roda em contêiner, não na máquina.** O compose tem um
+  serviço para o app (imagem `node`, a pasta do projeto montada, `pnpm install` e o `dev` do
+  projeto), ao lado do banco. Dentro do sandbox do Bash as ferramentas de desenvolvimento que
+  vigiam arquivos ou abrem socket local não funcionam (`next dev`, `tsx`, `steiger` em modo
+  vigia); no contêiner funcionam, com recarga a quente. Por isso:
+  - o `dev` do front é o `next dev` normal. Não se troca o bundler nem se usa
+    `next build && next start` para contornar o sandbox;
+  - cada `node_modules` do workspace é um volume do contêiner (a raiz e um por pacote), porque
+    os binários nativos de lá são de Linux e os da máquina não;
+  - dentro do contêiner o banco é alcançado pelo nome do serviço (`postgres:5432`), definido no
+    `environment` do serviço; o `.env` do worktree continua valendo para o que roda na máquina
+    (testes, migration, seed);
+  - o serviço tem `healthcheck` que só passa quando front e API respondem, para o
+    `.harness/up` esperar o app ficar pronto;
+  - o `harness.conf` fica sem `DEV_CMD`: `.harness/up` sobe tudo, `.harness/down` para tudo e
+    `.harness/logs <serviço>` mostra o log. Os trilhos do harness entram no contêiner só para
+    leitura, sem nada a declarar no compose.
+- **O `INSTALL_CMD` deixa o worktree pronto para testar:** instala e compila o pacote de
+  contrato (`pnpm install --frozen-lockfile && pnpm --filter <contrato> build`). Worktree de
+  agente nasce sem o `dist` do contrato, e sem ele `typecheck` e teste falham por motivo alheio
+  ao ticket.
 - **`@InjectQueue` e `@Processor` ficam no adaptador.** O processor só traduz o job e chama
   o use case. A conexão vem do `.env`, nunca de `localhost:6379`.
 - **Sem `vi.mock` de módulo nosso.** As skills de teste preferem mock: aqui a porta recebe o

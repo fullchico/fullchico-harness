@@ -6,7 +6,7 @@ set -uo pipefail
 . "$(dirname "$0")/env-common.sh"
 
 CMD="$(conf_get DEV_CMD)"
-[ -n "$CMD" ] || die "falta DEV_CMD no harness.conf (o comando que roda o app)."
+[ -n "$CMD" ] || die "falta DEV_CMD no harness.conf (o comando que roda o app). Se o app é um serviço do compose, ele já sobe com .harness/up e o log sai por .harness/logs."
 load_env
 cd "$ROOT" || exit 1
 
@@ -19,6 +19,8 @@ if PID="$(dev_pid)"; then
 fi
 mkdir -p .harness-run
 [ -f .harness-run/.gitignore ] || echo '*' > .harness-run/.gitignore
-nohup bash -c "$CMD" > .harness-run/dev.log 2>&1 < /dev/null &
+# Grupo de processos próprio: o `down` encerra o grupo inteiro, inclusive o servidor que o
+# `pnpm` ou o `concurrently` deixam solto do pai.
+nohup python3 -I -c 'import os, sys; os.setsid(); os.execvp("bash", ["bash", "-c", sys.argv[1]])' "$CMD" > .harness-run/dev.log 2>&1 < /dev/null &
 echo $! > .harness-run/dev.pid
 echo "App em segundo plano (PID $(cat .harness-run/dev.pid)). Log em .harness-run/dev.log"

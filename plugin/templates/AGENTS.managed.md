@@ -136,7 +136,9 @@ worktree da feature e usam o ambiente dela.
 - `.harness/up` sobe a infra, `.harness/down` para, `.harness/destroy` remove e
   apaga os dados. Só o `destroy` pergunta ao dono. Rodam sozinhos, sem `&&` nem `;`.
 - `.harness/prepare` roda migration e seed; `.harness/dev` roda o app
-  (`--background` para deixar rodando). Os dois usam as portas da feature.
+  (`--background` para deixar rodando). Os dois usam as portas da feature. Quando o app é um
+  serviço do compose, não há `dev`: ele sobe com o `up`.
+- `.harness/logs [serviço]` mostra o estado e o fim do log do ambiente. Só lê, e é de todos.
 - As portas estão no `.env` do worktree. Não se escolhe porta à mão.
 - `docker` solto não funciona dentro do sandbox: o caminho é `.harness/up`.
 

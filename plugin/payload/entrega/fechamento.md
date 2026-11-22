@@ -166,7 +166,8 @@ A entrega só termina quando o dono consegue ver o resultado, sem ter de montar 
 do envio (`up` sozinho na chamada):
 
 1. `.harness/up` e `.harness/prepare`: o ambiente está de pé e o banco, pronto.
-2. `.harness/dev --background`: o aplicativo sobe.
+2. `.harness/dev --background`: o aplicativo sobe. Se ele é um serviço do compose (sem
+   `DEV_CMD`), já subiu no passo 1.
 3. Confira que ele responde: o front e a API nos endereços do `.env` desta feature
    (`curl -s -o /dev/null -w "%{http_code}"`). Se uma porta estiver ocupada, `.harness/ports-free`.
 

@@ -152,7 +152,11 @@
       "./.harness/skills-add *",
       "./.harness/pr *",
       ".harness/ports-free",
-      "./.harness/ports-free"
+      "./.harness/ports-free",
+      ".harness/logs",
+      "./.harness/logs",
+      ".harness/logs *",
+      "./.harness/logs *"
     ],
     "network": {
       "allowLocalBinding": true,
@@ -204,7 +208,11 @@
       "Bash(./.harness/skills-show *)",
       "Bash(./.harness/pr *)",
       "Bash(.harness/ports-free)",
-      "Bash(./.harness/ports-free)"
+      "Bash(./.harness/ports-free)",
+      "Bash(.harness/logs)",
+      "Bash(./.harness/logs)",
+      "Bash(.harness/logs *)",
+      "Bash(./.harness/logs *)"
     ]
   }
 }

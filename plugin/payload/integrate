@@ -31,10 +31,26 @@ except (OSError, ValueError):
     sys.exit(1)
 sys.exit(0 if d.get("status") == "PASS" and d.get("gate") == "bugs" and d.get("sha") == sys.argv[2] else 1)' \
   "$STATE/approvals/bugs/$TIP.json" "$TIP" || {
-  echo "integrate: falta a caça a bugs do ticket, no commit $TIP." >&2
-  echo "  Dispare o harness:revisor-bugs com spec, ticket, diff (<branch da feature>...$TIP) e commit ($TIP)." >&2
-  echo "  Se ele reprovou, ou aprovou com mais de duas pendências, é rodada de correção para este ticket;" >&2
-  echo "  commit novo pede revisão nova." >&2
+  # O despacho pode ter saído em segundo plano: pedido sem resposta é revisão em andamento.
+  case "$(python3 -I -c 'import json, sys
+try:
+    print(json.load(open(sys.argv[1], encoding="utf-8")).get("answer") or "WAITING")
+except (OSError, ValueError):
+    print("NONE")' "$STATE/requests/bugs/$TIP.json")" in
+    WAITING)
+      echo "integrate: a caça a bugs do commit $TIP já foi pedida e ainda não respondeu." >&2
+      echo "  Espere o aviso do revisor antes de integrar. Não dispare outra revisão do mesmo commit." >&2 ;;
+    REJECTED)
+      echo "integrate: o caçador de bugs reprovou o commit $TIP. É rodada de correção para este ticket;" >&2
+      echo "  commit novo pede revisão nova." >&2 ;;
+    PENDINGS)
+      echo "integrate: o caçador de bugs aprovou o commit $TIP com mais de duas pendências abertas no ticket." >&2
+      echo "  É rodada de correção para este ticket; commit novo pede revisão nova." >&2 ;;
+    *)
+      echo "integrate: falta a caça a bugs do ticket, no commit $TIP." >&2
+      echo "  Dispare o harness:revisor-bugs com spec, ticket, diff (<branch da feature>...$TIP) e commit ($TIP)." >&2
+      echo "  Commit novo pede revisão nova." >&2 ;;
+  esac
   exit 1
 }
 

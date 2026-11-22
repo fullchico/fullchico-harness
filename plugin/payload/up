@@ -20,10 +20,20 @@ if [ -f "$RECORD" ]; then
   fi
 fi
 
+PROTECT="${RECORD%.json}.protect.json"
+rm -f "$PROTECT"  # refeito abaixo, a partir do compose de agora
 CONFIG="$(compose config --format json)" || die "o Docker não conseguiu ler o compose ($COMPOSE_FILE)."
 python3 -I "$HERE/compose_check.py" "$ROOT" <<EOT || exit 1
 $CONFIG
 EOT
+
+# Contêiner que monta a pasta do projeto com escrita recebe os trilhos só para leitura. O arquivo
+# fica no estado do harness, fora do projeto, onde o agente não grava.
+mkdir -p "$(dirname "$PROTECT")"
+python3 -I "$HERE/compose_check.py" "$ROOT" --protect > "$PROTECT.tmp" <<EOT || die "não consegui montar a proteção dos trilhos."
+$CONFIG
+EOT
+if [ "$(cat "$PROTECT.tmp")" = "{}" ]; then rm -f "$PROTECT.tmp"; else mv "$PROTECT.tmp" "$PROTECT"; fi
 
 echo "Ambiente $(env_get COMPOSE_PROJECT_NAME):"
 python3 -I "$HERE/compose_check.py" "$ROOT" --summary <<EOT

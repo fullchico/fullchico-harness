@@ -11,13 +11,13 @@ ROOT="$(cd "$HERE/.." && pwd -P)"
 die() { echo "$(basename "$0"): $*" >&2; exit 1; }
 
 conf_get() {  # chave do harness.conf, vazio se não houver
-  python3 -I - "$HERE/hooks" "$ROOT/harness.conf" "$1" <<'PY'
-import sys
+  # Com -c, e não por here-document: dentro do sandbox o shell nem sempre consegue criar o
+  # arquivo temporário de que o here-document precisa, e o script caía antes de começar.
+  python3 -I -c 'import sys
 sys.dont_write_bytecode = True
 sys.path.insert(0, sys.argv[1])
 import common
-print(common.read_conf(sys.argv[2]).get(sys.argv[3], ""))
-PY
+print(common.read_conf(sys.argv[2]).get(sys.argv[3], ""))' "$HERE/hooks" "$ROOT/harness.conf" "$1"
 }
 
 env_get() {  # chave do .env do worktree, vazio se não houver
@@ -43,8 +43,14 @@ need_compose() {  # confere o que os comandos de Docker precisam e define COMPOS
   command -v docker >/dev/null 2>&1 || die "docker não encontrado no PATH. Instale ou inicie o Docker."
 }
 
-compose() {  # docker compose do projeto desta feature
-  docker compose --env-file "$ROOT/.env" -p "$(env_get COMPOSE_PROJECT_NAME)" -f "$ROOT/$COMPOSE_FILE" "$@"
+compose() {  # docker compose do projeto desta feature, com os trilhos só para leitura (ver up)
+  local protect
+  protect="$(env_record)" && protect="${protect%.json}.protect.json"
+  if [ -s "$protect" ]; then
+    docker compose --env-file "$ROOT/.env" -p "$(env_get COMPOSE_PROJECT_NAME)" -f "$ROOT/$COMPOSE_FILE" -f "$protect" "$@"
+  else
+    docker compose --env-file "$ROOT/.env" -p "$(env_get COMPOSE_PROJECT_NAME)" -f "$ROOT/$COMPOSE_FILE" "$@"
+  fi
 }
 
 env_record() {  # arquivo que registra o dono do ambiente desta feature
