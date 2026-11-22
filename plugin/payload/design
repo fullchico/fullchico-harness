@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Escolha do design: monta a vitrine das direções e grava a escolhida.
+# Uso: .harness/design gallery <pasta das direções>
+#      .harness/design choose <pasta das direções> <direção>
+set -uo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd -P)"
+ROOT="$(cd "$HERE/.." && pwd -P)"
+exec python3 -I "$HERE/design.py" "$ROOT" "$@"

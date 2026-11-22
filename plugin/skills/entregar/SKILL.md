@@ -67,6 +67,44 @@ request. Onde ele manda despachar implementador ou reabrir ticket, é você quem
 spec não há orquestrador nem implementador, e o guard nega o despacho. A revisão recomeça a
 cada correção.
 
+### O design, quando o projeto tem tela e ainda não tem `DESIGN.md`
+
+O dono não é designer, e descrever um visual em palavras não o ajuda a escolher. Ele escolhe
+vendo. São protótipos rápidos e descartáveis: servem para achar o caminho; a implementação de
+verdade vem depois, seguindo o que ele escolheu.
+
+1. **Escolha a tela-chave** do produto (a que o usuário mais vai ver) e fixe um conteúdo
+   fictício realista. Todas as direções mostram essa mesma tela com esse mesmo conteúdo: só o
+   visual muda.
+2. **Derive três direções do produto,** não de um catálogo: quem usa, em que situação, o que
+   deve sentir. Elas diferem em layout, densidade e tipografia, não só em cor. Cada uma tem um
+   nome e uma frase de intenção. Se a skill `frontend-design` estiver disponível, use o plano
+   de tokens dela, uma vez por direção. Referência que o dono citar (um site, uma marca) vira
+   atributos (espaçoso, fotos grandes, cantos arredondados), nunca cópia de logotipo, nome ou
+   combinação exata de cores.
+3. **Um subagente por direção,** na mesma mensagem, escreve em
+   `.harness-run/design/<slug>/<direção>/`:
+   - `tokens.css`: as variáveis em `:root` (claro) e `.dark` (escuro), com os nomes do shadcn
+     (`--background`, `--foreground`, `--primary`, `--muted-foreground`, `--ring`, `--radius`...);
+   - `index.html`: a tela, autocontida, que carrega o `tokens.css` e só usa as variáveis, com
+     `<script>if(location.search.includes('theme=dark'))document.documentElement.classList.add('dark')</script>`
+     no `<head>`;
+   - `direcao.md`: o nome na primeira linha, a intenção na segunda.
+4. **Monte a vitrine:** `.harness/design gallery .harness-run/design/<slug>`. O selo de leitura
+   de cada direção é calculado pelo harness, pelo contraste dos tokens. Direção reprovada se
+   corrige (escurecer ou clarear um tom quase não muda a aparência) antes de ir ao dono.
+5. **Mostre ao dono** o caminho do arquivo da vitrine, que ele abre no navegador, e uma linha
+   por direção: para quem ela é melhor e o que custa. **Pare e espere a escolha.** Vale "a B"
+   e vale "a B com as cores da A": nesse caso ajuste a direção, monte a vitrine de novo e
+   confirme. No modo autônomo, escolha a que você recomendaria, registre em `## Decisões
+   tomadas sem o dono` e diga onde está a vitrine, para ele trocar depois se quiser.
+6. **Grave:** `.harness/design choose .harness-run/design/<slug> <direção>` escreve o
+   `DESIGN.md` na raiz, e recusa direção que não passa no contraste. Faça o commit. A spec
+   aponta para ele, e o `harness.conf` ganha `TOKENS_CSS`. Sem `DESIGN.md` em commit, o
+   orquestrador de um projeto com tela não é despachado.
+
+Projeto que já tem `DESIGN.md` não repete este passo: telas novas seguem o que está lá.
+
 ## 2. Especificar
 
 Escreva a spec seguindo `references/spec.md` e faça o commit. Ela é tudo o que a execução vai

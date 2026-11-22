@@ -205,6 +205,12 @@ def ready_for_execution(prompt, root):
                         "Acrescente à spec uma seção `harness.conf` com as chaves (PROJECT, SERVICES, COMPOSE_FILE, "
                         "INSTALL_CMD, AFTER_UP, DEV_CMD, VALIDATE_PUSH, VALIDATE_MERGE, VALIDATE_ARCH, CONTRACT_PATHS, MODULE_ROOTS, TOKENS_CSS, "
                         "ENV_*) e faça o commit.")
+    # Projeto que declara os tokens do front tem tela: a execução espera o design escolhido pelo dono.
+    if common.read_conf(os.path.join(root, "harness.conf")).get("TOKENS_CSS") and not _committed(root, "DESIGN.md"):
+        return ("Este projeto tem telas (`TOKENS_CSS` no harness.conf) e ainda não tem `DESIGN.md` em commit. "
+                "O dono escolhe o design antes da execução: gere as direções, monte a vitrine com "
+                "`.harness/design gallery <pasta>`, espere a escolha dele, grave com `.harness/design choose "
+                "<pasta> <direção>` e faça o commit.")
     return None
 
 
