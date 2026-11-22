@@ -9,7 +9,7 @@ import unittest
 from tests.helpers import ROOT, _tmpdir, commit_all, git, make_repo
 from tests.test_plugin_qualidade import fake_claude
 
-TRILHO = ROOT / "plugins/trilho"
+TRILHO = ROOT / "plugins/tr"
 NODE = shutil.which("node")
 
 

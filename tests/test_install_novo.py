@@ -35,8 +35,8 @@ class TestInstall(unittest.TestCase):
     def test_default_installs_the_plugins_and_registers_the_gates_from_the_project(self):
         r = self.install()
         self.assertEqual(r.returncode, 0, r.stderr)
-        # A lib cuida do caminho e da aprendizagem: o núcleo é trilho e memoria. Começo e fim são do projeto.
-        for name in ("trilho", "memoria"):
+        # A lib cuida do caminho e da aprendizagem: o núcleo é tr e memoria. Começo e fim são do projeto.
+        for name in ("tr", "memoria"):
             self.assertIn(f"plugin install {name}@fullchico --scope project", self.calls())
         for name in ("bugs", "qualidade"):
             self.assertNotIn(f"plugin install {name}@fullchico --scope project", self.calls())
@@ -70,7 +70,7 @@ class TestInstall(unittest.TestCase):
     def test_legacy_still_runs_the_old_installer(self):
         r = self.install("--legado")
         self.assertTrue((self.repo / ".harness").exists() or "harness" in (r.stdout + r.stderr).lower(), r.stderr)
-        self.assertNotIn("plugin install trilho@fullchico --scope project", self.calls() if (self.bin / "calls").exists() else [])
+        self.assertNotIn("plugin install tr@fullchico --scope project", self.calls() if (self.bin / "calls").exists() else [])
 
     def test_not_a_repository_is_refused(self):
         r = subprocess.run([shutil.which("node"), str(ROOT / "bin/harness.js"), "install", "/caminho/que/nao/existe"],

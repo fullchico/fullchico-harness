@@ -1,4 +1,4 @@
-"""Plugin `trilho`, passo 1: o modo puro por projeto.
+"""Plugin `tr`, passo 1: o modo puro por projeto.
 
 O projeto que se declara puro (`.claude/puro`) roda o Claude Code só com o que ele declara e com o
 escopo local; o global do usuário não entra. O lançador liga as opções, e o vigia do plugin avisa
@@ -13,7 +13,7 @@ import unittest
 
 from tests.helpers import ROOT, _tmpdir, make_repo
 
-PLUGIN = ROOT / "plugins/trilho"
+PLUGIN = ROOT / "plugins/tr"
 LAUNCHER = ROOT / "bin/cc"
 FLAGS = "--setting-sources project,local --strict-mcp-config"
 
@@ -163,10 +163,10 @@ class TestMakePure(unittest.TestCase):
 class TestPackaging(unittest.TestCase):
     def test_the_plugin_is_in_the_marketplace_and_wires_its_own_hook(self):
         market = json.loads((ROOT / ".claude-plugin/marketplace.json").read_text())
-        entry = next(p for p in market["plugins"] if p["name"] == "trilho")
-        self.assertEqual(entry["source"], "./plugins/trilho")
+        entry = next(p for p in market["plugins"] if p["name"] == "tr")
+        self.assertEqual(entry["source"], "./plugins/tr")
         manifest = json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text())
-        self.assertEqual(manifest["name"], "trilho")
+        self.assertEqual(manifest["name"], "tr")
         hooks = json.loads((PLUGIN / "hooks/hooks.json").read_text())["hooks"]
         command = hooks["SessionStart"][0]["hooks"][0]["command"]
         self.assertIn("${CLAUDE_PLUGIN_ROOT}/scripts/pure_check.py", command)

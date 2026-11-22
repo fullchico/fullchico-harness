@@ -52,7 +52,7 @@ O portão de começo, assinado por um artefato (OpenSpec, `docs/specs/*/spec.md`
 lib não entrevista produto nem força uma stack de processo: ela liga a etapa à ferramenta que o
 projeto já usa.
 
-*Status: disponível. O portão vem no `trilho`; a skill `trilho:configurar` entrevista o dono
+*Status: disponível. O portão vem no `tr`; a skill `tr:configurar` entrevista o dono
 (usando a `grilling` do `mattpocock-skills` quando ligado) e escreve o registro.*
 
 ### 3. Paralelismo com grafo
@@ -69,7 +69,7 @@ O loop gira até os carimbos fecharem; o meio do fluxo é livre.
 
 ### 5. Guardrails
 
-O sandbox do Claude Code; a proteção do `.claude/trilho.json` (só o plugin `trilho` escreve) e,
+O sandbox do Claude Code; a proteção do `.claude/trilho.json` (só o plugin `tr` escreve) e,
 com registro, a do `.claude/settings.json`. Custam zero e não se customizam.
 
 *Status: disponível.*
@@ -109,12 +109,12 @@ o consumo e faz a retrospectiva depois de uma entrega.
 
 | Plugin | O que faz | Estado |
 |---|---|---|
-| `trilho` | o núcleo: modo puro, registro de portões, comando `portao`, aplicador único | disponível |
+| `tr` | o núcleo: modo puro, registro de portões, comando `portao`, aplicador único | disponível |
 | `memoria` | mapa do código e notas ancoradas, injetados no começo da sessão | disponível |
 | `bugs` | o caçador de bugs lê o diff; aprovado, carimbo no fim | opção sugerida quando o projeto não tem validador próprio |
 | `qualidade` | roda a checagem do projeto; passou, carimbo no fim | opção sugerida quando o projeto não tem validador próprio |
 | `orquestracao` | grafo de cards, loop e worktrees | a vir |
-| `planejamento` | o portão de começo, com a entrevista | a vir como skill fina do `trilho`, não como plugin separado |
+| `planejamento` | o portão de começo, com a entrevista | a vir como skill fina do `tr`, não como plugin separado |
 | `seguranca` | revisão de segurança, carimbo no fim | a vir |
 
 Cada plugin é independente e se liga só no projeto (`--scope project`).
@@ -129,7 +129,7 @@ npx @fullchico/harness puro                 # liga o modo puro
 cc                                          # abre a sessão no modo do projeto
 ```
 
-`cc` (de "claude clean") passa a ser o lançador. O `install` traz `trilho`, `memoria`, `ponytail`
+`cc` (de "claude clean") passa a ser o lançador. O `install` traz `tr`, `memoria`, `ponytail`
 (código mínimo) e `mattpocock-skills` (processo e revisão: `grilling`, `domain-modeling`, `tdd`,
 `clean-code-guard`...), e liga o hook do `rtk`. O `install` analisa o que o projeto já usa (specs,
 OpenSpec, scripts do `package.json`) e grava os portões em `.claude/trilho.json`. Para ver a

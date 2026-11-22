@@ -14,17 +14,17 @@ const usage = "uso: fullchico-harness install [pasta do projeto] [--padrao]   (p
   "     fullchico-harness update [pasta do projeto] [--force]\n" +
   "     fullchico-harness puro [pasta do projeto]\n" +
   "     fullchico-harness portoes [--analisar] [--gravar] [--padrao] [--projeto <pasta>]\n" +
-  "     fullchico-harness add <plugin> [<plugin>...] [--project <pasta>]   (trilho, bugs, qualidade)\n" +
+  "     fullchico-harness add <plugin> [<plugin>...] [--project <pasta>]   (tr, bugs, qualidade)\n" +
   "     fullchico-harness --version";
 
 if (command === "puro") {
   // Marca o projeto como puro e traz do global só a ferramenta pessoal (Orca, rtk), para o escopo local.
   const project = rest.find((arg) => !arg.startsWith("-")) || ".";
-  const run = spawnSync("python3", ["-I", path.join(root, "plugins/trilho/scripts/make_pure.py"), project], { stdio: "inherit" });
+  const run = spawnSync("python3", ["-I", path.join(root, "plugins/tr/scripts/make_pure.py"), project], { stdio: "inherit" });
   process.exit(run.status === null ? 1 : run.status);
 } else if (command === "portoes") {
   // Propõe (--analisar, o padrão) ou grava (--gravar) o registro de portões do projeto em .claude/trilho.json.
-  const run = spawnSync("python3", ["-I", path.join(root, "plugins/trilho/scripts/portoes.py"), ...rest], { stdio: "inherit" });
+  const run = spawnSync("python3", ["-I", path.join(root, "plugins/tr/scripts/portoes.py"), ...rest], { stdio: "inherit" });
   process.exit(run.status === null ? 1 : run.status);
 } else if (command === "add") {
   const names = [];
@@ -51,18 +51,18 @@ if (command === "puro") {
   }
   // A lib cuida do caminho e da aprendizagem; começo e fim são das ferramentas do projeto, ligadas pelos
   // portões. O ponytail (código mínimo) e o mattpocock-skills (processo: grilling, tdd, revisão) vêm junto.
-  const status = addPlugins(["trilho", "memoria"], project, [
+  const status = addPlugins(["tr", "memoria"], project, [
     ["ponytail", "DietrichGebert/ponytail", "ponytail"],
     ["claude-plugins-official", "anthropics/claude-plugins-official", "mattpocock-skills"],
   ]);
   addRtkHook(project);
   const mode = rest.includes("--padrao") ? "--padrao" : "--analisar";
   console.log(`\n$ fullchico-harness portoes ${mode} --gravar`);
-  const gates = spawnSync("python3", ["-I", path.join(root, "plugins/trilho/scripts/portoes.py"), mode, "--gravar",
+  const gates = spawnSync("python3", ["-I", path.join(root, "plugins/tr/scripts/portoes.py"), mode, "--gravar",
     "--projeto", project], { stdio: "inherit" });
   console.log("\nPróximos passos:\n" +
     "  1. Ligue o modo puro: `fullchico-harness puro`, e abra o projeto com `cc` (claude clean).\n" +
-    "  2. Na sessão, peça `/trilho:configurar` para a entrevista preencher `.claude/trilho.json`.\n" +
+    "  2. Na sessão, peça `/tr:configurar` para a entrevista preencher `.claude/trilho.json`.\n" +
     "  3. Confira com `portao` o que cada etapa pede.");
   process.exit(status || (gates.status === null ? 1 : gates.status));
 } else if (command === "install" || command === "update") {
@@ -108,7 +108,7 @@ function addPlugins(names, project, extras = []) {
   for (const name of names) {
     const manifest = path.join(root, "plugins", name, "portao.json");
     if (!fs.existsSync(manifest)) continue;
-    spawnSync("python3", ["-I", path.join(root, "plugins/trilho/scripts/portoes.py"), "--registrar", manifest,
+    spawnSync("python3", ["-I", path.join(root, "plugins/tr/scripts/portoes.py"), "--registrar", manifest,
       "--projeto", project], { stdio: "inherit" });
   }
   // O carimbo fica fora do projeto, onde o sandbox impede o agente de gravar. Sem sandbox, o agente
