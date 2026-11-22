@@ -49,6 +49,9 @@ def main():
     commit = once(r"^[ \t]*COMMIT: ([0-9a-f]{40})[ \t]*$", text)
     summary = once(r"^[ \t]*RESUMO: (\S.*?)[ \t]*$", text)
     if not (verdict and commit and summary):
+        # No SubagentStop vem só o fecho: se o relatório já assinou o topo na entrega, não é falha.
+        if event == "SubagentStop" and ledger.has(cwd, "bugs", ledger.head(cwd) or ""):
+            return
         ledger.log(cwd, "bugs", "não assinou", "bloco de três linhas ausente ou ambíguo")
         return
     top = ledger.head(cwd)
