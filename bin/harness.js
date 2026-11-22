@@ -102,6 +102,13 @@ function addPlugins(names, project, extras = []) {
     // o marketplace já registrado não é erro; a instalação que falha é
     if (args[1] === "install" && run.status !== 0) status = run.status === null ? 1 : run.status;
   }
+  // Cada plugin com `portao.json` registra o próprio portão (só acrescenta; entrada existente fica como está).
+  for (const name of names) {
+    const manifest = path.join(root, "plugins", name, "portao.json");
+    if (!fs.existsSync(manifest)) continue;
+    spawnSync("python3", ["-I", path.join(root, "plugins/trilho/scripts/portoes.py"), "--registrar", manifest,
+      "--projeto", project], { stdio: "inherit" });
+  }
   // O carimbo fica fora do projeto, onde o sandbox impede o agente de gravar. Sem sandbox, o agente
   // consegue gravar lá: o portão continua avisando, mas deixa de ser barreira.
   let sandboxed = false;

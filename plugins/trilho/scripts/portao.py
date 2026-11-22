@@ -39,6 +39,9 @@ def verificar(root, reg, name):
         print(f"O portão `{name}` só é assinado pelo agente `{gate['agente']}`: dispare-o sobre o commit do topo.\n"
               "O carimbo nasce do veredito APPROVED dele, não de um comando.")
         return 2
+    if gate["assina"] == "comando" and gate["comando"] == registry.DEFINIR:
+        print(f"portao {name}: FALHOU ({registry.howto(name, gate)})")
+        return 2
     if gate["assina"] == "comando":
         code, motivo = run(gate["comando"], root), gate["comando"]
     else:
