@@ -14,6 +14,16 @@
       "name": "trilho",
       "source": "./plugins/trilho",
       "description": "Núcleo do harness por projeto: modo puro e passaporte de carimbos."
+    },
+    {
+      "name": "bugs",
+      "source": "./plugins/bugs",
+      "description": "Caçador de bugs: o agente lê o diff e o hook carimba o commit; sem carimbo, o push é barrado."
+    },
+    {
+      "name": "qualidade",
+      "source": "./plugins/qualidade",
+      "description": "Checagem de qualidade do projeto (.claude/trilho.json) como carimbo do commit; sem carimbo, o push é barrado."
     }
   ]
 }

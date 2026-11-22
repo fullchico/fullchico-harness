@@ -442,6 +442,22 @@ skills. Depois abra o Claude Code na pasta e faça o pedido:
 Na primeira vez o Claude Code pergunta se você confia na pasta: aceite. O remoto pode vir
 depois: sem ele a entrega roda até o fim, e só o envio e o pull request ficam esperando.
 
+### Plugins por projeto
+
+Em projeto que já tem as próprias skills e configuração, dá para instalar só o que interessa. Cada
+plugin assina o seu carimbo (um arquivo fora do repositório, por commit) e barra o envio enquanto o
+carimbo dele não existir. Nenhum depende do outro.
+
+| Plugin | O que faz |
+|---|---|
+| `trilho` | modo puro: o projeto roda só com as próprias configurações; base do passaporte de carimbos |
+| `bugs` | o agente `bugs:cacador` caça defeito no diff; aprovado, o commit é carimbado |
+| `qualidade` | `qualidade-check` roda o comando de `.claude/trilho.json`; passou com a árvore limpa, o commit é carimbado |
+
+```bash
+npx @fullchico/harness add bugs qualidade
+```
+
 ### Deixar o Claude instalar
 
 Se preferir, cole este pedido numa sessão do Claude Code aberta na pasta do projeto:
