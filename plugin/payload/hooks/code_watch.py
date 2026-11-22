@@ -132,8 +132,9 @@ def violations(base: dict, now: dict):
     committed = []
     if base["head"] and now["head"] and base["head"] != now["head"]:
         # Merge é a junção feita pelo integrate; pela primeira linha, os commits do implementador não contam.
+        # E o que já está no remoto não foi escrito aqui: trazer a branch padrão é o passo 0 da entrega.
         names = _run(base["root"], "log", "--no-merges", "--first-parent", "--format=", "--name-only",
-                     f"{base['head']}..{now['head']}").splitlines()
+                     f"{base['head']}..{now['head']}", "--not", "--remotes").splitlines()
         committed = sorted({n for n in names if n and common.code_rel(n)})
     return fresh, again, committed
 

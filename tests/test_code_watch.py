@@ -93,6 +93,18 @@ class TestCodeWatch(unittest.TestCase):
         err = self.assertCaught("git commit -q -am 'fix: page'", "apps/web/page.tsx")
         self.assertIn(f"git reset --soft {self.base}", err)
 
+    def test_bringing_the_default_branch_from_the_remote_is_not_writing_code(self):
+        # O passo 0 da entrega: `git merge origin/<padrão>`, que avança sem commit de merge.
+        git(self.repo, "checkout", "-q", "-b", "upstream")
+        (self.repo / "apps/web/page.tsx").write_text("do remoto\n")
+        tip = commit_all(self.repo, "feat: from the remote")
+        git(self.repo, "checkout", "-q", "-")
+        git(self.repo, "update-ref", "refs/remotes/origin/main", tip)
+        git(self.repo, "branch", "-D", "upstream")
+        self.assertEqual(pre(self.repo, "git merge origin/main")[0], 0)
+        git(self.repo, "merge", "-q", "--ff-only", "origin/main")
+        self.assertEqual(post(self.repo, "git merge origin/main")[0], 0)
+
     def test_reset_to_another_branch_that_changes_code_is_caught(self):
         self.assertCaught("git reset -q --hard impl", "apps/web/page.tsx")
 

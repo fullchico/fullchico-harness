@@ -61,7 +61,9 @@ Com o dono, usando a skill `grilling`, até não sobrar decisão em aberto. Regi
 vocabulário e as decisões difíceis de reverter com a skill `domain-modeling`.
 
 Se o pedido é um bug, use a skill `diagnosing-bugs` no lugar da entrevista. Bug não tem
-spec nem tickets: corrija você mesmo, com teste, em commits `fix`, e feche seguindo
+spec nem tickets: corrija você mesmo, com teste, em commits `fix`. Como é código escrito fora de
+um ticket, o harness só deixa com a edição direta aberta: se a escrita for negada, peça ao dono
+para enviar `/harness:direto` e siga. Feche seguindo
 `.harness/entrega/fechamento.md`, do qual valem a checagem, a revisão, o envio e o pull
 request. Onde ele manda despachar implementador ou reabrir ticket, é você quem corrige: sem
 spec não há orquestrador nem implementador, e o guard nega o despacho. A revisão recomeça a
