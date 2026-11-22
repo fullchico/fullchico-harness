@@ -238,12 +238,58 @@ def main():
               or check(agent, tool_input.get("prompt"), root))
     if not reason:
         reason = claimed(agent, tool_input.get("prompt"), root)
+    if not reason:
+        reason = already_done(agent, tool_input.get("prompt"), root)
     if not reason and agent == "harness:orquestrador":
         reason = ready_for_execution(tool_input.get("prompt"), root)
     if reason:
         common.deny(reason)
     record_request(agent, tool_input.get("prompt"), root)
     record_ticket(agent, tool_input.get("prompt"), root)
+    record_dispatch(agent, tool_input.get("prompt"), root)
+
+
+def _resume():
+    """O que o `.harness/resume` sabe: o mesmo código decide o comando e os trilhos."""
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import resume
+    return resume
+
+
+def already_done(agent, prompt, root):
+    """Ticket com trabalho pronto e não integrado não é despachado de novo.
+
+    Numa queda, o commit do implementador fica na branch do worktree dele, com o ticket ainda
+    `claimed` na feature. Quem retoma revisa e integra esse commit; refazer joga o trabalho fora.
+    Rodada de correção (com `achado:`) passa, e reabrir o ticket libera: a tentativa antiga não
+    saiu do `claim` novo.
+    """
+    if agent != "harness:implementador" or not isinstance(prompt, str) or not root:
+        return None
+    fields = dict(m.groups() for m in map(_LINE.match, (l.strip() for l in prompt.splitlines())) if m)
+    if "achado" in fields:
+        return None
+    ticket = fields["ticket"]
+    ready = _resume().attempts(root, ticket)[0]
+    if not ready:
+        return None
+    spec = os.path.dirname(fields["spec"])
+    number = os.path.basename(ticket)[:2]
+    return (f"O ticket {ticket} já tem trabalho pronto e não integrado: branch `{ready['branch']}`, commit "
+            f"{ready['commit']}. Não despache de novo: `.harness/resume {spec}` mostra em que pé ele está. Revise "
+            "esse commit (`harness:revisor-bugs`) e integre com `.harness/integrate`; se o trabalho não presta, "
+            f"reabra o ticket com `.harness/ticket reopen {spec} {number} \"<motivo>\"` e pegue-o de novo.")
+
+
+def record_dispatch(agent, prompt, root):
+    """Guarda a hora do despacho, por ticket e agente: é o que dá tempo limite à espera."""
+    if agent not in ("harness:implementador", *TICKET_GATE) or not isinstance(prompt, str) or not root:
+        return
+    fields = dict(m.groups() for m in map(_LINE.match, (l.strip() for l in prompt.splitlines())) if m)
+    try:
+        _resume().record_dispatch(root, agent, fields)
+    except Exception as exc:  # o registro é para a retomada; a falta dele não nega um despacho válido
+        common.log(root, "dispatch_guard", "não registrou o despacho", str(exc))
 
 
 TICKET_GATE = {"harness:revisor-bugs": "bugs", "harness:revisor-ambiente": "ambiente"}

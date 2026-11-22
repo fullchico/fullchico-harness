@@ -311,7 +311,13 @@ FREE_FILES = ("harness.conf", "skills-lock.json", "orca.yaml")
 NOT_CODE = (".md", ".log", ".txt", ".out", ".tmp", ".patch", ".diff")
 DENY_CODE = ("Neste worktree o código do aplicativo só muda pelo fluxo: invoque a skill `harness:entregar` com o "
              "pedido (quem escreve são os implementadores, nos worktrees deles). Edição direta só quando o dono "
-             "liberar nesta sessão com `/harness:direto`. Não contorne por outro comando: diga ao dono o que falta.")
+             "liberar nesta sessão com `/harness:direto`. O que cada comando altera é conferido depois que ele roda "
+             "(code_watch.py): escrever por outro caminho aparece do mesmo jeito. Diga ao dono o que falta.")
+
+
+def code_rel(rel: str) -> bool:
+    """Pelo caminho relativo à raiz, isto é código do aplicativo? (Não vê o que o git ignora.)"""
+    return not (rel.endswith(NOT_CODE) or rel in FREE_FILES or (rel + "/").startswith(FREE_DIRS))
 
 
 def is_code(cwd, path) -> bool:
@@ -326,7 +332,7 @@ def is_code(cwd, path) -> bool:
     if not base or AGENT_MARK in base + os.sep or not target.startswith(base + os.sep):
         return False
     rel = os.path.relpath(target, base)
-    if rel.endswith(NOT_CODE) or rel in FREE_FILES or (rel + "/").startswith(FREE_DIRS):
+    if not code_rel(rel):
         return False
     try:
         ignored = subprocess.run(["git", "-C", base, "check-ignore", "-q", "--", rel], capture_output=True, timeout=10)
@@ -345,3 +351,43 @@ def direct_path(cwd, session):
 def direct_open(cwd, session) -> bool:
     path = direct_path(cwd, session)
     return bool(path) and os.path.exists(path)
+
+
+# --- Quem pode alterar código no worktree da feature ------------------------------------------
+# O `.harness/integrate` e a sessão em que o dono liberou a edição direta. Cada um deixa um
+# marcador no estado; enquanto ele está ativo, a conferência depois do comando (code_watch.py)
+# não acusa os outros agentes, que rodam no mesmo worktree e não escreveram nada.
+WRITER_MAX = 20 * 60  # marcador "running" esquecido (processo morto) deixa de valer depois disto
+
+
+def mark_writer(cwd, name: str, word: str) -> None:
+    """Grava `running` ou `done` no marcador; a hora é a de modificação do arquivo. Nunca derruba o hook."""
+    try:
+        folder = os.path.join(state_dir(cwd), "writers")
+        os.makedirs(folder, exist_ok=True)
+        with open(os.path.join(folder, re.sub(r"[^\w-]", "_", name)), "w", encoding="utf-8") as f:
+            f.write(word + "\n")
+    except (OSError, TypeError):
+        pass
+
+
+def writer_active(state: str, since: float, now: float) -> bool:
+    """Algum escritor legítimo está rodando, ou rodou depois de `since`?"""
+    folder = os.path.join(state, "writers")
+    try:
+        names = os.listdir(folder)
+    except OSError:
+        return False
+    for name in names:
+        try:
+            path = os.path.join(folder, name)
+            at = os.stat(path).st_mtime
+            with open(path, encoding="utf-8") as f:
+                running = f.read().strip() == "running"
+        except OSError:
+            continue
+        # ponytail: hora pelo mtime; em disco com mtime de 1 s um comando iniciado no mesmo segundo
+        # em que o escritor terminou pode ser acusado. Guardar a hora no conteúdo se isso aparecer.
+        if at >= since or (running and now - at < WRITER_MAX):
+            return True
+    return False

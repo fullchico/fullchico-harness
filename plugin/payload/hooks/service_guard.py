@@ -21,6 +21,7 @@ sys.dont_write_bytecode = True  # não deixa __pycache__ dentro de .harness/ do 
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common  # noqa: E402
+import code_watch  # noqa: E402
 
 DENY_SKIP = ("Pular os hooks de git (--no-verify, commit -n, core.hooksPath) não é permitido a agentes. "
              "Se o push foi negado, corrija o motivo; a exceção é do dono.")
@@ -69,8 +70,9 @@ def classify(command: str, cwd=None):
 # --- Leitura do comando ------------------------------------------------------------------------
 # O comando é lido como o shell o leria (aspas, redirecionamento, encadeamento), em vez de por
 # pedaço de texto: `grep hooksPath` não é pular hook, e `rm "src/a.ts"` é apagar código.
-# Não é um interpretador: variável, laço e programa que grava por conta própria passam. A
-# barreira de verdade continua sendo o portão do push; isto barra cedo as formas usuais.
+# Não é um interpretador: variável, laço e programa que grava por conta própria passam. Isto
+# barra cedo as formas usuais; a barreira de verdade é a conferência depois do comando
+# (code_watch.py), que mede o que mudou, e o portão do push.
 _HEREDOC = re.compile(r"(<<-?\s*(['\"]?)(\w+)\2[^\n]*)\n.*?\n[ \t]*\3[ \t]*(?=\n|$)", re.S)
 _OPS = {";", "&&", "||", "|", "&", "|&", "(", ")", ";;"}
 _OUT = {">", ">>", ">|", "&>", "&>>"}
@@ -228,6 +230,47 @@ def writes_code(command: str, cwd: str) -> bool:
     return False
 
 
+# --- Um orquestrador por onda -------------------------------------------------------------------
+# Cada orquestrador conduz um lote de tickets novos e encerra; o próximo começa de contexto limpo e
+# lê o estado no repositório (`.harness/resume`). Sem isto ele emendaria a onda seguinte, e o
+# contexto de um só voltaria a crescer a entrega inteira. Ticket reaberto (rodada de correção,
+# pendência do fechamento) pode ser pego de novo à vontade: não é trabalho novo.
+_CLAIM = re.compile(r"\.harness/ticket\s+claim\s+\S+((?:\s+\d{1,3})+)")
+_REOPEN = re.compile(r"\.harness/ticket\s+reopen\s+\S+\s+(\d{1,3})")
+DENY_WAVE = ("Você já conduziu a sua onda (tickets {mine}). Os tickets {new} são trabalho novo, de outra onda: "
+             "termine o que falta da sua (revisar, integrar, checar) e encerre com a linha `ENTREGA: CONTINUA`. "
+             "A sessão principal dispara o próximo orquestrador, que começa de contexto limpo e retoma pelo "
+             "`.harness/resume`.")
+
+
+def wave_check(command: str, cwd: str, agent_id) -> None:
+    if not isinstance(agent_id, str) or not agent_id:
+        return
+    asked = sorted({int(n) for batch in _CLAIM.findall(command) for n in batch.split()})
+    state = common.state_dir(cwd)
+    if not asked or not state:
+        return
+    path = os.path.join(state, "waves", re.sub(r"[^\w-]", "_", agent_id) + ".json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            mine = sorted(int(n) for n in json.load(f))
+    except (OSError, ValueError, TypeError):
+        mine = []
+    history = common._git(cwd, "log", "-n", "400", "--format=%s") or ""
+    reopened = {int(n) for n in _REOPEN.findall(command)}
+    for subject in history.splitlines():
+        if subject.startswith("chore(tickets): reopen "):
+            reopened |= {int(n) for n in re.findall(r"\d+", subject[len("chore(tickets): reopen "):])}
+    fresh = [n for n in asked if n not in mine and n not in reopened]
+    if mine and fresh:
+        common.deny(DENY_WAVE.format(mine=", ".join(f"{n:02d}" for n in mine), new=", ".join(f"{n:02d}" for n in fresh)))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = f"{path}.{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(sorted(set(mine) | set(asked)), f)
+    os.replace(tmp, path)
+
+
 DESTROY_FORMS = (".harness/destroy", "./.harness/destroy")
 PAYLOAD = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -317,11 +360,15 @@ def main():
         common.deny(DENY_CONDUCTOR)
     if agent == "harness:orquestrador" and _JOINS.search(command):
         common.deny(DENY_JOIN)
+    if agent == "harness:orquestrador" and isinstance(cwd, str):
+        wave_check(command, cwd, payload.get("agent_id"))
     reason = classify(command, cwd if isinstance(cwd, str) else None)
     if reason:
         common.deny(reason)
     if isinstance(cwd, str) and writes_code(command, cwd) and not common.direct_open(cwd, payload.get("session_id")):
         common.deny(common.DENY_CODE)
+    if isinstance(cwd, str) and not _EXACT.match(command.strip()):
+        code_watch.begin(payload, command, cwd)  # a barreira de verdade: o que mudou é medido depois
     if command.strip() in CONF_FORMS and isinstance(cwd, str):
         conf_check(cwd)
     elif command.strip() in DESTROY_FORMS and isinstance(cwd, str):

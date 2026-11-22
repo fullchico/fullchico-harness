@@ -61,7 +61,9 @@ Com o dono, usando a skill `grilling`, até não sobrar decisão em aberto. Regi
 vocabulário e as decisões difíceis de reverter com a skill `domain-modeling`.
 
 Se o pedido é um bug, use a skill `diagnosing-bugs` no lugar da entrevista. Bug não tem
-spec nem tickets: corrija você mesmo, com teste, em commits `fix`, e feche seguindo
+spec nem tickets: corrija você mesmo, com teste, em commits `fix`. Como é código escrito fora de
+um ticket, o harness só deixa com a edição direta aberta: se a escrita for negada, peça ao dono
+para enviar `/harness:direto` e siga. Feche seguindo
 `.harness/entrega/fechamento.md`, do qual valem a checagem, a revisão, o envio e o pull
 request. Onde ele manda despachar implementador ou reabrir ticket, é você quem corrige: sem
 spec não há orquestrador nem implementador, e o guard nega o despacho. A revisão recomeça a
@@ -132,10 +134,28 @@ A linha `leitura` é opcional e só lista arquivos que existem. Diga ao dono, em
 a execução começou, e espere o orquestrador voltar. Enquanto ele trabalha você não faz nada:
 não acompanhe, não confira o repositório, não repita o trabalho dele.
 
+**A execução é um laço, e você é só quem o gira.** Cada orquestrador conduz uma onda e encerra.
+Leia a última linha da resposta dele e faça o que ela diz, sem analisar o resto:
+
+- `ENTREGA: CONTINUA`: diga ao dono, em uma linha, o que a onda fechou, e dispare de novo o
+  `harness:orquestrador` com o mesmo pedido, sem mudar nada. O novo começa de contexto limpo e
+  acha o estado sozinho.
+- `ENTREGA: PARADA <motivo>`: é a PARADA 2, abaixo.
+- `ENTREGA: CONCLUIDA`: siga para o relato.
+- nenhuma das três (a API caiu, ele encerrou sem a linha): dispare de novo, do mesmo jeito.
+
+Não abra arquivo, não rode comando e não resuma entre um disparo e outro: cada coisa dessas
+feita aqui custa o contexto desta sessão, que é a mais cara. Se passar de duas vezes o número
+de tickets em disparos, pare e relate ao dono: algo está girando sem avançar.
+
 **PARADA 2, só se acontecer.** Se o orquestrador voltar porque um ticket não fechou em
 3 rodadas de correção, relate ao dono o que travou: o achado que se repete, o que foi tentado, e a sua
 leitura do motivo. Se ele voltar por lacuna na spec, corrija a spec, faça o commit e dispare
 de novo.
+
+**Depois de uma parada resolvida,** dispare-o de novo com o mesmo pedido de uma linha. Ele retoma sozinho: começa por
+`.harness/resume`, que acha o commit de cada ticket nos worktrees de agente e diz a próxima
+ação. Não cole commit, branch nem relato no pedido: o guard recusa, e ele não precisa.
 
 ## 5. Relatar
 
