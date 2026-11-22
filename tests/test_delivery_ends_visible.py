@@ -1,6 +1,8 @@
 """A entrega mostra o que fez: o ambiente e a tela são exercitados cedo, e o app fica de pé no fim."""
 import unittest
 
+# ver também: o aplicativo fica de pé durante a entrega (test_the_owner_watches_the_app_change)
+
 from tests.helpers import ROOT
 
 RUN = ROOT / "plugin/payload/entrega"
@@ -30,3 +32,14 @@ class TestDeliveryEndsVisible(unittest.TestCase):
         self.assertNotIn("Depois do envio, `.harness/down`", text)
         agent = (ROOT / "plugin/agents/orquestrador.md").read_text()
         self.assertIn("o endereço do aplicativo, que você deixou de pé", agent)
+
+
+class TestTheOwnerWatches(unittest.TestCase):
+    """O dono não espera o fim para ver: da base em diante o aplicativo fica de pé, e cada ticket integrado aparece nele."""
+
+    def test_the_owner_watches_the_app_change(self):
+        from tests.helpers import ROOT
+        dispatch = (ROOT / "plugin/payload/entrega/despacho.md").read_text()
+        for needed in ("O dono acompanha vendo", "fica de pé a entrega inteira", "recarga\na quente",
+                       ".harness/down", ".harness/prepare"):
+            self.assertIn(needed, dispatch, needed)

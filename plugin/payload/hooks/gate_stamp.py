@@ -17,7 +17,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common  # noqa: E402
 
 AGENT_GATE = {"harness:seguranca": "seguranca", "harness:revisor": "revisao", "harness:qualidade": "qualidade",
-              "harness:revisor-bugs": "bugs", "harness:revisor-ambiente": "ambiente"}
+              "harness:revisor-bugs": "bugs", "harness:revisor-ambiente": "ambiente",
+              "harness:revisor-visual": "visual"}
 HANDBACK_TOOL = "SubagentHandback"
 _VERDICT = re.compile(r"^VEREDITO: (APPROVED|REJECTED)$")
 _COMMIT = re.compile(r"^COMMIT: ([0-9a-f]{40})$")
@@ -60,7 +61,8 @@ def too_many_pendings(cwd, message, ticket) -> bool:
 
 
 def track_pendings(cwd, message, verdict, ticket=None):
-    """O caçador de bugs e o revisor de ambiente abrem pendência para achado simples e a fecha quando confere a correção.
+    """O caçador de bugs, o revisor de ambiente e o revisor visual abrem pendência para achado simples e a fecham
+    quando conferem a correção.
 
     Pendência só nasce de uma revisão aprovada: se ele reprovou, tudo o que apontou vai para a
     rodada de correção. Fechar vale em qualquer veredito.
@@ -106,6 +108,13 @@ def _write(folder, item):
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(item, f, ensure_ascii=False, indent=2)
     os.replace(tmp, os.path.join(folder, f"{item['id']}.json"))
+
+
+def _screens():
+    """O que o `.harness/screens check` sabe: o mesmo código confere no despacho, no carimbo e à mão."""
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import screens
+    return screens
 
 
 def gate_for(agent_type):
@@ -262,7 +271,7 @@ def main():
             return skipped(f"o commit {verdict['commit']} não existe neste repositório")
     elif verdict["commit"] != common.head_sha(cwd):
         return skipped(f"o commit revisado ({verdict['commit']}) não é o HEAD")
-    if gate in ("bugs", "ambiente"):
+    if gate in ("bugs", "ambiente", "visual"):
         message = final_message(payload) or ""
         ticket = None
         try:
@@ -281,6 +290,11 @@ def main():
         if os.path.exists(path):
             os.remove(path)
         return
+    if gate == "visual":
+        # Quem aprova a tela aprova as capturas deste commit: sem elas no lugar, não olhou o que diz ter olhado.
+        missing = _screens().problems(common.repo_root(cwd) or cwd)
+        if missing:
+            return skipped("as capturas de tela não valem para este commit: " + "; ".join(missing))
     base = None
     try:
         with open(common.request_path(state, gate, verdict["commit"]), encoding="utf-8") as f:

@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # Carimbo manual do dono para um portão de push, sobre o commit atual.
-# Uso: .harness/approve <seguranca|revisao|qualidade|bugs|ambiente> "<resumo do que foi revisado>"
+# Uso: .harness/approve <seguranca|revisao|qualidade|bugs|ambiente|visual> "<resumo do que foi revisado>"
 # Agentes são negados pelo sandbox e pela exigência de terminal: quem revisa com IA não carimba.
 set -euo pipefail
 
 GATE="${1:-}"
 RESUMO="${2:-}"
 
-usage() { echo 'uso: approve <seguranca|revisao|qualidade|bugs|ambiente> "<resumo>"' >&2; exit 1; }
+usage() { echo 'uso: approve <seguranca|revisao|qualidade|bugs|ambiente|visual> "<resumo>"' >&2; exit 1; }
 
 # Sem terminal na entrada, quem está chamando não é o dono digitando.
 [ -t 0 ] || { echo "approve: só roda num terminal, pelo dono. Agentes não carimbam aprovação." >&2; exit 1; }
 
-case "$GATE" in seguranca|revisao|qualidade|bugs|ambiente) ;; *) usage ;; esac
+case "$GATE" in seguranca|revisao|qualidade|bugs|ambiente|visual) ;; *) usage ;; esac
 [ -n "${RESUMO//[[:space:]]/}" ] || usage
 
 HERE="$(cd "$(dirname "$0")" && pwd -P)"

@@ -192,6 +192,7 @@ Os oito agentes do plugin:
 | `seguranca` | Sonnet | revisão de segurança da branch inteira | `diff`, `commit`, `spec`, `leitura` | editar, corrigir, reprovar por estilo ou risco hipotético |
 | `revisor` | Sonnet | revisão de código: padrões do repositório, aderência à spec, arquitetura e clareza | `diff`, `commit`, `spec`, `leitura` | editar, corrigir |
 | `qualidade` | Haiku | roda a checagem completa no commit e atesta o resultado | `commit` | revisar, opinar, consertar, rodar de novo "para ver se passa" |
+| `revisor-visual` | Opus | só em projeto com `SCREENS_DIR`: abre cada captura de tela do commit e julga o que vê | `diff`, `commit`, `spec`, `leitura` | editar, corrigir, aprovar pelo código sem abrir a imagem, reprovar por gosto |
 
 Uma rodada de correção de um ticket sobe de modelo: vai em Sonnet e, depois de duas
 reprovações, em Opus. Se o projeto tem um agente próprio em `.claude/agents/` cuja descrição
@@ -249,6 +250,10 @@ Nada sai da máquina sem quatro aprovações sobre o commit do topo da branch:
 | revisão de código | `revisor` | o código segue os padrões do repositório, a spec e a arquitetura |
 | caça a bugs | `revisor-bugs` | o passe final sobre a branch inteira: o que só aparece olhando os módulos juntos |
 | qualidade | `qualidade` | a checagem completa do projeto (testes, fronteiras, build, ponta a ponta) passou naquele commit |
+
+Em projeto com tela (o `harness.conf` define `SCREENS_DIR`) há um quinto, o visual: o
+`revisor-visual` abre cada captura de tela que a suíte de ponta a ponta tirou naquele commit, no
+celular e no computador, e reprova o que está quebrado na tela renderizada. Sem a chave, nada muda.
 
 Todo revisor termina a resposta com um bloco fixo:
 
@@ -509,6 +514,7 @@ O que é só do projeto (hooks, permissões, servidores MCP, sites liberados) va
 | `.harness/down` | para o aplicativo e os contêineres, mantém os dados | você ou o orquestrador |
 | `.harness/destroy` | remove o ambiente da feature e apaga os dados | você, ou o agente com a sua permissão |
 | `.harness/design gallery <pasta>` e `choose <pasta> <direção>` | monta a vitrine das direções de design, com o selo de leitura, e grava a escolhida em `DESIGN.md` | o agente da entrevista; quem escolhe é você |
+| `.harness/screens check` e `gallery` | confere que as capturas de tela em `SCREENS_DIR` são do commit atual, e monta a galeria delas | o revisor visual e o orquestrador; quem olha a galeria antes do merge é você |
 | `.harness/logs [serviço]` | mostra o estado e o fim do log do ambiente | qualquer agente; só lê |
 | `.harness/ports-free` | encerra processo esquecido numa porta da feature | o orquestrador; roda sozinho quando um revisor termina |
 | `.harness/setup-worktree` | prepara um worktree: `.env` e dependências | o Orca ao abrir o worktree, você, ou cada implementador |
@@ -517,6 +523,7 @@ O que é só do projeto (hooks, permissões, servidores MCP, sites liberados) va
 | `.harness/ticket claim\|reopen` | marca tickets como em andamento, ou reabre um, já com o commit | o orquestrador |
 | `.harness/integrate <ticket> <branch>` | junta o trabalho de um implementador: revisão, posse, merge, checagem | o orquestrador |
 | `.harness/resume <pasta da spec>` | diz o estado real de cada ticket em andamento (commit, revisão) e a próxima ação; só lê | o orquestrador, ao começar e ao retomar |
+| `.harness/board [--text\|--json\|--watch [s]]` | gera o painel da entrega em `.harness-run/painel.html`: situação, tickets, agentes ativos, portões, pendências, linha do tempo e onde ver o resultado; a página recarrega sozinha, e `--watch` a refaz em laço | você, para acompanhar sem perguntar à sessão; só lê |
 | `.harness/agents-clean` | remove os worktrees de agente já integrados | o orquestrador |
 | `.harness/pendings` | lista as pendências abertas da feature | você ou o agente |
 | `.harness/doctor [--hours N] [--json]` | diz se os trilhos estão de pé: hooks, arquivos gerenciados, negações recentes, portões no commit, pedidos de permissão vistos; `--prune` limpa aprovações de commit que não existe mais | você ou o agente; só lê (`--prune`, só você, no terminal) |

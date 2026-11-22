@@ -53,6 +53,22 @@ não conta como reprovação de revisor no teto de rodadas. Só despache a prime
 quatro passos passando. Se o que falha é uma ferramenta de desenvolvimento dentro do sandbox, o
 conserto é levar o app para o compose (`docs/agents/stack.md`), não trocar a ferramenta do projeto.
 
+**O dono acompanha vendo.** Com a base provada, o aplicativo fica de pé a entrega inteira, e
+não só no fim: o dono abre o endereço uma vez e vê cada ticket integrado aparecer, pela recarga
+a quente. Quando o app é serviço do compose (o padrão), ele já ficou de pé com o `.harness/up` e
+mostra a branch da feature: você não precisa fazer nada a cada integração de código. O que pede
+ação sua, logo depois de integrar:
+
+- ticket que mudou o schema ou o seed: `.harness/prepare`;
+- ticket que mudou dependências, o compose ou variável de ambiente: `.harness/down` e depois
+  `.harness/up`, cada um sozinho na chamada, para os contêineres reinstalarem e relerem;
+- depois de qualquer um dos dois, confira que front e API respondem; se não, veja
+  `.harness/logs <serviço>` e trate como achado do ticket que acabou de entrar.
+
+Aplicativo que parou de responder no meio da entrega é defeito a corrigir na hora, não detalhe
+para o fechamento: o dono está olhando. Projeto que ainda roda o app na máquina (`DEV_CMD`) não
+tem isso: ali a suíte de ponta a ponta sobe o próprio servidor e o app só fica de pé no fim.
+
 **A tela é exercitada desde a primeira.** Depois de integrar uma onda que tem ticket de tela,
 rode `.harness/validate --profile merge` uma vez: ele compila o aplicativo e roda os testes de
 navegador que já existem. Falhou: rodada de correção para o ticket dono do teste que falhou.

@@ -159,6 +159,97 @@ Arquitetura do `AGENTS.md`.
     o foco, e não há rolagem lateral em 320 px.
   - **Formulário usa o `Form`/`FormControl` do shadcn,** que liga a mensagem de erro ao campo
     sozinho. O `Field`/`FieldError` não liga: com ele, o `id` e o `aria-describedby` são seus.
+- **Capturas de tela são artefato da entrega.** A suíte de ponta a ponta tira captura de cada
+  tela e de cada estado que ela tem (carregada, diálogo aberto, formulário inválido, lista
+  vazia), em 390×844 e 1280×800, no tema claro e no escuro, grava em `SCREENS_DIR` (chave do
+  `harness.conf`, pasta fora do git) e escreve o `telas.json` com o commit. O
+  `harness:revisor-visual` abre cada uma antes do push, e o dono olha a galeria antes do merge.
+  O tema segue o sistema (`next-themes` com `defaultTheme="system"`), e os testes que tiram
+  captura rodam com um worker só. Cada teste chama `shot(page, tela, estado)` depois de cada
+  estado:
+
+  ```ts
+  import { execSync } from "node:child_process";
+  import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+  import { expect, type Page } from "@playwright/test";
+
+  const git = (args: string) => execSync(`git ${args}`).toString().trim();
+  const commit = git("rev-parse HEAD");
+  const dir = `${git("rev-parse --show-toplevel")}/.harness-run/telas`; // o SCREENS_DIR do harness.conf
+  const slug = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const grava = (arquivo: string, dado: string | Buffer) => {
+    writeFileSync(`${dir}/${arquivo}.tmp`, dado); // troca de uma vez: ninguém lê arquivo pela metade
+    renameSync(`${dir}/${arquivo}.tmp`, `${dir}/${arquivo}`);
+  };
+
+  export async function shot(page: Page, tela: string, estado: string) {
+    mkdirSync(dir, { recursive: true });
+    const original = page.viewportSize();
+    for (const [nome, largura, altura] of [["celular", 390, 844], ["computador", 1280, 800]] as const)
+      for (const [tema, esquema] of [["claro", "light"], ["escuro", "dark"]] as const) {
+        await page.setViewportSize({ width: largura, height: altura });
+        await page.emulateMedia({ colorScheme: esquema });
+        await layout(page);
+        const arquivo = `${slug(tela)}-${slug(estado)}-${nome}-${tema}.png`;
+        grava(arquivo, await page.screenshot({ animations: "disabled" }));
+        const caminho = `${dir}/telas.json`;
+        const antes = existsSync(caminho) ? JSON.parse(readFileSync(caminho, "utf8")) : {};
+        const telas = (antes.commit === commit ? antes.telas : []).filter((t: { arquivo: string }) => t.arquivo !== arquivo);
+        grava("telas.json", JSON.stringify({ commit, telas: [...telas, { arquivo, tela, estado, largura, altura, tema }] }, null, 1));
+      }
+    await page.emulateMedia({ colorScheme: null });
+    if (original) await page.setViewportSize(original);
+  }
+  ```
+- **Layout é medido por máquina, junto de cada captura.** "Sem rolagem lateral na página" não
+  basta: uma janela com `overflow` escondido corta por dentro, e a página nem percebe; e o clique
+  pelo nome funciona mesmo com o botão espremido. `layout(page)` falha quando:
+  - um elemento visível tem a borda direita além da largura da tela e não está dentro de um
+    ancestral feito para rolar na horizontal (classe `overflow-x-auto` ou `overflow-x-scroll`);
+  - um contêiner com `overflow` escondido tem conteúdo mais largo que ele
+    (`scrollWidth > clientWidth`), ou seja, está cortando; o mesmo vale para o que rola de lado
+    sem ter sido feito para isso;
+  - um contêiner feito para rolar na horizontal não rola de fato: cresceu até a largura do
+    conteúdo e saiu da tela, ou de quem o corta;
+  - um título (`h1` a `h3`) passa das bordas laterais, ou o título de um diálogo aberto não está
+    inteiro na área visível.
+
+  Exceção é `data-layout-ok="<motivo>"` no elemento, nunca a checagem desligada.
+
+  ```ts
+  export async function layout(page: Page) {
+    const falhas = await page.evaluate(() => {
+      const vw = document.documentElement.clientWidth, vh = window.innerHeight, out: string[] = [];
+      const quem = (e: Element) => `<${e.tagName.toLowerCase()} class="${e.getAttribute("class") ?? ""}"> "${(e.textContent ?? "").trim().slice(0, 40)}"`;
+      const rola = (e: Element) => /overflow-x-(auto|scroll)/.test(e.getAttribute("class") ?? "");
+      for (const e of document.querySelectorAll("body *")) {
+        const r = e.getBoundingClientRect(), s = getComputedStyle(e);
+        if (r.width < 2 || r.height < 2 || s.visibility === "hidden" || e.closest("[data-layout-ok]")) continue;
+        const pais: Element[] = [];
+        for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) pais.push(p);
+        if (pais.some(rola)) continue; // dentro de uma faixa que rola, passar da borda é o esperado
+        const corte = pais.find((p) => getComputedStyle(p).overflowX !== "visible");
+        const limite = Math.min(vw, corte ? corte.getBoundingClientRect().right : vw);
+        if (rola(e) && r.right > limite + 1) out.push(`feito para rolar, mas cresceu até o conteúdo e não rola: ${quem(e)}`);
+        else if (r.right > vw + 1) out.push(`passa da borda direita da tela: ${quem(e)}`);
+        if (s.overflowX !== "visible" && !rola(e) && s.textOverflow !== "ellipsis" && !e.matches("input, textarea, select")
+            && e.scrollWidth > e.clientWidth + 1) out.push(`corta o conteúdo, mais largo que ele: ${quem(e)}`);
+        if (e.matches("h1, h2, h3") && r.left < 0) out.push(`título cortado na borda esquerda: ${quem(e)}`);
+      }
+      for (const d of document.querySelectorAll('[role="dialog"]:not([data-layout-ok]), [role="alertdialog"]:not([data-layout-ok])')) {
+        const t = document.getElementById(d.getAttribute("aria-labelledby") ?? "") ?? d.querySelector("h1, h2, h3");
+        const r = t?.getBoundingClientRect();
+        if (!r || r.width < 2 || r.top < 0 || r.left < 0 || r.right > vw + 1 || r.bottom > vh + 1)
+          out.push(`diálogo com o título ausente ou fora da área visível: ${quem(d)}`);
+      }
+      return out;
+    });
+    expect(falhas, `layout quebrado em ${page.viewportSize()?.width} px`).toEqual([]);
+  }
+  ```
+- **O `DialogContent` do shadcn é um `grid`:** conteúdo largo dentro dele (faixa de botões,
+  tabela, linha que rola) precisa de coluna limitada (`grid-cols-[minmax(0,1fr)]`) ou de
+  `min-w-0` no filho direto; sem isso a coluna cresce até o conteúdo e a janela corta.
 - **Lighthouse e Search Console não rodam no sandbox.** A skill `seo` vale como lista de
   conferência sobre o código.
 - **Fatia-se por comportamento, na vertical,** nunca por camada. Sem sub-branch nem commit

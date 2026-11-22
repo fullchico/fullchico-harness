@@ -83,9 +83,21 @@ diff: BASE...HASH_DO_COMMIT
 commit: HASH_DO_COMMIT
 ```
 
+**Projeto com tela** (o `harness.conf` define `SCREENS_DIR`): vai junto um quinto, o revisor
+visual, que abre cada captura de tela do commit e julga o que vê. As capturas são as que a
+checagem do passo 2 tirou neste mesmo commit: confira com `.harness/screens check` antes de
+despachar. Sem elas, ou com as de outro commit, o despacho é negado e a aprovação não é gravada:
+rode o passo 2 de novo.
+
+```pedido harness:revisor-visual
+diff: BASE...HEAD
+commit: HASH_DO_COMMIT
+```
+
 Dispare os quatro na mesma mensagem, em primeiro plano (`run_in_background` como `false`, se o
 parâmetro existir), e espere todos
-voltarem. O push exige os quatro vereditos sobre o mesmo commit.
+voltarem. O push exige os quatro vereditos sobre o mesmo commit. Em projeto com tela são cinco,
+e o push exige também o do revisor visual.
 
 Cada revisor termina com `VEREDITO: APPROVED` ou `VEREDITO: REJECTED`. A aprovação é
 gravada por um hook a partir dessa resposta. Você não grava aprovação e não tem como.
@@ -96,6 +108,9 @@ gravada por um hook a partir dessa resposta. Você não grava aprovação e não
   dispare só a qualidade de novo. Se foi teste ou build, é rodada de correção.
 - **O caçador de bugs reprovou:** é rodada de correção para os tickets donos dos arquivos
   apontados; cada caso entra como teste junto com a correção.
+- **O revisor visual reprovou:** é rodada de correção para os tickets donos das telas
+  apontadas, com a resposta dele como achado; a correção entra com a asserção de layout que
+  pegaria o defeito. Depois dela, o passo 2 tira capturas novas.
 - **Os quatro aprovaram:** rode `.harness/pendings`. Vazio: siga. Se sobrou pendência, ela
   não foi corrigida: volte ao passo 3.
 
@@ -174,6 +189,8 @@ do envio (`up` sozinho na chamada):
 No relato final, logo depois do link do pull request:
 
 - o endereço do aplicativo, e o da caixa de e-mail de teste se houver;
+- em projeto com tela, o caminho da galeria das capturas, que `.harness/screens gallery` monta
+  e imprime, com esta frase: "Abra a galeria e olhe as telas antes de fazer o merge.";
 - o usuário e a senha de teste, se o sistema tem login;
 - como parar: `.harness/down`.
 
