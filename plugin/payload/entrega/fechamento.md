@@ -8,10 +8,11 @@ O ambiente da feature (banco, fila, contêiner do navegador) já está de pé de
 fica assim até o envio. Confira com `.harness/up`, sozinho: se já está no ar, ele só avisa.
 Depois de integrar um ticket que mudou o schema, rode `.harness/prepare` de novo.
 
-Você não sobe o aplicativo à mão antes do envio. Os testes de ponta a ponta compilam e sobem
-o aplicativo do commit atual por conta própria (o `webServer` do Playwright), e o derrubam ao
-terminar. Se o aplicativo ficou de pé de uma execução anterior, ele ocupa as portas de que os
-testes precisam: rode `.harness/down` e depois `.harness/up`.
+Você não sobe o aplicativo à mão antes do envio. Quando ele é um serviço do compose (o caminho
+do perfil `fullstack-typescript`), já está de pé com o `up`, e os testes de ponta a ponta rodam
+contra ele: confira antes que ele serve o commit atual (`.harness/logs <serviço>`). Quando o
+projeto usa `DEV_CMD`, é a suíte que compila e sobe o aplicativo, e um aplicativo que ficou de pé
+de uma execução anterior ocupa as portas dela: rode `.harness/down` e depois `.harness/up`.
 
 ## 2. Checagem
 

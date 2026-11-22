@@ -179,8 +179,11 @@ class TestSecondAudit(unittest.TestCase):
         for portuguese in ("modules/arquivos", "pages/perfil"):
             self.assertNotIn(portuguese, tickets)
         stack = (ROOT / "plugin/templates/docs/agents/stack.md").read_text()
-        for needed in ("webServer", "host.docker.internal", "VALIDATE_MERGE", "shm_size"):
+        for needed in ("VALIDATE_MERGE", "shm_size", "http://<serviço do app>:<porta>", "pnpm build"):
             self.assertIn(needed, stack, needed)
+        # o app dos testes de ponta a ponta é o do compose: a suíte não sobe servidor na máquina
+        self.assertNotIn("servido pela própria suíte", stack)
+        self.assertNotIn("host.docker.internal", stack)
         security = (ROOT / "plugin/agents/seguranca.md").read_text()
         self.assertIn("Skill", security.split("---")[1])
         self.assertIn("owasp-security", security)

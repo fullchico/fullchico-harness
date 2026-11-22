@@ -57,12 +57,14 @@ Arquitetura do `AGENTS.md`.
     versão do pacote instalado e `shm_size` (não `ipc: host`, que o `up` recusa), alcançado por
     `PW_TEST_CONNECT_WS_ENDPOINT`. Dentro do sandbox o navegador não abre, e não se instala
     navegador na máquina.
-  - O aplicativo é o build do commit atual, compilado e servido pela própria suíte, com o
-    `webServer` do Playwright, nas portas do `.env`. Isso não é "subir servidor próprio": é a
-    suíte cuidando do que testa. Ninguém deixa o aplicativo rodando por fora.
-  - Do contêiner, o aplicativo é `http://host.docker.internal:<porta do web>`. O navegador só
-    fala com essa origem: as chamadas à API passam pelo servidor do front (um proxy), porque
-    dentro do contêiner `localhost` é o próprio contêiner.
+  - O aplicativo testado é o do compose, o mesmo do desenvolvimento: `.harness/up` o deixa de
+    pé e a suíte só confere que ele responde antes de começar. A suíte não compila nem sobe
+    servidor na máquina (sem `webServer` do Playwright), e ninguém roda o aplicativo por fora.
+  - Do contêiner do navegador, o aplicativo é `http://<serviço do app>:<porta>`, pela rede do
+    compose. O navegador só fala com essa origem: as chamadas à API passam pelo servidor do
+    front (um proxy).
+  - O app do compose roda em modo de desenvolvimento, que não prova o build de produção: o
+    `VALIDATE_MERGE` roda `pnpm build` além da suíte.
   - A suíte entra só no `VALIDATE_MERGE`. O `VALIDATE_PUSH`, que roda ao fechar e ao integrar
     cada ticket, fica com o que não precisa do sistema inteiro no ar.
 - **Next com Feature-Sliced Design.** A pasta `app/` do Next fica na raiz do aplicativo, com um
