@@ -11,10 +11,11 @@
 npx @fullchico/harness@latest add bugs qualidade
 ```
 
-**O harness força a etapa do fluxo, não a ferramenta.** Cada projeto monta o próprio harness com
-plugins do Claude Code, ligados só nele, sem poluir a configuração global. Uma entrega leva um
-**passaporte**. Cada **portão** que ela atravessa deixa um **carimbo**, assinado só por hook, e sem
-o carimbo o fluxo não passa. É 100% Claude Code.
+**Harness de plugins para Claude Code: confiabilidade por portões e qualidade.** Cada projeto monta
+o próprio harness com plugins ligados só nele, sem poluir a configuração global. Planejamento,
+qualidade e envio são **portões**: cada um deixa um **carimbo** assinado por hook, e sem o carimbo
+o Claude não escreve código novo nem envia. A lib é distribuída como pacote Node por conveniência
+(`npx` em uma linha), mas o conceito é plugin de Claude Code, não biblioteca de aplicação.
 
 ## Sumário
 
