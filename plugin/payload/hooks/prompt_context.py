@@ -25,6 +25,22 @@ REMIND = ("Regra do harness: código do aplicativo só muda pelo fluxo. Se este 
           "escrever código neste worktree é negado. Ajuste direto só se o dono rodar `/harness:direto`.")
 
 
+# Pedido de implementação, reconhecido pelo texto: verbo de pedir ou de construir, em mensagem que
+# não começa como pergunta. Errar para mais custa uma entrevista curta; errar para menos deixava
+# o modelo decidir sozinho se seguia o fluxo, e ele decidiu que não.
+_BUILD = re.compile(
+    r"\b(?:quero|queria|preciso|gostaria|cri(?:a|e|ar|em)|implement(?:a|e|ar|em)|adicion(?:a|e|ar)|"
+    r"acrescent(?:a|e|ar)|mont(?:a|e|ar)|fa(?:z|ça|zer)|constru(?:a|ir)|desenvolv(?:a|er)|mud(?:a|e|ar)|"
+    r"alter(?:a|e|ar)|troc(?:a|ar|que)|inclu(?:a|i|ir)|remov(?:a|e|er)|coloc(?:a|ar)|coloque|"
+    r"corrij(?:a|am)|corrig(?:e|ir)|ajust(?:a|e|ar)|refator(?:a|e|ar)|"
+    r"add|build|create|implement|make|change|remove|fix)\b", re.I)
+_QUESTION = re.compile(r"^\s*(?:como|qual|quais|o que|oq|por que|porque|pq|onde|quando|quem|quanto|what|how|why|which)\b", re.I)
+ENTER = ("O harness classificou este pedido como de implementação. Sua PRIMEIRA ação é invocar a skill "
+         "`harness:entregar` com o pedido do dono: a entrevista refina, a spec registra e os implementadores "
+         "escrevem. Não explore o código nem escreva nada antes disso; escrever código neste worktree é negado. "
+         "Ajuste direto só se o dono rodar `/harness:direto`. Se a mensagem for só uma pergunta, responda a pergunta.")
+
+
 def main():
     payload = common.read_payload()
     cwd, prompt = payload.get("cwd"), payload.get("prompt")
@@ -40,7 +56,7 @@ def main():
         return
     if common.direct_open(cwd, session) or prompt.lstrip().startswith("/"):
         return
-    print(REMIND)
+    print(ENTER if _BUILD.search(prompt) and not _QUESTION.match(prompt) else REMIND)
 
 
 if __name__ == "__main__":
