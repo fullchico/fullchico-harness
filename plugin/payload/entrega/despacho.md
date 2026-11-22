@@ -141,7 +141,9 @@ commit: HASH_DO_COMMIT
    Recusa por posse, conflito ou checagem é uma rodada de correção para aquele ticket: o
    comando diz o motivo. Não resolva conflito à mão: ele mostra que o fatiamento está errado.
 6. Ticket integrado está `Status: done` e com a checagem passando: o comando garante os dois.
-7. Peça a fronteira de novo. Repita até ela vir vazia e todo ticket estar concluído.
+7. A sua onda termina aqui, com os tickets dela integrados e a checagem da onda feita. Não pegue
+   outro lote: encerre com `ENTREGA: CONTINUA` se ainda há ticket aberto ou o fechamento a fazer.
+   O próximo orquestrador pede a fronteira de novo.
 
 Os worktrees de agente usam o ambiente da feature. Nenhum implementador sobe ambiente. Cada
 um prepara a própria cópia com `.harness/setup-worktree`, que traz o `.env` da feature e

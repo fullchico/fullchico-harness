@@ -230,6 +230,47 @@ def writes_code(command: str, cwd: str) -> bool:
     return False
 
 
+# --- Um orquestrador por onda -------------------------------------------------------------------
+# Cada orquestrador conduz um lote de tickets novos e encerra; o próximo começa de contexto limpo e
+# lê o estado no repositório (`.harness/resume`). Sem isto ele emendaria a onda seguinte, e o
+# contexto de um só voltaria a crescer a entrega inteira. Ticket reaberto (rodada de correção,
+# pendência do fechamento) pode ser pego de novo à vontade: não é trabalho novo.
+_CLAIM = re.compile(r"\.harness/ticket\s+claim\s+\S+((?:\s+\d{1,3})+)")
+_REOPEN = re.compile(r"\.harness/ticket\s+reopen\s+\S+\s+(\d{1,3})")
+DENY_WAVE = ("Você já conduziu a sua onda (tickets {mine}). Os tickets {new} são trabalho novo, de outra onda: "
+             "termine o que falta da sua (revisar, integrar, checar) e encerre com a linha `ENTREGA: CONTINUA`. "
+             "A sessão principal dispara o próximo orquestrador, que começa de contexto limpo e retoma pelo "
+             "`.harness/resume`.")
+
+
+def wave_check(command: str, cwd: str, agent_id) -> None:
+    if not isinstance(agent_id, str) or not agent_id:
+        return
+    asked = sorted({int(n) for batch in _CLAIM.findall(command) for n in batch.split()})
+    state = common.state_dir(cwd)
+    if not asked or not state:
+        return
+    path = os.path.join(state, "waves", re.sub(r"[^\w-]", "_", agent_id) + ".json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            mine = sorted(int(n) for n in json.load(f))
+    except (OSError, ValueError, TypeError):
+        mine = []
+    history = common._git(cwd, "log", "-n", "400", "--format=%s") or ""
+    reopened = {int(n) for n in _REOPEN.findall(command)}
+    for subject in history.splitlines():
+        if subject.startswith("chore(tickets): reopen "):
+            reopened |= {int(n) for n in re.findall(r"\d+", subject[len("chore(tickets): reopen "):])}
+    fresh = [n for n in asked if n not in mine and n not in reopened]
+    if mine and fresh:
+        common.deny(DENY_WAVE.format(mine=", ".join(f"{n:02d}" for n in mine), new=", ".join(f"{n:02d}" for n in fresh)))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = f"{path}.{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(sorted(set(mine) | set(asked)), f)
+    os.replace(tmp, path)
+
+
 DESTROY_FORMS = (".harness/destroy", "./.harness/destroy")
 PAYLOAD = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -319,6 +360,8 @@ def main():
         common.deny(DENY_CONDUCTOR)
     if agent == "harness:orquestrador" and _JOINS.search(command):
         common.deny(DENY_JOIN)
+    if agent == "harness:orquestrador" and isinstance(cwd, str):
+        wave_check(command, cwd, payload.get("agent_id"))
     reason = classify(command, cwd if isinstance(cwd, str) else None)
     if reason:
         common.deny(reason)
