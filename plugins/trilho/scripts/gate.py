@@ -117,7 +117,7 @@ def main():
         if registry.relative(root, t) == ".claude/settings.json":
             return deny(root, f"registro: {t}",
                         "Barrado pelo trilho: `.claude/settings.json` só o dono altera (ele liga os plugins "
-                        "que barram você).")
+                        "que barram você; mude com `fullchico-harness` ou à mão, nunca com `fullchico-harness portoes`).")
     for t in targets:
         if registry.is_code(root, t, reg):
             faltam = registry.missing(root, "inicio", reg)
