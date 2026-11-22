@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Abre o Claude Code no modo do projeto.
+#
+# Projeto que se declara puro (arquivo `.claude/puro`) roda só com o que ele declara
+# (`.claude/settings.json`, versionado) e com o escopo local (`.claude/settings.local.json`,
+# a ferramenta pessoal de quem usa: Orca, rtk). Plugins, hooks, skills, CLAUDE.md e MCP do
+# escopo do usuário não entram, e o login continua o mesmo. Fora disso, é o `claude` de sempre.
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+if [ -f "$root/.claude/puro" ]; then
+  args=(--setting-sources project,local --strict-mcp-config)
+  # Com --strict-mcp-config o .mcp.json do projeto também é ignorado: os servidores do projeto vêm por aqui.
+  if [ -f "$root/.claude/mcp.json" ]; then args+=(--mcp-config "$root/.claude/mcp.json"); fi
+  exec claude "${args[@]}" "$@"
+fi
+exec claude "$@"
