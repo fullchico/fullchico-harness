@@ -81,10 +81,23 @@ def track_pendings(cwd, message, verdict, ticket=None):
     if verdict["verdict"] != "APPROVED":
         return
     for fresh in new_pendings(message, known):
-        item = {"id": f"P{len(known) + 1}", "text": fresh["text"], "status": "open", "commit": verdict["commit"],
-                "ticket": ticket, "opened_at": now}
+        item = {"id": _claim_id(folder, len(known) + 1), "text": fresh["text"], "status": "open",
+                "commit": verdict["commit"], "ticket": ticket, "opened_at": now}
         known.append(item)
         _write(folder, item)
+
+
+def _claim_id(folder, start):
+    """Reserva o próximo número livre. Dois revisores terminam juntos e contariam o mesmo:
+    a criação exclusiva do arquivo decide quem fica com ele."""
+    os.makedirs(folder, exist_ok=True)
+    number = start
+    while True:
+        try:
+            os.close(os.open(os.path.join(folder, f"P{number}.json"), os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+            return f"P{number}"
+        except FileExistsError:
+            number += 1
 
 
 def _write(folder, item):
@@ -115,14 +128,16 @@ def parse_verdict(message):
     return {key: values[0] for key, values in found.items()}
 
 
+_PLATFORM = ("[SYSTEM NOTIFICATION", "<system-reminder", "<task-notification")
+
+
 def _is_message(entry) -> bool:
     """Entrada de usuário que é texto, e não resultado de ferramenta."""
     content = (entry.get("message") or {}).get("content")
-    if isinstance(content, str):
-        return bool(content.strip())
-    if isinstance(content, list):
-        return any(isinstance(b, dict) and b.get("type") == "text" for b in content)
-    return False
+    texts = [content] if isinstance(content, str) else [b.get("text") for b in content if isinstance(b, dict)
+                                                         and b.get("type") == "text"] if isinstance(content, list) else []
+    # Aviso da própria plataforma (tarefa em segundo plano, lembrete do sistema) não é alguém falando com o revisor.
+    return any(isinstance(t, str) and t.strip() and not t.lstrip().startswith(_PLATFORM) for t in texts)
 
 
 def final_message(payload):
@@ -136,7 +151,12 @@ def final_message(payload):
     A transcrição serve sempre para uma conferência: se alguém falou com o revisor depois
     que ele começou, o veredito deixa de ser só sobre os documentos e não vale.
     """
+    # O relatório de um subagente sai pela ferramenta SubagentHandback; no SubagentStop o campo
+    # `last_assistant_message` traz só o fecho, e a transcrição pode ainda não ter a chamada. Por isso o
+    # hook roda também quando a ferramenta é chamada, e ali o relatório é `tool_input.message`.
     message = payload.get("last_assistant_message")
+    if payload.get("tool_name") == HANDBACK_TOOL:
+        message = (payload.get("tool_input") or {}).get("message")
     message = message if isinstance(message, str) and message.strip() else None
     path = payload.get("agent_transcript_path")
     if not isinstance(path, str) or not os.path.exists(os.path.expanduser(path)):
@@ -216,10 +236,21 @@ def main():
     if payload.get("agent_type") == "harness:extrator":
         keep_candidates(payload)
         return
+    if payload.get("tool_name") not in (None, HANDBACK_TOOL):
+        return
     gate = gate_for(payload.get("agent_type"))
-    verdict = parse_verdict(final_message(payload))
     cwd = payload.get("cwd")
-    if not gate or not verdict or not isinstance(cwd, str):
+    if not gate or not isinstance(cwd, str):
+        return
+    skipped = lambda why: common.log(cwd, "gate_stamp", "não carimbou", f"{gate}: {why}")
+    verdict = parse_verdict(final_message(payload))
+    if not verdict:
+        state = common.state_dir(cwd)
+        head = common.head_sha(cwd)
+        done = bool(state and head) and os.path.exists(common.approval_path(state, gate, head))
+        # No SubagentStop o veredito já pode ter sido carimbado na entrega do relatório: aí não é falha.
+        if payload.get("tool_name") == HANDBACK_TOOL or (payload.get("hook_event_name") == "SubagentStop" and not done):
+            skipped("a resposta não traz um bloco VEREDITO/COMMIT/RESUMO legível, ou alguém falou com o revisor")
         return
     state = common.state_dir(cwd)
     if not state:
@@ -228,9 +259,9 @@ def main():
         # A caça a bugs também revisa a ponta da branch de um implementador, antes de integrar:
         # o commit não precisa ser o HEAD, mas precisa existir neste repositório.
         if common._git(cwd, "cat-file", "-t", verdict["commit"]) != "commit":
-            return
+            return skipped(f"o commit {verdict['commit']} não existe neste repositório")
     elif verdict["commit"] != common.head_sha(cwd):
-        return
+        return skipped(f"o commit revisado ({verdict['commit']}) não é o HEAD")
     if gate in ("bugs", "ambiente"):
         message = final_message(payload) or ""
         ticket = None
@@ -241,7 +272,7 @@ def main():
             pass
         if verdict["verdict"] == "APPROVED" and too_many_pendings(cwd, message, ticket):
             _answered(state, gate, verdict["commit"], "PENDINGS")
-            return
+            return skipped("aprovou com mais pendências do que o ticket comporta")
         track_pendings(cwd, message, verdict, ticket)
         if verdict["verdict"] == "REJECTED":
             _answered(state, gate, verdict["commit"], "REJECTED")
@@ -268,13 +299,19 @@ def main():
         "transcript": payload.get("agent_transcript_path"),
         "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
-    with open(path, "w", encoding="utf-8") as f:
+    tmp = f"{path}.{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(record, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
+    common.log(cwd, "gate_stamp", "carimbou", f"{gate} {verdict['commit']}")
 
 
 if __name__ == "__main__":
     try:
         main()
-    except Exception:
-        pass
+    except Exception as exc:  # nunca bloqueia, mas não some: fica no registro
+        try:
+            common.log(os.getcwd(), "gate_stamp", "erro", repr(exc))
+        except Exception:
+            pass
     sys.exit(0)

@@ -90,7 +90,7 @@ class TestCodeRail(unittest.TestCase):
                        "adiciona um filtro por data na agenda", "monte a tela de relatórios", "crie um tema escuro",
                        "Preciso que o barbeiro veja a comissão", "muda o botão de cancelar para vermelho",
                        "add a dark theme", "faz um dashboard"):
-            out = say(self.repo, prompt)[1]
+            out = say(self.repo, prompt, session="nova-" + str(abs(hash(prompt))))[1]  # a ordem vem uma vez por sessão
             self.assertIn("PRIMEIRA ação", out, prompt)
             self.assertIn("harness:entregar", out, prompt)
         for prompt in ("como estamos no andamento?", "qual a nota da entrega?", "explica esse erro", "status",

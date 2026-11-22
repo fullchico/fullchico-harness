@@ -51,6 +51,8 @@ class TestDreamRails(unittest.TestCase):
     def test_the_extractor_gets_only_the_digest(self):
         ask = lambda prompt: run_hook("dispatch_guard.py", {"tool_name": "Agent", "cwd": str(self.repo), "tool_input": {
             "subagent_type": "harness:extrator", "prompt": prompt}})[0]
+        (self.repo / ".harness-run/dream").mkdir(parents=True)
+        (self.repo / ".harness-run/dream/abc.md").write_text("resumo\n")
         self.assertEqual(ask("resumo: .harness-run/dream/abc.md"), 0)
         self.assertEqual(ask("resumo: .harness-run/dream/abc.md\nJá sei que a nota boa é a do seed."), 2)
         self.assertEqual(ask("spec: docs/x.md"), 2)

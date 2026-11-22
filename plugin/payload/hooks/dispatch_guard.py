@@ -96,6 +96,9 @@ def check(agent: str, prompt, root):
     for key in ("spec", "ticket", "achado"):
         if key in seen and not _inside(root, seen[key]):
             return f"{FORMAT} `{key}` precisa ser um caminho relativo existente no repositório."
+    if "resumo" in seen and not (re.match(r"^\.harness-run/dream/[\w.-]+\.md$", seen["resumo"]) and _inside(root, seen["resumo"])):
+        return (f"{FORMAT} `resumo` é o arquivo que `.harness/learn digest` gravou em `.harness-run/dream/`, "
+                "e mais nada: o extrator não recebe dica do que propor.")
     if agent == "harness:implementador":
         # Ele trabalha num worktree próprio, que só tem o que está em commit.
         for key in ("spec", "ticket", "achado"):
@@ -185,7 +188,8 @@ def foreground(caller, tool_input):
     # Só o pedido explícito de segundo plano é recusado. Sem o parâmetro, vale o que a ferramenta
     # faz: há versões do Claude Code em que a de um subagente nem o tem e despacha em segundo
     # plano por conta própria, avisando quem despachou. O roteiro manda esperar esse aviso.
-    if caller == "harness:orquestrador" and tool_input.get("run_in_background") is True:
+    wanted = tool_input.get("run_in_background")
+    if caller == "harness:orquestrador" and wanted not in (None, False) and str(wanted).strip().lower() != "false":
         return ("O orquestrador despacha em primeiro plano: não passe `run_in_background: true`. Dispare os "
                 "tickets da rodada na mesma mensagem, que eles rodam juntos, e espere todos voltarem.")
     return None
@@ -225,6 +229,7 @@ def main():
         return
     tool_input = payload.get("tool_input") or {}
     cwd = payload.get("cwd")
+    common.watch("dispatch_guard", cwd)
     root = common.repo_root(cwd) if isinstance(cwd, str) else None
     agent = tool_input.get("subagent_type")
     reason = (chain(agent, payload.get("agent_type"))

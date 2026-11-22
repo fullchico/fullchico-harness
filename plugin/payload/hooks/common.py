@@ -21,7 +21,34 @@ def read_payload() -> dict:
     return data if isinstance(data, dict) else {}
 
 
+_WHERE = {}
+
+
+def watch(hook: str, cwd) -> None:
+    """Diz de que hook e de que repositório são as negações que vierem: é o que vai para o registro."""
+    _WHERE.update(hook=hook, cwd=cwd if isinstance(cwd, str) else None)
+
+
+def log(cwd, hook: str, what: str, detail: str = "") -> None:
+    """Uma linha em `<estado>/log.jsonl`. Os hooks são silenciosos para a plataforma: sem isto, ninguém
+    sabe o que foi negado, o que não foi carimbado nem se o trilho rodou. Nunca derruba o hook."""
+    try:
+        state = state_dir(cwd) if isinstance(cwd, str) else None
+        if not state:
+            return
+        os.makedirs(state, exist_ok=True)
+        import datetime
+        line = {"at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "hook": hook, "what": what, "detail": detail[:400]}
+        with open(os.path.join(state, "log.jsonl"), "a", encoding="utf-8") as f:
+            f.write(json.dumps(line, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
 def deny(reason: str):
+    if _WHERE.get("cwd"):
+        log(_WHERE["cwd"], _WHERE.get("hook", "?"), "negou", reason)
     sys.stderr.write(reason.rstrip() + "\n")
     sys.exit(2)
 
@@ -279,7 +306,9 @@ if __name__ == "__main__":
 # worktrees deles. O que não é código (documentos, arquivos do harness, o que o git ignora)
 # segue livre. Só o dono libera a edição direta, por sessão (prompt_context.py).
 FREE_DIRS = ("docs/", ".harness-run/", ".harness/", ".claude/", "harness.d/")
-FREE_FILES = ("harness.conf", ".gitignore", "skills-lock.json", "orca.yaml")
+FREE_FILES = ("harness.conf", "skills-lock.json", "orca.yaml")
+# Saída de comando e anotação solta não são código. O `.gitignore` é: ignorar um caminho o tiraria desta regra.
+NOT_CODE = (".md", ".log", ".txt", ".out", ".tmp", ".patch", ".diff")
 DENY_CODE = ("Neste worktree o código do aplicativo só muda pelo fluxo: invoque a skill `harness:entregar` com o "
              "pedido (quem escreve são os implementadores, nos worktrees deles). Edição direta só quando o dono "
              "liberar nesta sessão com `/harness:direto`. Não contorne por outro comando: diga ao dono o que falta.")
@@ -297,7 +326,7 @@ def is_code(cwd, path) -> bool:
     if not base or AGENT_MARK in base + os.sep or not target.startswith(base + os.sep):
         return False
     rel = os.path.relpath(target, base)
-    if rel.endswith(".md") or rel in FREE_FILES or (rel + "/").startswith(FREE_DIRS):
+    if rel.endswith(NOT_CODE) or rel in FREE_FILES or (rel + "/").startswith(FREE_DIRS):
         return False
     try:
         ignored = subprocess.run(["git", "-C", base, "check-ignore", "-q", "--", rel], capture_output=True, timeout=10)
