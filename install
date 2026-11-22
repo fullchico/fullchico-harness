@@ -87,6 +87,12 @@ PY
   for REPO in $REPOS; do
     claude plugin marketplace add "$REPO" >/dev/null 2>&1 || warn "registrar o marketplace $REPO" "claude plugin marketplace add $REPO"
   done
+  # Na atualização o plugin já está instalado: `plugin install` não troca a versão dele.
+  if [ -n "${HARNESS_UPDATE:-}" ]; then
+    progress "[2/3] Plugins: atualizando o harness"
+    claude plugin marketplace update fullchico >/dev/null 2>&1 || warn "atualizar o marketplace do harness" "claude plugin marketplace update fullchico"
+    (cd "$ROOT" && claude plugin update harness@fullchico >/dev/null 2>&1) || warn "atualizar o plugin do harness" "claude plugin update harness@fullchico"
+  fi
   # Instalar é por projeto: o comando roda de dentro dele.
   PLUGINS="$(python3 -I - "$ROOT/.claude/settings.json" <<'PY'
 import json, sys
@@ -141,6 +147,14 @@ plugin pode não ter sido instalado. Os arquivos do projeto foram gravados. Para
 este mesmo comando no seu terminal, fora da sessão; ele pode ser repetido sem dano:
   npx @fullchico/harness install <pasta do projeto>
 EOT
+fi
+
+if [ -n "${HARNESS_UPDATE:-}" ]; then
+  echo
+  echo "Harness atualizado para $VERSION em $ROOT. Arquivos alterados:"
+  git -C "$ROOT" status --short
+  echo "Faça o commit deles. Com uma sessão do Claude Code aberta neste projeto, rode /reload-plugins."
+  exit 0
 fi
 
 cat <<EOT
