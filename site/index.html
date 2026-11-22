@@ -272,8 +272,8 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <ul class="cards count">
         <li><h3>Harness</h3><p>O conjunto do projeto: plugins, portões e configuração. No <strong>modo puro</strong>, vale só o que está em <code>.claude/</code> (e no seu <code>.claude/settings.local.json</code>); o global não entra. Ative com <code>npx @fullchico/harness puro</code> e abra com <code>cc</code>.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
         <li><h3>Planejamento</h3><p>O portão de começo: sem o carimbo (um artefato como OpenSpec ou <code>docs/specs/*/spec.md</code>, ou um comando), o código não é escrito. A lib liga a etapa à ferramenta que o projeto já usa.</p><p class="note"><strong>Status:</strong> o portão existe no <code>trilho</code>; a skill <code>trilho:configurar</code>, que entrevista a configuração, está em construção.</p></li>
-        <li><span class="tag">no modelo anterior</span><h3>Paralelismo com grafo</h3><p>Cards com dependências entre si: os que já podem começar rodam juntos.</p><p class="note"><strong>Status:</strong> no modelo anterior, a migrar para o plugin <code>orquestracao</code>.</p></li>
-        <li><span class="tag">no modelo anterior</span><h3>Loops</h3><p>Repete o trabalho até todos os carimbos fecharem.</p><p class="note"><strong>Status:</strong> no modelo anterior, a migrar para o plugin <code>orquestracao</code>.</p></li>
+        <li><span class="tag">a vir</span><h3>Paralelismo com grafo</h3><p>Cards com dependências entre si: os que já podem começar rodam juntos.</p><p class="note"><strong>Status:</strong> a vir, no plugin <code>orquestracao</code>.</p></li>
+        <li><span class="tag">a vir</span><h3>Loops</h3><p>Repete o trabalho até todos os carimbos fecharem.</p><p class="note"><strong>Status:</strong> a vir, no plugin <code>orquestracao</code>.</p></li>
         <li><h3>Guardrails</h3><p>Travas fixas: o sandbox do Claude Code e a proteção de <code>.claude/trilho.json</code> (só o plugin <code>trilho</code> escreve) e, com registro, de <code>.claude/settings.json</code>. Custam zero e não se customizam.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
         <li><h3>Portões</h3><p>Só nas pontas: no começo barram a escrita, no fim barram o envio (<code>git push</code>, <code>gh pr create</code>). O meio é livre. Você os customiza em <code>.claude/trilho.json</code>.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
         <li><h3>Validações</h3><p>O que dá o carimbo: um <strong>comando</strong> que passa, o <strong>veredito de um agente</strong> ou um <strong>artefato</strong> validado. O carimbo vale para um commit; commit novo pede carimbo novo.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
@@ -356,8 +356,6 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <div class="cmd" style="margin-top:1rem"><code id="c2">npx @fullchico/harness@latest add bugs qualidade</code><button type="button" data-copy="c2">Copiar</button></div>
       <pre class="verdict">{"qualidade": {"comando": "pnpm lint &amp;&amp; pnpm test"}}</pre>
 
-      <h3 class="sub">Legado</h3>
-      <div class="cmd" style="margin-top:1rem"><code id="c8">npx @fullchico/harness install . --legado</code><button type="button" data-copy="c8">Copiar</button></div>
       <p class="note" style="margin-top:2rem"><strong>Cada clone precisa do install.</strong> Ligar o plugin no settings não o baixa (limite da plataforma). Quem clona roda o <code>add</code> uma vez.</p>
     </div>
   </section>
@@ -411,20 +409,6 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
     </div>
   </section>
 
-  <section id="anterior">
-    <div class="wrap">
-      <h2>Modelo anterior (plugin <code>harness</code>)</h2>
-      <p class="intro">Antes, o harness era um plugin só, com orquestrador, tickets e quatro revisores sobre a branch inteira. Continua instalável e está migrando para os plugins novos.</p>
-      <div class="cmd" style="margin-top:1.5rem"><code id="c7">npx @fullchico/harness install . --legado</code><button type="button" data-copy="c7">Copiar</button></div>
-      <dl class="facts">
-        <div><dt><code>/harness:entregar</code></dt><dd>Conduz a mudança do pedido ao pull request: entrevista, spec, revisão da spec, tickets em paralelo, integração e envio.</dd></div>
-        <div><dt>Tickets com dono</dt><dd>Cada ticket declara as pastas que possui. O contrato fecha antes da implementação, e a integração recusa a branch que sair da posse.</dd></div>
-        <div><dt>Quatro vereditos</dt><dd>Segurança, revisão, caça a defeito e qualidade, sobre o commit do topo. Commit novo pede todos de novo.</dd></div>
-        <div><dt>Junto</dt><dd>Ambiente Docker por feature, memória do projeto ancorada em git e 20 skills de stack.</dd></div>
-        <div><dt>Para onde vai</dt><dd>A orquestração vira <code>orquestracao</code>, a memória vira <code>memoria</code>, e os revisores viram portões do registro. O texto completo está no <a href="https://github.com/fullchico/fullchico-harness#modelo-anterior-plugin-harness">README</a>.</dd></div>
-      </dl>
-    </div>
-  </section>
 </main>
 
 <footer>
