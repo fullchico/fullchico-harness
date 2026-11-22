@@ -24,6 +24,7 @@ REQUIRED = {
     "harness:qualidade": ("commit",),
     "harness:revisor-bugs": ("diff", "commit"),
     "harness:revisor-ambiente": ("spec", "ticket", "diff", "commit"),
+    "harness:extrator": ("resumo",),
 }
 # O que cada um pode receber. O implementador recebe a spec e o ticket, e numa rodada
 # de correção o arquivo com o achado; quem revisa recebe o que vai ler, e mais nada.
@@ -42,8 +43,10 @@ ALLOWED = {
     "harness:revisor-bugs": ("diff", "commit", "spec", "ticket", "leitura", "achado"),
     # Só no ticket de contrato: confere que o que ele monta funciona fora da máquina de quem escreveu.
     "harness:revisor-ambiente": ("diff", "commit", "spec", "ticket", "leitura", "achado"),
+    # Quem propõe as notas lê só o resumo da sessão: nada do que o condutor acha que vale lembrar.
+    "harness:extrator": ("resumo",),
 }
-_LINE = re.compile(r"^(spec|ticket|diff|commit|leitura|achado): (\S.*)$")
+_LINE = re.compile(r"^(spec|ticket|diff|commit|leitura|achado|resumo): (\S.*)$")
 _SHA = re.compile(r"^[0-9a-f]{40}$")
 # Revisões do git: nomes, caminhos de ref, ~N, ^, @{N}. Nada de espaço, opção ou shell.
 _REV = r"[\w./~^@{}-]+"

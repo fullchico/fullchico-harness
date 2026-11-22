@@ -612,7 +612,7 @@ sandbox, e o caminho é `.harness/up`, que confere o compose antes de subir.
 - **Depois do merge.** `/harness:aprender` atualiza o mapa, mostra os tokens de cada papel
   (`.harness/learn usage`), faz a retrospectiva da entrega e, com `/harness:dream`, grava
   notas ancoradas no código. Uma nota só entra se o código de hoje a confirma. As propostas
-  de melhoria ficam em `.harness-run/propostas/`.
+  de melhoria ficam guardadas no repositório, fora do worktree (`.harness/learn proposals` lista).
 
 ## Projeto sem remoto
 

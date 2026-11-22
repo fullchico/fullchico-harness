@@ -35,7 +35,8 @@ def context(cwd):
         return None
     state = memory.status(root)  # uma vez só: é a parte cara
     index = _cut(memory.index(root, state), LIMIT, "\n(mapa cortado: veja o resto com `.harness/memory index`)")
-    notes = _cut(memory.notes_index(root, state), LIMIT - len(index))
+    notes = _cut(memory.notes_index(root, state), LIMIT - len(index),
+                 "\n(notas cortadas: veja o resto com `.harness/memory notes`)")
     if not index and not notes:
         return NO_MAP
     parts = [HEAD, "Mapa do código:\n" + index if index else NO_MAP]
@@ -45,7 +46,7 @@ def context(cwd):
                + len(state["notes"]["stale"]) + (len(state["missing"]) if index else 0))
     if pending:
         parts.append(f"{pending} itens do mapa, das âncoras ou das notas envelheceram ou estão sem resumo. "
-                     "Para atualizar: /harness:mapear.")
+                     "Para atualizar o mapa e as âncoras: /harness:mapear. Para as notas: a skill harness:dream.")
     return "\n\n".join(parts)
 
 

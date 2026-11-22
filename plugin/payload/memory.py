@@ -318,6 +318,23 @@ def _notes(root) -> dict:
     return {slug: entry for slug, entry in _entries(_load(root, "notes.json")).items() if NOTE_NAME.match(slug)}
 
 
+def _files_named(root, text) -> list:
+    """Arquivos versionados que o texto da nota cita pelo caminho."""
+    found = []
+    for token in re.findall(r"[\w@()\[\].-]+(?:/[\w@()\[\].-]+)+|[\w-]+\.[a-z]{1,5}\b", text):
+        token = token.strip(".,;:()")
+        if token and token not in found and ".." not in token.split("/") \
+                and os.path.isfile(os.path.join(root, token)) and _exists_in_head(root, token):
+            found.append(token)
+    return found
+
+
+def proposed(root, slug) -> bool:
+    """A nota já existe, ou o `harness:extrator` a propôs (gravado pelo hook, fora do alcance do agente)."""
+    state = common.state_dir(root)
+    return slug in _notes(root) or bool(state) and os.path.exists(os.path.join(state, "candidates", slug))
+
+
 def note_add(root, slug, text, paths, source=None) -> None:
     """Guarda o que uma sessão ensinou sobre o projeto, ancorado no código que o sustenta.
 
@@ -331,6 +348,10 @@ def note_add(root, slug, text, paths, source=None) -> None:
     if len(text) > NOTE_LIMIT:
         raise ValueError(f"a nota tem {len(text)} caracteres; o limite é {NOTE_LIMIT}")
     _versioned(root, paths)
+    loose = [f for f in _files_named(root, text) if not any(f == p or f.startswith(p.rstrip("/") + "/") for p in paths)]
+    if loose:
+        raise ValueError("a nota cita arquivo que não está entre os caminhos que a sustentam: " + ", ".join(loose)
+                         + ". Se ele mudar, a nota não envelhece. Acrescente-o aos caminhos.")
     _write_text(_note_path(root, slug), text)
     data = _load(root, "notes.json")
     data[slug] = {"paths": list(paths), "commit": common.head_sha(root), "source": source}
@@ -496,6 +517,10 @@ def main(argv) -> int:
         elif command == "anchors":
             print(json.dumps(_load(root, "anchors.json"), ensure_ascii=False, indent=2, sort_keys=True))
         elif command == "note" and len(args) >= 4 and args[0] == "add":
+            if not proposed(root, args[1]):
+                raise ValueError(f"`{args[1]}` não é uma nota existente nem foi proposta pelo `harness:extrator`. Nota "
+                                 "nova nasce de um candidato dele, lido só do resumo da sessão: quem fez a entrega "
+                                 "não escolhe o que lembrar. Dispare o extrator e use o nome que ele devolveu.")
             with open(args[2], encoding="utf-8") as f:
                 note_add(root, args[1], f.read(), args[3:])
             print(f"nota gravada: {args[1]}")

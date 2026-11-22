@@ -192,8 +192,30 @@ def _answered(state, gate, commit, answer):
         pass
 
 
+_CANDIDATE = re.compile(r"^NOTA: ([a-z0-9][a-z0-9-]{0,60})$")
+
+
+def keep_candidates(payload) -> None:
+    """O extrator propôs estas notas. Fica no estado do harness, que o agente não grava:
+    `memory note add` só aceita nota nova cujo nome esteja aqui."""
+    cwd = payload.get("cwd")
+    state = common.state_dir(cwd) if isinstance(cwd, str) else None
+    message = final_message(payload)
+    if not state or not isinstance(message, str):
+        return
+    folder = os.path.join(state, "candidates")
+    for raw in message.splitlines():
+        m = _CANDIDATE.match(raw.strip())
+        if m:
+            os.makedirs(folder, exist_ok=True)
+            open(os.path.join(folder, m.group(1)), "w").close()
+
+
 def main():
     payload = common.read_payload()
+    if payload.get("agent_type") == "harness:extrator":
+        keep_candidates(payload)
+        return
     gate = gate_for(payload.get("agent_type"))
     verdict = parse_verdict(final_message(payload))
     cwd = payload.get("cwd")

@@ -79,6 +79,16 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "matcher": "^harness:extrator$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I \"$CLAUDE_PROJECT_DIR/.harness/hooks/gate_stamp.py\"",
+            "timeout": 30
+          }
+        ]
       }
     ],
     "SubagentStart": [
