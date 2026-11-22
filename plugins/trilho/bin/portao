@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# `portao` lista os portões do projeto; `portao <nome>` roda a verificação de um portão.
+# Não grava nada: quem assina o carimbo é o hook, depois que este comando termina bem.
+dir=$(cd "$(dirname "$0")/.." && pwd)
+exec python3 -I "$dir/scripts/portao.py" "$@"
