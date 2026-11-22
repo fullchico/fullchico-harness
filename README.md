@@ -8,33 +8,215 @@
 [Página do projeto](https://fullchico.github.io/fullchico-harness/) · [Pacote no npm](https://www.npmjs.com/package/@fullchico/harness)
 
 ```bash
-npx @fullchico/harness install .
+npx @fullchico/harness@latest add bugs qualidade
 ```
 
-Um plugin para o Claude Code que troca instrução por trilhos e portões (hooks, guards e
-scripts), para que agentes levem uma mudança da entrevista ao pull request sem que nada
-chegue ao remoto sem revisão independente.
+**O harness força a etapa do fluxo, não a ferramenta.** Cada projeto monta o próprio harness com
+plugins do Claude Code, ligados só nele, sem poluir a configuração global. Uma entrega leva um
+**passaporte**. Cada **portão** que ela atravessa deixa um **carimbo**, assinado só por hook, e sem
+o carimbo o fluxo não passa. É 100% Claude Code.
 
 ## Sumário
 
-- [O conceito](#o-conceito)
-- [Como é usar](#como-é-usar)
-- [A entrevista](#a-entrevista)
-- [Quem faz o quê](#quem-faz-o-quê)
-- [Os portões](#os-portões)
-- [O que é recusado por máquina](#o-que-é-recusado-por-máquina)
-- [O que é instalado e o que é exigido](#o-que-é-instalado-e-o-que-é-exigido)
-- [Instalar num projeto](#instalar-num-projeto)
-- [Comandos](#comandos)
-- [Configuração](#configuração)
-- [Arquitetura que o harness espera](#arquitetura-que-o-harness-espera)
-- [Ambiente por feature](#ambiente-por-feature)
-- [Memória do projeto](#memória-do-projeto)
-- [Projeto sem remoto](#projeto-sem-remoto)
-- [Atualizar o harness](#atualizar-o-harness)
-- [O que já foi provado e o que ainda não](#o-que-já-foi-provado-e-o-que-ainda-não)
-- [Desenvolver o harness](#desenvolver-o-harness)
+- [Os oito conceitos](#os-oito-conceitos)
+- [Plugins](#plugins)
+- [Instalar](#instalar)
+- [Registro de portões](#registro-de-portões)
+- [Limites honestos](#limites-honestos)
+- [Modelo anterior (plugin `harness`)](#modelo-anterior-plugin-harness)
 - [Licença](#licença)
+
+## Os oito conceitos
+
+### 1. Harness
+
+O conjunto do projeto: os plugins ligados, o registro de portões e a configuração. Fica em
+`.claude/`, versionado com o código.
+
+**Modo puro.** O projeto roda só com o que declara em `.claude/` mais o escopo local
+(`.claude/settings.local.json`, a ferramenta pessoal de quem usa, como Orca e rtk). O global do
+usuário não entra. Ative com `npx @fullchico/harness puro` e abra o projeto com `claude-projeto`
+no lugar de `claude`.
+
+### 2. Planejamento
+
+O portão de começo. Antes de escrever código, a mudança precisa de um artefato. No padrão, é uma
+spec em `docs/specs/*/spec.md`, criada ou alterada na branch, saída da entrevista com o grill-me.
+Noutro projeto pode ser o OpenSpec.
+
+### 3. Paralelismo com grafo
+
+Cards com dependências. A fronteira do grafo diz o que roda junto e o que espera.
+
+### 4. Loops
+
+O loop gira até os carimbos fecharem.
+
+> Os conceitos 3 e 4 (a orquestração) ainda estão no modelo anterior e serão migrados para um
+> plugin `orquestracao`.
+
+### 5. Guardrails
+
+Barreiras imediatas que não são etapa: o sandbox do Claude Code e a proteção do registro de
+portões (o agente não edita os portões que o barram). Custam zero e não se customizam.
+
+### 6. Portões
+
+Só em dois momentos:
+
+- **começo**: barra a escrita de código;
+- **fim**: barra o envio (`git push`, `gh pr create`).
+
+O meio do fluxo é livre. Os portões são customizáveis por projeto.
+
+### 7. Validações
+
+O que assina um carimbo. São três jeitos:
+
+| Jeito | Assina quando |
+|---|---|
+| **comando** | `portao <nome>` roda o comando e ele passa |
+| **agente** | o veredito do agente é aprovado (ex.: o caçador de bugs) |
+| **artefato** | o arquivo existe, está em commit e passa na validação |
+
+O carimbo de fim é do commit: commit novo pede carimbo novo. O de começo é do plano: mudou o
+artefato, carimba de novo.
+
+### 8. Memória organizada
+
+Mapa do código e notas ancoradas, por projeto, no plugin `memoria`: o mapa e as notas em dia entram
+no começo de cada sessão; `/memoria:mapear` atualiza o mapa, a skill `memoria:dream` consolida o que
+as sessões ensinaram (proposto por um extrator isolado, conferido contra o código) e
+`/memoria:aprender` mede o consumo e faz a retrospectiva depois de uma entrega.
+
+## Plugins
+
+| Plugin | O que faz | Estado |
+|---|---|---|
+| `trilho` | o núcleo: modo puro, registro de portões, comando `portao`, aplicador único | disponível |
+| `bugs` | o caçador de bugs lê o diff; aprovado, carimbo no fim | disponível |
+| `qualidade` | roda a checagem do projeto; passou, carimbo no fim | disponível |
+| `planejamento` | o portão de começo, com a entrevista | a vir |
+| `orquestracao` | grafo de cards e loops | a vir |
+| `memoria` | mapa do código e notas ancoradas, injetados no começo da sessão | disponível |
+| `seguranca` | revisão de segurança, carimbo no fim | a vir |
+
+Cada plugin é independente e se liga só no projeto (`--scope project`).
+
+## Instalar
+
+### Só o que você quiser
+
+Num projeto existente, instale os plugins que interessam:
+
+```bash
+npx @fullchico/harness@latest add bugs qualidade
+```
+
+O `qualidade` lê o comando do projeto em `.claude/trilho.json`:
+
+```json
+{"qualidade": {"comando": "pnpm lint && pnpm test"}}
+```
+
+### O harness completo
+
+```bash
+npx @fullchico/harness@latest install       # trilho e memoria, mais ponytail e rtk, e os portões a partir do projeto
+npx @fullchico/harness@latest install --padrao   # o mesmo, com o registro padrão da lib
+npx @fullchico/harness puro                 # liga o modo puro
+claude-projeto                              # abre o Claude Code no modo do projeto
+```
+
+O `install` instala o núcleo (caminho e aprendizagem), traz o ponytail (código mínimo e reutilizável) e liga o rtk (economia de token, se o programa estiver instalado). Começo e fim ficam com as ferramentas do projeto: `bugs` e `qualidade` são opções, para quem não tem validador próprio. Ele analisa o que o projeto já usa (specs, OpenSpec, scripts do `package.json`, skills de
+entrevista) e grava os portões em `.claude/trilho.json`. Para ver a proposta sem gravar, ou
+mudá-la depois: `npx @fullchico/harness portoes --analisar` e `portoes --gravar`.
+
+`portoes --analisar` mostra o porquê de cada portão proposto. `portoes --padrao` grava o registro
+padrão da lib.
+
+### Cada clone precisa do `install`
+
+Ligar o plugin no `settings.json` não baixa o plugin. Isso é um limite da plataforma. Quem clona o
+projeto roda o `add` (ou o `claude plugin install <nome>@fullchico --scope project`) uma vez.
+
+## Registro de portões
+
+Fica em `.claude/trilho.json`, chave `portoes`. Cada portão tem um `momento` (`inicio` ou `fim`) e
+um modo de assinar (`comando`, `artefato` ou `agente`).
+
+```json
+{
+  "codigo": ["apps", "packages"],
+  "portoes": {
+    "processo": {
+      "momento": "inicio",
+      "assina": "artefato",
+      "artefato": "docs/specs/*/spec.md",
+      "descricao": "spec da mudança, saída da entrevista (grill-me)"
+    },
+    "qualidade": {
+      "momento": "fim",
+      "assina": "comando",
+      "comando": "pnpm lint && pnpm test"
+    },
+    "bugs": {
+      "momento": "fim",
+      "assina": "agente",
+      "agente": "bugs:cacador"
+    },
+    "segredos": {
+      "momento": "fim",
+      "assina": "comando",
+      "comando": "gitleaks detect",
+      "descricao": "nenhum segredo no histórico"
+    }
+  }
+}
+```
+
+- `assina: comando`: `portao <nome>` roda o comando. Passou, com a árvore limpa, o hook carimba o commit.
+- `assina: artefato`: `portao <nome>` acha os arquivos do glob alterados nesta branch, em commit.
+  Se houver `valida`, esse comando passa recebendo-os. O carimbo é do plano.
+- `assina: agente`: só o agente nomeado assina, pelo veredito APPROVED dele.
+- `codigo`: as pastas que são código do app. Sem a chave, é tudo menos `docs/`, `.claude/`, `.md` e o ignorado pelo git.
+
+O comando `portao`, sem argumento, lista cada portão com `ok` ou `falta`, o momento, o modo de
+assinar e, se falta, o que fazer. `portao <nome>` roda a verificação e termina com
+`portao <nome>: passou` ou `portao <nome>: FALHOU (<motivo>)`.
+
+**O registro é protegido.** Só o dono altera: o agente não edita `.claude/trilho.json` nem
+`.claude/settings.json`, e `portoes --gravar` o põe no `denyWrite` do sandbox.
+
+## Limites honestos
+
+- Os hooks só valem dentro de sessões do Claude Code. Um `git push` no terminal, fora da sessão,
+  não é barrado.
+- Projeto sem sandbox permite, em tese, forjar o arquivo do carimbo.
+- O carimbo prova que a etapa aconteceu, não que o revisor foi bom.
+
+## Modelo anterior (plugin `harness`)
+
+Antes dos plugins por projeto, o harness era um plugin só, com orquestrador, tickets e quatro
+revisores sobre a branch inteira. Ele continua instalável:
+
+```bash
+npx @fullchico/harness install . --legado
+```
+
+Em resumo:
+
+- `/harness:entregar` conduz a mudança do pedido ao pull request: entrevista, spec, revisão da spec, tickets em paralelo, integração e envio.
+- Cada ticket tem dono de pastas (`Owns:`), e o contrato fecha antes da implementação.
+- O envio exige quatro vereditos (segurança, revisão, caça a defeito, qualidade) sobre o commit do topo.
+- Há ambiente Docker por feature, memória do projeto ancorada em git e 20 skills de stack.
+
+Esse modelo está sendo migrado para os plugins novos: a orquestração vira `orquestracao`, a
+memória vira `memoria`, e os revisores viram portões do registro. O texto completo do modelo
+anterior está abaixo.
+
+<details>
+<summary>Documentação completa do modelo anterior</summary>
 
 ## O conceito
 
@@ -747,6 +929,8 @@ python3 -m unittest discover -s tests
 
 Os testes gravam em `~/.claude/harness/` e apagam ao sair, então não rodam de dentro de
 uma sessão com o sandbox ligado. Alguns usam Docker de verdade e são pulados sem ele.
+
+</details>
 
 ## Licença
 

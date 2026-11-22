@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FullChico Harness: trilhos para agentes que escrevem código</title>
-<meta name="description" content="Plugin para o Claude Code que troca instrução por trilho: quem escreve o código não o aprova, e o que não passou pelos portões não sai da máquina.">
+<title>FullChico Harness: o harness força a etapa, não a ferramenta</title>
+<meta name="description" content="Harness por projeto para o Claude Code: plugins ligados só no projeto, portões que barram a etapa que falta e carimbos assinados por hook.">
 <link rel="icon" type="image/svg+xml" href="trem.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -196,6 +196,10 @@ section.wash .verdict { background: var(--ground); }
 
 footer { padding: 2.5rem 0 4rem; border-top: 2px solid var(--ballast); color: var(--steel); font-size: 0.95rem; }
 footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
+.flow { width: 100%; height: auto; min-width: 0; }
+.flow .t { fill: var(--ink); stroke: none; font: 700 22px var(--body); text-anchor: middle; }
+.flow .t.s { font-weight: 400; font-size: 19px; fill: var(--steel); }
+@media (max-width: 44rem) { .art .flow { min-width: 40rem; } }
 </style>
 </head>
 <body>
@@ -209,19 +213,20 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <g fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M23 47 13 61M41 47l10 14"/><path d="M18.5 52h27M14.5 58h35" stroke-width="2.4"/></g>
     </svg>FullChico Harness</a>
   <nav aria-label="Seções">
-    <a href="#conceito">Conceito</a>
-    <a href="#uso">Como se usa</a>
-    <a href="#papeis">Papéis</a>
-    <a href="#portoes">Portões</a>
+    <a href="#conceitos">Conceitos</a>
+    <a href="#fluxo">Fluxo</a>
+    <a href="#plugins">Plugins</a>
     <a href="#instalar">Instalar</a>
+    <a href="#registro">Registro</a>
+    <a href="#limites">Limites</a>
     <a href="https://github.com/fullchico/fullchico-harness">GitHub</a>
   </nav>
 </header>
 
 <main>
   <div class="wrap hero">
-    <h1>Trilhos para agentes que escrevem código.</h1>
-    <p class="lede">Um plugin para o Claude Code. Você faz o pedido e responde a uma entrevista. O resto corre sozinho, e o que não passou pela revisão não sai da máquina.</p>
+    <h1>O harness força a etapa, não a ferramenta.</h1>
+    <p class="lede">Cada projeto monta o próprio harness com plugins do Claude Code, ligados só nele. Uma entrega leva um passaporte, cada portão deixa um carimbo, e sem o carimbo o fluxo não passa.</p>
 
     <div class="yard">
     <svg class="loco" viewBox="0 0 200 136" aria-hidden="true">
@@ -238,281 +243,172 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
         <circle cx="172" cy="80" r="5.5" fill="var(--lamp-caution)"/>
       </g>
     </svg>
-    <ol class="line" aria-label="O caminho de uma entrega">
-      <li><b>Pedido</b><span>uma frase</span></li>
-      <li><b>Entrevista</b><span>até não sobrar decisão</span></li>
-      <li><b>Spec e tickets</b><span>contrato primeiro</span></li>
-      <li class="gate"><b>Revisão do ticket</b><span>antes de juntar</span></li>
-      <li class="gate"><b>Integração</b><span>um por vez, com checagem</span></li>
-      <li class="gate"><b>Quatro portões</b><span>sobre o commit exato</span></li>
-      <li><b>Envio</b><span>e o aplicativo de pé</span></li>
+    <ol class="line" style="grid-template-columns:repeat(5,1fr)" aria-label="O caminho de uma entrega">
+      <li class="gate"><b>Planejamento</b><span>portão de começo</span></li>
+      <li><b>Código</b><span>meio livre</span></li>
+      <li><b>Orquestração</b><span>cards em paralelo</span></li>
+      <li class="gate"><b>Qualidade e bugs</b><span>portões de fim</span></li>
+      <li><b>Envio</b><span>com o passaporte carimbado</span></li>
     </ol>
     </div>
 
     <div class="install">
-      <div class="cmd"><code id="c1">npx @fullchico/harness install .</code><button type="button" data-copy="c1">Copiar</button></div>
-      <p class="note">No seu terminal, na pasta do projeto. Precisa de git, Python 3, Docker e do Claude Code.</p>
+      <div class="cmd"><code id="c1">npx @fullchico/harness@latest install</code><button type="button" data-copy="c1">Copiar</button></div>
+      <p class="note">No seu terminal, na pasta do projeto: o núcleo (caminho e aprendizagem), o ponytail e o rtk, e os portões ligados às ferramentas que o projeto já usa, sem tocar na configuração global. Só alguns? <code>npx @fullchico/harness@latest add bugs qualidade</code>.</p>
     </div>
   </div>
 
-  <section id="conceito">
+  <section id="conceitos">
     <div class="wrap">
-      <h2>Instrução o agente interpreta. Trilho ele não atravessa.</h2>
-      <p class="intro">Uma regra escrita num arquivo de instruções depende de o agente ler, lembrar e decidir obedecer. O harness tira do texto tudo o que uma máquina consegue conferir e entrega isso a hooks, guards e scripts, que recusam em vez de pedir.</p>
-      <ul class="cards">
-        <li>
-          <svg class="ill icon" viewBox="0 0 80 64" aria-hidden="true"><path d="M8 54l4-15 22-22 11 11-22 22zM12 39l11 11"/><path class="none" d="M48 8v48" stroke-dasharray="1 9"/><circle class="go" cx="65" cy="32" r="12"/><path class="none" d="M59 32l4 4 8-8"/></svg>
-          <h3>Quem escreve não aprova</h3>
-          <p>A aprovação nasce do veredito de um revisor de contexto novo, que não viu a conversa de quem implementou. Um hook grava esse veredito num lugar onde nenhum agente escreve.</p>
-        </li>
-        <li>
-          <svg class="ill icon" viewBox="0 0 80 64" aria-hidden="true"><path d="M40 50v12M28 62h24"/><rect x="28" y="2" width="24" height="48" rx="10"/><circle class="stop" cx="40" cy="14" r="4.5"/><circle class="caution" cx="40" cy="26" r="4.5"/><circle class="go" cx="40" cy="38" r="4.5"/></svg>
-          <h3>Nada sai sem os portões</h3>
-          <p>O shell do agente roda no sandbox do Claude Code, sem rede para o servidor de git. O único caminho até o remoto é <code>.harness/push</code>, que exige quatro vereditos sobre o commit.</p>
-        </li>
-        <li>
-          <svg class="ill icon" viewBox="0 0 80 64" aria-hidden="true"><path class="none" d="M24 32h10M34 14v36M34 14h14M34 50h14M68 14h10M68 50h10"/><rect x="4" y="22" width="20" height="20" rx="5"/><rect x="48" y="5" width="20" height="18" rx="5"/><rect x="48" y="41" width="20" height="18" rx="5"/></svg>
-          <h3>Paralelismo por contrato, um dono por arquivo</h3>
-          <p>O ticket de contrato fecha antes de os outros começarem. Cada ticket declara as pastas que possui, dois tickets paralelos nunca possuem o mesmo caminho, e a integração recusa a branch que mexer fora da posse.</p>
-        </li>
+      <h2>Oito conceitos, nesta ordem</h2>
+      <p class="intro">O que se instala é um conjunto de plugins do Claude Code, ligados só no projeto. O harness não escolhe o seu lint nem o seu teste: exige que a etapa aconteça.</p>
+      <ul class="cards count">
+        <li><h3>Harness</h3><p>O conjunto do projeto: plugins ligados, registro de portões e configuração. No <strong>modo puro</strong>, o projeto roda só com o que declara em <code>.claude/</code> mais o escopo local (<code>.claude/settings.local.json</code>, a ferramenta pessoal de quem usa, como Orca e rtk). O global do usuário não entra. Ative com <code>npx @fullchico/harness puro</code> e abra com <code>claude-projeto</code> no lugar de <code>claude</code>.</p></li>
+        <li><h3>Planejamento</h3><p>O portão de começo. Antes de escrever código, a mudança precisa de um artefato. No padrão, uma spec em <code>docs/specs/*/spec.md</code> alterada na branch, saída da entrevista com o grill-me. Noutro projeto pode ser o OpenSpec.</p></li>
+        <li><span class="tag">no modelo anterior</span><h3>Paralelismo com grafo</h3><p>Cards com dependências. A fronteira do grafo diz o que roda junto. Será migrado para o plugin <code>orquestracao</code>.</p></li>
+        <li><span class="tag">no modelo anterior</span><h3>Loops</h3><p>O loop gira até os carimbos fecharem. Também será migrado para o plugin <code>orquestracao</code>.</p></li>
+        <li><h3>Guardrails</h3><p>Barreiras imediatas que não são etapa: o sandbox do Claude Code e a proteção do registro de portões (o agente não edita os portões que o barram). Custam zero e não se customizam.</p></li>
+        <li><h3>Portões</h3><p>Só no começo (barra a escrita de código) ou no fim (barra o envio: <code>git push</code>, <code>gh pr create</code>). O meio do fluxo é livre. São customizáveis por projeto.</p></li>
+        <li><h3>Validações</h3><p>O que assina um carimbo: um <strong>comando</strong> que passa (<code>portao &lt;nome&gt;</code>), o <strong>veredito de um agente</strong> (ex.: o caçador de bugs) ou um <strong>artefato</strong> validado. O carimbo de fim é do commit: commit novo pede carimbo novo. O de começo é do plano: mudou o artefato, carimba de novo.</p></li>
+        <li><h3>Memória organizada</h3><p>Mapa do código e notas ancoradas, por projeto, no plugin <code>memoria</code>: entram no começo de cada sessão, e uma nota só nasce se o código de hoje a confirma.</p></li>
       </ul>
     </div>
   </section>
 
-  <section id="uso" class="wash">
+  <section id="fluxo" class="wash">
     <div class="wrap">
-      <h2>Você pede, responde à entrevista e recebe pronto</h2>
-      <p class="intro">O comando <code>/harness:entregar</code> conduz a mudança da entrevista ao pull request. A sua parte é o começo. A execução corre sem você.</p>
-      <ol class="cards count">
-        <li><h3>Pedido</h3><p>Uma frase, numa sessão do Claude Code aberta no worktree da feature.</p></li>
-        <li><h3>Entrevista</h3><p>A sessão pergunta até não sobrar decisão em aberto, escreve a spec e a manda para revisão. Você resolve os achados e aprova.</p></li>
-        <li><h3>Pronto</h3><p>Volta o link do pull request, o endereço do aplicativo que ficou de pé, o que entrou e o que ficou de fora. O merge é seu.</p></li>
-      </ol>
-      <figure class="art" tabindex="0"><img src="img/fluxo.svg" alt="O fluxo de uma entrega: do pedido e da entrevista à spec, aos tickets em paralelo, à integração, aos portões e ao envio." loading="lazy"></figure>
+      <h2>Começo, meio livre, fim</h2>
+      <p class="intro">Os portões ficam só nas pontas. No começo, o de planejamento. No fim, os de qualidade, bugs e segurança. Cada um deixa o seu carimbo no passaporte da entrega.</p>
+      <figure class="art" tabindex="0">
+<svg class="ill flow" viewBox="0 0 1200 520" role="img" aria-label="O fluxo de uma entrega. No começo, o portão de planejamento. No meio, livre, o trem anda com a orquestração e os guardrails. No fim, os portões de qualidade, bugs e segurança. Abaixo, o passaporte recebe um carimbo de cada portão.">
+<defs><g id="canc"><rect x="-7" y="-112" width="14" height="100" rx="5"/><rect x="0" y="-66" width="72" height="12" rx="6" transform="rotate(-55 0 -60)"/><circle class="solid" cx="0" cy="-60" r="4"/><rect x="-18" y="-14" width="36" height="10" rx="5"/></g></defs>
+<path class="none" d="M20 320H1180"/>
+<path class="none" d="M22 328H1180" stroke-width="12" stroke-linecap="butt" stroke-dasharray="4 20"/>
+<use href="#canc" x="130" y="320"/><circle class="go" cx="130" cy="196" r="14"/>
+<use href="#canc" x="840" y="320"/><circle class="go" cx="840" cy="196" r="14"/>
+<use href="#canc" x="940" y="320"/><circle class="go" cx="940" cy="196" r="14"/>
+<use href="#canc" x="1040" y="320"/><circle class="caution" cx="1040" cy="196" r="14"/>
+<g class="loco-flow">
+<circle cx="440" cy="168" r="9"/><circle cx="460" cy="146" r="6.5"/><circle cx="478" cy="130" r="4.5"/>
+<rect x="400" y="190" width="22" height="34" rx="3"/><rect x="392" y="182" width="38" height="12" rx="6"/>
+<rect x="340" y="222" width="190" height="64" rx="32"/>
+<rect x="260" y="190" width="90" height="96" rx="10"/><rect x="250" y="180" width="110" height="14" rx="7"/>
+<rect x="280" y="206" width="40" height="30" rx="6"/>
+<path d="M528 286l34 22h-44z"/>
+<circle cx="296" cy="304" r="20"/><circle cx="400" cy="308" r="16"/><circle cx="466" cy="308" r="16"/>
+<circle class="caution" cx="500" cy="244" r="7"/>
+</g>
+<text class="t" x="130" y="364">Planejamento</text><text class="t s" x="130" y="388">portão de começo</text>
+<text class="t" x="450" y="364">meio livre</text><text class="t s" x="450" y="388">orquestração, guardrails</text>
+<text class="t" x="840" y="364">Qualidade</text><text class="t" x="940" y="364">Bugs</text><text class="t" x="1040" y="364">Segurança</text>
+<text class="t s" x="940" y="388">portões de fim</text><text class="t s" x="1040" y="412">a vir</text>
+<rect x="60" y="440" width="1080" height="66" rx="12"/>
+<text class="t" x="590" y="480">passaporte da entrega</text>
+<g class="none"><path d="M130 430v10M840 430v10M940 430v10M1040 430v10"/></g>
+<circle class="go" cx="130" cy="473" r="18"/><path class="none" d="M121 473l6 6 12-13"/>
+<circle class="go" cx="840" cy="473" r="18"/><path class="none" d="M831 473l6 6 12-13"/>
+<circle class="go" cx="940" cy="473" r="18"/><path class="none" d="M931 473l6 6 12-13"/>
+<circle class="caution" cx="1040" cy="473" r="18"/>
+</svg>
+      </figure>
+      <p class="note" style="margin-top:1rem">Sem o carimbo de começo, a escrita de código é barrada. Sem os de fim, o envio é barrado.</p>
+    </div>
+  </section>
 
-      <h3 class="sub">Um exemplo de conversa</h3>
-      <p>Ilustrativo e encurtado: as perguntas mudam conforme o pedido, e o endereço vem das portas da feature.</p>
-      <ol class="chat">
-        <li class="you"><svg class="ill" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18"/><circle class="none" cx="20" cy="15" r="5"/><path class="none" d="M10 32a10 10 0 0 1 20 0"/></svg><div><b>Você</b><code>/harness:entregar quero um sistema de agendamento para uma barbearia</code></div></li>
-        <li><svg class="ill" viewBox="0 0 40 40" aria-hidden="true"><rect x="6" y="4" width="28" height="28" rx="9"/><rect class="none" x="12" y="10" width="16" height="8" rx="3"/><circle class="caution" cx="20" cy="25" r="3"/><path d="M12 32l-4 6M28 32l4 6"/></svg><div><b>Claude, na entrevista</b>O cliente marca o horário sozinho ou só a barbearia marca? Recomendo que o cliente marque, com a barbearia podendo ajustar.</div></li>
-        <li class="you"><svg class="ill" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18"/><circle class="none" cx="20" cy="15" r="5"/><path class="none" d="M10 32a10 10 0 0 1 20 0"/></svg><div><b>Você</b>O cliente marca.</div></li>
-        <li><svg class="ill" viewBox="0 0 40 40" aria-hidden="true"><rect x="6" y="4" width="28" height="28" rx="9"/><rect class="none" x="12" y="10" width="16" height="8" rx="3"/><circle class="caution" cx="20" cy="25" r="3"/><path d="M12 32l-4 6M28 32l4 6"/></svg><div><b>Claude, na entrevista</b>Há mais de um barbeiro? Se houver, o horário pertence ao barbeiro e dois clientes podem marcar a mesma hora com pessoas diferentes.</div></li>
-        <li class="you"><svg class="ill" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18"/><circle class="none" cx="20" cy="15" r="5"/><path class="none" d="M10 32a10 10 0 0 1 20 0"/></svg><div><b>Você</b>São três barbeiros, cada um com a sua agenda.</div></li>
-        <li><svg class="ill" viewBox="0 0 40 40" aria-hidden="true"><rect x="6" y="4" width="28" height="28" rx="9"/><rect class="none" x="12" y="10" width="16" height="8" rx="3"/><circle class="caution" cx="20" cy="25" r="3"/><path d="M12 32l-4 6M28 32l4 6"/></svg><div><b>Claude, na entrevista</b>Até quando o cliente pode cancelar, e o que acontece com o horário cancelado?</div></li>
-        <li class="you"><svg class="ill" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18"/><circle class="none" cx="20" cy="15" r="5"/><path class="none" d="M10 32a10 10 0 0 1 20 0"/></svg><div><b>Você</b>Segue com o recomendado até o fim.</div></li>
-        <li class="done"><svg class="ill" viewBox="0 0 40 40" aria-hidden="true"><rect x="6" y="4" width="28" height="28" rx="9"/><rect class="none" x="12" y="10" width="16" height="8" rx="3"/><circle class="caution" cx="20" cy="25" r="3"/><path d="M12 32l-4 6M28 32l4 6"/></svg><div><b>Claude, no relato final</b>Entrega concluída.
-          <ul>
-            <li>Branch aprovada nos quatro portões e pull request aberto.</li>
-            <li>Aplicativo de pé em <code>http://localhost:3210</code>, com o usuário de teste.</li>
-            <li>Para parar: <code>.harness/down</code>.</li>
-            <li>As decisões tomadas sem você estão na spec.</li>
-          </ul></div></li>
-      </ol>
-
+  <section id="plugins">
+    <div class="wrap">
+      <h2>Plugins</h2>
+      <p class="intro">Cada um é independente e se liga só no projeto.</p>
       <dl class="facts">
-        <div><dt>Onde você é chamado</dt><dd>Para aprovar a spec, para remover um ambiente (que apaga dados) e para fazer o merge.</dd></div>
-        <div><dt>Seguir sem você</dt><dd>Se você disser "segue até o fim", toda pergunta recebe a resposta recomendada, a aprovação da spec deixa de ser uma parada, e cada decisão fica escrita na spec, na seção "Decisões tomadas sem o dono". Os portões, as revisões e o sandbox não mudam.</dd></div>
-        <div><dt>Projeto sem remoto</dt><dd>A entrega vai até o fim: os portões são conferidos, a branch fica aprovada e o aplicativo fica de pé. Só o envio e o pull request esperam.</dd></div>
-        <div><dt>Quando ela para</dt><dd>Se um ticket não fecha em três rodadas de correção, ou se falta um dado que só você tem.</dd></div>
+        <div><dt><code>trilho</code></dt><dd>O núcleo: modo puro, registro de portões, comando <code>portao</code> e o aplicador único que barra.</dd></div>
+        <div><dt><code>bugs</code></dt><dd>O caçador de bugs lê o diff. Aprovado, o hook carimba o commit no fim.</dd></div>
+        <div><dt><code>qualidade</code></dt><dd>Roda a checagem do projeto. Passou, carimbo no fim.</dd></div>
+        <div><dt><code>memoria</code></dt><dd>Mapa do código e notas ancoradas, no começo de cada sessão.</dd></div>
+        <div><dt>A vir</dt><dd><code>planejamento</code>, <code>orquestracao</code> e <code>seguranca</code>.</dd></div>
       </dl>
-    </div>
-  </section>
-
-  <section id="entrevista">
-    <div class="wrap">
-      <h2>A entrevista vem antes de qualquer código</h2>
-      <p class="intro">Quem executa não tem a quem perguntar. O orquestrador recebe só a spec: o que ficou na conversa não chega até ele. Por isso as decisões se fecham antes.</p>
-      <figure class="art" tabindex="0"><img src="img/entrevista.svg" alt="A entrevista: as perguntas e respostas entre o dono e a sessão viram a spec, que passa por um revisor antes de a execução começar." loading="lazy"></figure>
-      <div class="prose">
-        <p><strong>O grilling.</strong> A entrevista é conduzida com a skill <code>grilling</code>, do plugin de terceiros <code>mattpocock-skills</code>, até não sobrar decisão em aberto. O harness a usa como ela é, sem adaptação.</p>
-        <p><strong>O vocabulário.</strong> A skill <code>domain-modeling</code>, do mesmo plugin, registra os termos no <code>GLOSSARY.md</code> e as decisões difíceis de reverter em ADRs.</p>
-        <p><strong>Bug é outro caminho.</strong> Se o pedido é um bug, a skill <code>diagnosing-bugs</code> entra no lugar da entrevista. Não há spec nem tickets, mas a checagem, a revisão e o envio valem do mesmo jeito.</p>
-      </div>
-
-      <h3 class="sub">O que sai dela</h3>
-      <p>Uma spec por mudança, em <code>docs/specs/&lt;slug&gt;/spec.md</code>, escrita para alguém que vai implementar sem ter visto a entrevista.</p>
-      <ul class="cards">
-        <li><h3>Critérios de aceite</h3><p>Numerados, do ponto de vista de quem usa. Cada um vira um teste de ponta a ponta, e é essa suíte que protege o que já funciona nas entregas seguintes.</p></li>
-        <li><h3>Módulos e contrato</h3><p>Os módulos do back e as fatias do front, cada um com a sua pasta. É daí que sai a posse de cada ticket. O contrato entre front e back e entre módulos fica definido antes de qualquer implementação.</p></li>
-        <li><h3>Decisões registradas</h3><p>Cada escolha feita na entrevista, com o motivo. As decisões de teste dizem por onde cada comportamento é testado, e o que não entra fica dito em "Fora de escopo".</p></li>
-        <li><h3>Ambiente e execução</h3><p>Os serviços de que os testes dependem e como cada implementador isola o seu quando vários rodam ao mesmo tempo.</p></li>
-      </ul>
-
-      <h3 class="sub">A spec é revisada antes de a execução começar</h3>
-      <p>O <code>revisor-spec</code> recebe a spec e nada da conversa. Ele aponta o que falta ou está ambíguo, você resolve cada achado e aprova. Só então o orquestrador é disparado.</p>
-    </div>
-  </section>
-
-  <section id="papeis" class="wash">
-    <div class="wrap">
-      <h2>Quem implementa não aprova</h2>
-      <p class="intro">Todo subagente nasce sem a conversa, entrega o trabalho e não valida o próprio resultado. O pedido a cada um só aponta para documentos: a spec, o ticket, o diff, o commit. O modelo caro fica onde ele paga.</p>
-      <figure class="art" tabindex="0"><img src="img/papeis.svg" alt="Os papéis de uma entrega: o dono e a sessão desenham, o orquestrador conduz a execução, os implementadores escrevem e os revisores dão o veredito." loading="lazy"></figure>
-      <ul class="cards">
-        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><circle cx="12" cy="7" r="4"/><path d="M4 22a8 8 0 0 1 16 0"/></g></svg><h3>Você, o dono</h3><span class="tag">pessoa</span><p>Faz o pedido, responde à entrevista, aprova a spec e faz o merge. Também é quem autoriza remover um ambiente, porque isso apaga dados.</p></li>
-        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><path d="M3 4h18v12H11l-5 5v-5H3z"/></g></svg><h3>A sua sessão</h3><span class="tag">o modelo da sessão</span><p>Conduz a entrevista e escreve a spec, onde o raciocínio mais caro paga. Depois entrega a execução e não revisa o que mandou fazer.</p></li>
-        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><path d="M6 2h9l4 4v16H6zM9 11h7M9 16h7"/></g></svg><h3><code>revisor-spec</code></h3><span class="tag">o modelo da sessão</span><p>Lê a spec sem a conversa que a produziu, como alguém que vai implementá-la sem poder perguntar, e aponta o que falta ou está ambíguo.</p></li>
-        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><circle cx="12" cy="4" r="2.5"/><circle cx="5" cy="20" r="2.5"/><circle cx="19" cy="20" r="2.5"/><path d="M12 7v5l-6 5M12 12l6 5"/></g></svg><h3><code>orquestrador</code></h3><span class="tag">sonnet</span><p>Recebe só a spec aprovada. Fatia em tickets, despacha os implementadores em paralelo, integra, checa, chama os revisores e envia.</p></li>
-        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><path d="M8 6l-6 6 6 6M16 6l6 6-6 6"/></g></svg><h3><code>implementador</code></h3><span class="tag">haiku</span><p>Implementa um ticket numa cópia própria do repositório, só com a spec e o ticket. O ticket de contrato e as rodadas de correção vão em Sonnet; reprovado duas vezes, em Opus.</p></li>
-        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><ellipse cx="12" cy="13" rx="5" ry="7"/><path d="M12 6V3M7 10 3 8M17 10l4-2M7 16l-4 2M17 16l4 2"/></g></svg><h3><code>revisor-bugs</code></h3><span class="tag">sonnet</span><p>Caça defeito: código que dá resultado errado, quebra ou perde dado. Lê cada ticket antes de integrar e a branch inteira antes do envio.</p></li>
-        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><path d="M12 2l9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10"/></g></svg><h3><code>revisor-ambiente</code></h3><span class="tag">opus</span><p>Só no ticket de contrato. Procura o que funciona na pasta de quem escreveu e não funcionaria numa cópia limpa do repositório.</p></li>
-        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><path d="M12 2l8 3v6c0 6-4 9-8 11-4-2-8-5-8-11V5z"/></g></svg><h3><code>seguranca</code></h3><span class="tag">sonnet</span><p>Revisão de segurança sobre o diff da branch, sem a conversa de quem escreveu. O veredito libera ou barra o envio.</p></li>
-        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6"/></g></svg><h3><code>revisor</code></h3><span class="tag">sonnet</span><p>Revisão de código em dois eixos: os padrões do repositório e a aderência à spec.</p></li>
-        <li><svg class="ill wagon" viewBox="0 0 96 64" aria-hidden="true"><path d="M0 36h6M90 36h6"/><rect x="6" y="6" width="84" height="40" rx="9"/><circle cx="28" cy="52" r="8"/><circle cx="68" cy="52" r="8"/><g class="none" stroke-width="3" transform="translate(36 14)"><circle class="go" cx="12" cy="12" r="10"/><path d="M7 12l4 4 6-7"/></g></svg><h3><code>qualidade</code></h3><span class="tag">haiku</span><p>Roda a checagem completa do projeto no commit pedido e atesta que ela passa. Não revisa, não opina e não corrige.</p></li>
-      </ul>
-      <div class="prose">
-        <p><strong>Revisão no mesmo contexto não é revisão.</strong> Quem escreveu não revisa, e a sessão que orquestrou também não. Se quem implementa não consegue construir só com a spec e o ticket, a lacuna se corrige no documento, não numa explicação por fora.</p>
-      </div>
-    </div>
-  </section>
-
-  <section id="portoes">
-    <div class="wrap">
-      <h2>Quatro vereditos sobre o mesmo commit</h2>
-      <p class="intro">Commit local é livre. O envio exige os quatro vereditos sobre o commit do topo da branch, e um commit novo pede todos de novo.</p>
-      <figure class="art" tabindex="0"><img src="img/portoes.svg" alt="Os portões: a revisão de cada ticket antes de integrar e, no fim, os quatro vereditos sobre o commit antes do envio." loading="lazy"></figure>
-      <ul class="cards">
-        <li><svg class="ill lamp" viewBox="0 0 36 36" aria-hidden="true"><circle class="go" cx="18" cy="18" r="15"/><path class="none" d="M11 18l5 5 9-10"/></svg><h3>Segurança</h3><p>O <code>seguranca</code> revisa o diff da branch inteira, da base ao topo.</p></li>
-        <li><svg class="ill lamp" viewBox="0 0 36 36" aria-hidden="true"><circle class="go" cx="18" cy="18" r="15"/><path class="none" d="M11 18l5 5 9-10"/></svg><h3>Revisão de código</h3><p>O <code>revisor</code> julga os padrões do repositório e a aderência à spec.</p></li>
-        <li><svg class="ill lamp" viewBox="0 0 36 36" aria-hidden="true"><circle class="go" cx="18" cy="18" r="15"/><path class="none" d="M11 18l5 5 9-10"/></svg><h3>Caça a defeito</h3><p>O <code>revisor-bugs</code> procura o que só aparece olhando os módulos juntos e confere cada pendência aberta.</p></li>
-        <li><svg class="ill lamp" viewBox="0 0 36 36" aria-hidden="true"><circle class="go" cx="18" cy="18" r="15"/><path class="none" d="M11 18l5 5 9-10"/></svg><h3>Qualidade</h3><p>O <code>qualidade</code> roda a checagem completa naquele commit: testes de unidade e de integração, fronteiras, build e ponta a ponta.</p></li>
-      </ul>
-      <p class="note" style="margin-top:1.5rem">Todo revisor termina a resposta com este bloco. É dele que o hook grava a aprovação.</p>
-<pre class="verdict">VEREDITO: APPROVED   (ou REJECTED)
-COMMIT: &lt;hash completo do commit revisado&gt;
-RESUMO: &lt;uma linha&gt;</pre>
-
-      <dl class="facts">
-        <div><dt>Cada ticket é revisado antes de integrar</dt><dd>A branch de cada implementador passa pela caça a bugs. O <code>.harness/integrate</code> recusa a que não passou naquele commit, confere a posse, junta, roda a checagem e desfaz a junção se ela falhar.</dd></div>
-        <div><dt>O ticket de contrato tem duas leituras</dt><dd>Ele define o que todos os outros seguem. Por isso é lido ao mesmo tempo pelo <code>revisor-bugs</code>, que procura defeito de comportamento, e pelo <code>revisor-ambiente</code>, que procura o que só funciona na pasta de quem escreveu. A integração exige as duas.</dd></div>
-        <div><dt>Pendências</dt><dd>Achado simples não reprova: o revisor aprova e registra a pendência, com o teste que a pegaria. São no máximo duas abertas por ticket; passou disso, a aprovação não é gravada. Enquanto houver uma aberta o envio é recusado, e só um revisor a fecha.</dd></div>
-        <div><dt>Rodadas de correção</dt><dd>Reprovação vira rodada de correção para aquele ticket, com o achado gravado em arquivo. O limite é de três por ticket; na quarta a entrega para e relata o que travou.</dd></div>
-        <div><dt>Funcionalidade nova traz a spec</dt><dd>Uma branch com commit <code>feat</code> precisa trazer a spec da mudança, ou o envio é recusado.</dd></div>
-      </dl>
-    </div>
-  </section>
-
-  <section id="recusas" class="wash">
-    <div class="wrap">
-      <h2>O que ele recusa</h2>
-      <p class="intro">Cada linha abaixo é uma recusa de verdade, feita por hook, guard ou script, e coberta por teste.</p>
-      <dl class="board">
-        <div><i></i><dt>Quem escreveu o código aprova o próprio trabalho</dt><dd>A aprovação é gravada por um hook, a partir da resposta de um revisor que não viu a conversa de quem implementou. Nenhum agente alcança o registro.</dd></div>
-        <div><i></i><dt>Envio sem os quatro vereditos</dt><dd>Segurança, revisão, caça a defeito e qualidade, todos sobre o mesmo commit. Um commit novo pede tudo de novo.</dd></div>
-        <div><i></i><dt>Um ticket mexe no arquivo de outro</dt><dd>Cada ticket declara o que possui. A integração recusa a branch que saiu da posse, e conflito não se resolve à mão.</dd></div>
-        <div><i></i><dt>Um módulo entra por dentro de outro</dt><dd>De outro módulo só se importa a entrada pública. A checagem é do harness, não uma regra que o projeto possa afrouxar.</dd></div>
-        <div><i></i><dt>Desligar uma checagem que não passa</dt><dd>Checagem já gravada pode mudar de comando, não sumir. A proposta que a remove é recusada.</dd></div>
-        <div><i></i><dt>Implementador sobe ambiente, envia ou abre pull request</dt><dd>Isso é de quem conduz a entrega. Revisor também não troca o commit do worktree, que é de todos.</dd></div>
-        <div><i class="amber"></i><dt>Defeito pequeno, que não justifica parar tudo</dt><dd>Vira pendência registrada, no máximo duas por ticket, com o teste que a pegaria. Enquanto houver uma aberta, o envio é recusado.</dd></div>
-        <div><i></i><dt>Várias compilações ao mesmo tempo</dt><dd>A checagem pesada entra numa fila da máquina. Sem isso, três agentes em paralelo esgotam a memória.</dd></div>
-      </dl>
-      <div class="legend"><span>recusa</span><span class="amber">segue, mas fica registrado e barra o envio</span></div>
-    </div>
-  </section>
-
-
-  <section id="junto">
-    <div class="wrap">
-      <h2>O que vem junto</h2>
-      <p class="intro">O instalador registra o plugin do harness e os de terceiros de que ele depende, e copia para o projeto as skills da stack, fixadas no <code>skills-lock.json</code>.</p>
-      <h3 class="sub">Plugins de terceiros</h3>
-      <dl class="facts" style="margin-top:1rem">
-        <div><dt><code>mattpocock-skills</code></dt><dd>O processo: <code>grilling</code> e <code>domain-modeling</code> na entrevista, <code>tdd</code> na implementação, <code>diagnosing-bugs</code> para bugs e <code>pr</code> na abertura do pull request. Traz ainda skills avulsas, como <code>code-review</code>, <code>prototype</code> e <code>research</code>.</dd></div>
-        <div><dt><code>ponytail</code></dt><dd>Fica sempre ligado e segura o tamanho do código que o agente escreve. O <code>ponytail-review</code> dá ao revisor os critérios de duplicação e enxugamento.</dd></div>
-        <div><dt><code>frontend-design</code></dt><dd>A direção visual das telas, usada por quem implementa o front.</dd></div>
-        <div><dt><code>rtk</code></dt><dd>Não é plugin, é um binário recomendado. Se estiver instalado, um hook comprime a saída de git e de testes.</dd></div>
-      </dl>
-
-      <h3 class="sub">Skills da stack, por papel</h3>
-      <p>São vinte, de seus autores, no perfil padrão <code>fullstack-typescript</code>: NestJS, Drizzle, Postgres e BullMQ no back; Next.js, shadcn e Tailwind no front; Zod no contrato; Vitest e Playwright nos testes; pnpm no monorepo.</p>
-      <ul class="cards">
-        <li><h3>Arquitetura e fatiamento</h3><ul>
-          <li><code>hexagonal-architecture</code>: use case, portas e adaptadores no back.</li>
-          <li><code>feature-sliced-design</code>: camadas, fatias e entrada pública no front.</li>
-          <li><code>parallel-feature-development</code>: um dono por arquivo, contrato primeiro.</li></ul></li>
-        <li><h3>Quem implementa o back</h3><ul>
-          <li><code>nestjs-best-practices</code>: módulos, injeção, erros e testes.</li>
-          <li><code>drizzle-orm-patterns</code>: acesso a banco.</li>
-          <li><code>supabase-postgres-best-practices</code>: esquema e consultas no Postgres.</li>
-          <li><code>bullmq</code>: filas.</li></ul></li>
-        <li><h3>Quem implementa o front</h3><ul>
-          <li><code>nextjs-app-router-patterns</code>: componentes de servidor e de cliente.</li>
-          <li><code>vercel-react-best-practices</code>: React e desempenho.</li>
-          <li><code>shadcn</code>: componentes de interface.</li></ul></li>
-        <li><h3>Contrato e base</h3><ul>
-          <li><code>zod</code>: validação e contrato.</li>
-          <li><code>pnpm</code>: monorepo e dependências.</li>
-          <li><code>seo</code>: SEO técnico nas páginas públicas.</li></ul></li>
-        <li><h3>Testes</h3><ul>
-          <li><code>vitest</code>: unidade e integração.</li>
-          <li><code>playwright-best-practices</code>: ponta a ponta.</li>
-          <li><code>property-based-testing</code>: regra com borda, como data, dinheiro e intervalo.</li></ul></li>
-        <li><h3>Quem revisa e quem fecha</h3><ul>
-          <li><code>clean-code-guard</code>: a rubrica do revisor de código.</li>
-          <li><code>accessibility</code>: acessibilidade, na revisão de código.</li>
-          <li><code>owasp-security</code>: lista do que procurar, na revisão de segurança.</li>
-          <li><code>write-pr-description</code>: o texto do pull request.</li></ul></li>
-      </ul>
-
-      <h3 class="sub">Perfis</h3>
-      <dl class="facts" style="margin-top:1rem">
-        <div><dt><code>fullstack-typescript</code>, o padrão</dt><dd>Projeto novo na stack padrão: traz a arquitetura, o arquivo da stack e as skills dela.</dd></div>
-        <div><dt><code>livre</code></dt><dd>Projeto novo em outra stack: traz os conceitos de arquitetura, e a stack é escolhida na spec.</dd></div>
-        <div><dt><code>existente</code></dt><dd>Projeto que já tinha código: processo e proteção, sem impor arquitetura nem língua.</dd></div>
-      </dl>
-      <p class="note" style="margin-top:1.2rem">O núcleo vale nos três: sandbox, portões do envio, tickets com posse de arquivo, contrato primeiro e paralelismo. Além disso, cada feature ganha o próprio ambiente Docker, com portas e projeto isolados.</p>
     </div>
   </section>
 
   <section id="instalar" class="wash">
     <div class="wrap">
-      <h2>Dois passos até a primeira entrega</h2>
+      <h2>Instalar</h2>
+      <h3 class="sub">Só o que você quiser</h3>
+      <p>Num projeto existente, instale os plugins que interessam. O <code>qualidade</code> lê o comando em <code>.claude/trilho.json</code>.</p>
+      <div class="cmd" style="margin-top:1rem"><code id="c2">npx @fullchico/harness@latest add bugs qualidade</code><button type="button" data-copy="c2">Copiar</button></div>
+      <pre class="verdict">{"qualidade": {"comando": "pnpm lint &amp;&amp; pnpm test"}}</pre>
+
+      <h3 class="sub">O harness completo</h3>
       <ol class="steps">
-        <li><div><h3>Um comando, no seu terminal</h3><p>Na pasta do projeto, que precisa ser um repositório git. Ele grava os arquivos, registra o plugin e instala as skills. O remoto pode vir depois.</p>
-          <div class="cmd"><code id="c2">npx @fullchico/harness install .</code><button type="button" data-copy="c2">Copiar</button></div></div></li>
-        <li><div><h3>Abra o Claude Code e faça o pedido</h3><p>Na primeira vez ele pergunta se você confia na pasta. A entrevista fecha as decisões, e a execução segue sem você.</p>
-          <div class="cmd"><code id="c3">/harness:entregar quero um sistema de agendamento para uma barbearia</code><button type="button" data-copy="c3">Copiar</button></div></div></li>
+        <li><div><h3>Ligue os plugins</h3><div class="cmd"><code id="c3">npx @fullchico/harness@latest add trilho bugs qualidade</code><button type="button" data-copy="c3">Copiar</button></div></div></li>
+        <li><div><h3>Proponha os portões</h3><p>Lê o que o projeto já usa e diz o porquê de cada portão.</p><div class="cmd"><code id="c4">npx @fullchico/harness portoes --analisar</code><button type="button" data-copy="c4">Copiar</button></div></div></li>
+        <li><div><h3>Grave</h3><p>Grava em <code>.claude/trilho.json</code> e o protege no sandbox.</p><div class="cmd"><code id="c5">npx @fullchico/harness portoes --gravar</code><button type="button" data-copy="c5">Copiar</button></div></div></li>
+        <li><div><h3>Modo puro e abertura</h3><div class="cmd"><code id="c6">npx @fullchico/harness puro</code><button type="button" data-copy="c6">Copiar</button></div><p style="margin-top:0.9rem">Depois, abra o projeto com <code>claude-projeto</code> no lugar de <code>claude</code>.</p></div></li>
       </ol>
-
-      <h3 style="margin-top:3.5rem">Prefere que o Claude faça a instalação?</h3>
-      <p class="note" style="margin-top:0.5rem">Cole este pedido numa sessão do Claude Code aberta na pasta do projeto.</p>
-      <div class="prompt">
-        <header><strong>Pedido para o Claude</strong><button type="button" class="copy" data-copy="p1">Copiar o pedido</button></header>
-<pre id="p1">Instale o FullChico Harness neste projeto e deixe-o pronto para a primeira entrega. Pare se algo falhar, mostrando o erro exato.
-
-1. Confira os pré-requisitos: esta pasta é um repositório git (se não for, pergunte antes de criar um), e existem `python3`, `node`, `docker compose` e `claude`. Diga o que falta.
-2. Rode `npx @fullchico/harness install .` fora do sandbox do Bash, pedindo a minha permissão: o instalador precisa alcançar o GitHub para registrar o plugin, e dentro do sandbox isso é bloqueado. Um comando só faz tudo: grava os arquivos, registra o marketplace e instala o plugin e as skills.
-3. Confira o que foi gravado: `.harness/`, `.claude/settings.json`, `.claude/skills/`, `AGENTS.md`, `CLAUDE.md` e `harness.conf`. Não edite arquivo gerenciado pelo harness.
-4. Faça o commit do que foi gerado, numa branch.
-5. Peça-me para reiniciar o Claude Code nesta pasta, para o plugin e os hooks carregarem.
-
-No fim, relate em poucas linhas o que foi instalado e o comando para começar a primeira entrega: `/harness:entregar &lt;o que eu quero construir&gt;`, num worktree de feature.</pre>
-      </div>
+      <p class="note" style="margin-top:2rem"><strong>Cada clone precisa do install.</strong> Ligar o plugin no settings não baixa o plugin: é um limite da plataforma. Quem clona o projeto roda o <code>add</code> uma vez.</p>
     </div>
   </section>
 
-  <section id="provado">
+  <section id="registro">
     <div class="wrap">
-      <h2>O que já foi provado, e o que ainda não</h2>
-      <p class="intro">Este projeto é novo. Melhor você saber disso por aqui do que no meio de uma entrega.</p>
-      <div class="two">
-        <div>
-          <h3>Conferido</h3>
-          <ul>
-            <li>Os mecanismos de recusa, por uma suíte de mais de 450 testes que roda a cada versão.</li>
-            <li>Entregas de projeto novo do começo ao fim, em sessões reais, com vários tickets em paralelo.</li>
-            <li>A instalação por <code>npx</code> num projeto de verdade.</li>
-          </ul>
-        </div>
-        <div>
-          <h3>Ainda não</h3>
-          <ul>
-            <li>Uma segunda entrega sobre código que já existe, que é o uso do dia a dia.</li>
-            <li>Perfis fora do fullstack TypeScript (NestJS, Next.js, Postgres).</li>
-            <li>Achar o defeito continua sendo trabalho de um revisor, que é um modelo. O trilho garante que a revisão aconteceu e teve consequência, não que ela viu tudo.</li>
-          </ul>
-        </div>
-      </div>
+      <h2>Registro de portões</h2>
+      <p class="intro">Fica em <code>.claude/trilho.json</code>, chave <code>portoes</code>. Cada portão tem um momento (<code>inicio</code> ou <code>fim</code>) e um modo de assinar (<code>comando</code>, <code>artefato</code> ou <code>agente</code>).</p>
+<pre class="verdict" style="max-width:46rem">{
+  "codigo": ["apps", "packages"],
+  "portoes": {
+    "processo": {
+      "momento": "inicio",
+      "assina": "artefato",
+      "artefato": "docs/specs/*/spec.md",
+      "descricao": "spec da mudança, saída da entrevista"
+    },
+    "qualidade": {
+      "momento": "fim",
+      "assina": "comando",
+      "comando": "pnpm lint &amp;&amp; pnpm test"
+    },
+    "bugs": {
+      "momento": "fim",
+      "assina": "agente",
+      "agente": "bugs:cacador"
+    },
+    "segredos": {
+      "momento": "fim",
+      "assina": "comando",
+      "comando": "gitleaks detect"
+    }
+  }
+}</pre>
+      <dl class="facts">
+        <div><dt>O que o <code>portao</code> mostra</dt><dd>Sem argumento, lista cada portão com <code>ok</code> ou <code>falta</code>, o momento, o modo de assinar e o que fazer. Com um nome, roda a verificação e termina em <code>passou</code> ou <code>FALHOU</code>.</dd></div>
+        <div><dt><code>codigo</code></dt><dd>As pastas que são código do app. Sem a chave, é tudo menos <code>docs/</code>, <code>.claude/</code>, <code>.md</code> e o ignorado pelo git.</dd></div>
+        <div><dt>O registro é protegido</dt><dd>Só o dono altera. O agente não edita o <code>.claude/trilho.json</code>, e <code>portoes --gravar</code> o põe no <code>denyWrite</code> do sandbox.</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section id="limites" class="wash">
+    <div class="wrap">
+      <h2>Limites honestos</h2>
+      <dl class="facts">
+        <div><dt>Só dentro da sessão</dt><dd>Os hooks só valem em sessões do Claude Code. Um <code>git push</code> no terminal, fora da sessão, não é barrado.</dd></div>
+        <div><dt>Sem sandbox</dt><dd>Projeto sem sandbox permite, em tese, forjar o arquivo do carimbo.</dd></div>
+        <div><dt>O carimbo é prova de etapa</dt><dd>Ele prova que a etapa aconteceu, não que o revisor foi bom.</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section id="anterior">
+    <div class="wrap">
+      <h2>Modelo anterior (plugin <code>harness</code>)</h2>
+      <p class="intro">Antes dos plugins por projeto, o harness era um plugin só, com orquestrador, tickets e quatro revisores sobre a branch inteira. Ele continua instalável e está sendo migrado para os plugins novos.</p>
+      <div class="cmd" style="margin-top:1.5rem"><code id="c7">npx @fullchico/harness install . --legado</code><button type="button" data-copy="c7">Copiar</button></div>
+      <dl class="facts">
+        <div><dt><code>/harness:entregar</code></dt><dd>Conduz a mudança do pedido ao pull request: entrevista, spec, revisão da spec, tickets em paralelo, integração e envio.</dd></div>
+        <div><dt>Tickets com dono</dt><dd>Cada ticket declara as pastas que possui. O contrato fecha antes da implementação, e a integração recusa a branch que sair da posse.</dd></div>
+        <div><dt>Quatro vereditos</dt><dd>Segurança, revisão, caça a defeito e qualidade, sobre o commit do topo. Commit novo pede todos de novo.</dd></div>
+        <div><dt>Junto</dt><dd>Ambiente Docker por feature, memória do projeto ancorada em git e 20 skills de stack.</dd></div>
+        <div><dt>Para onde vai</dt><dd>A orquestração vira <code>orquestracao</code>, a memória vira <code>memoria</code>, e os revisores viram portões do registro. O texto completo está no <a href="https://github.com/fullchico/fullchico-harness#modelo-anterior-plugin-harness">README</a>.</dd></div>
+      </dl>
     </div>
   </section>
 </main>
