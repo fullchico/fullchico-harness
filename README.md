@@ -122,13 +122,13 @@ O `qualidade` lê o comando do projeto em `.claude/trilho.json`:
 ### O harness completo
 
 ```bash
-npx @fullchico/harness@latest install       # trilho, bugs, qualidade e memoria, e os portões a partir do projeto
+npx @fullchico/harness@latest install       # trilho e memoria, mais ponytail e rtk, e os portões a partir do projeto
 npx @fullchico/harness@latest install --padrao   # o mesmo, com o registro padrão da lib
 npx @fullchico/harness puro                 # liga o modo puro
 claude-projeto                              # abre o Claude Code no modo do projeto
 ```
 
-O `install` analisa o que o projeto já usa (specs, OpenSpec, scripts do `package.json`, skills de
+O `install` instala o núcleo (caminho e aprendizagem), traz o ponytail (código mínimo e reutilizável) e liga o rtk (economia de token, se o programa estiver instalado). Começo e fim ficam com as ferramentas do projeto: `bugs` e `qualidade` são opções, para quem não tem validador próprio. Ele analisa o que o projeto já usa (specs, OpenSpec, scripts do `package.json`, skills de
 entrevista) e grava os portões em `.claude/trilho.json`. Para ver a proposta sem gravar, ou
 mudá-la depois: `npx @fullchico/harness portoes --analisar` e `portoes --gravar`.
 

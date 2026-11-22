@@ -49,7 +49,10 @@ if (command === "puro") {
     console.error(`install: ${project} não é um repositório git.`);
     process.exit(2);
   }
-  const status = addPlugins(["trilho", "bugs", "qualidade", "memoria"], project);
+  // A lib cuida do caminho e da aprendizagem; começo e fim são das ferramentas do projeto, ligadas pelos
+  // portões. O ponytail (código mínimo e reutilizável) vem junto, do marketplace dele.
+  const status = addPlugins(["trilho", "memoria"], project, [["ponytail", "DietrichGebert/ponytail", "ponytail"]]);
+  addRtkHook(project);
   const mode = rest.includes("--padrao") ? "--padrao" : "--analisar";
   console.log(`\n$ fullchico-harness portoes ${mode} --gravar`);
   const gates = spawnSync("python3", ["-I", path.join(root, "plugins/trilho/scripts/portoes.py"), mode, "--gravar",
@@ -80,9 +83,13 @@ if (command === "puro") {
 }
 
 // Instala plugins do marketplace do FullChico no escopo do projeto, pelo `claude`. Devolve o status.
-function addPlugins(names, project) {
+// Os nomes são do marketplace do FullChico; `extras` são [marketplace, repositório, plugin] de outros.
+function addPlugins(names, project, extras = []) {
   const commands = [["plugin", "marketplace", "add", "FullChico/fullchico-harness"],
     ...names.map((n) => ["plugin", "install", `${n}@fullchico`, "--scope", "project"])];
+  for (const [market, repo, plugin] of extras) {
+    commands.push(["plugin", "marketplace", "add", repo], ["plugin", "install", `${plugin}@${market}`, "--scope", "project"]);
+  }
   let status = 0;
   for (const [i, args] of commands.entries()) {
     console.log(`$ claude ${args.join(" ")}`);
@@ -93,7 +100,7 @@ function addPlugins(names, project) {
       break;
     }
     // o marketplace já registrado não é erro; a instalação que falha é
-    if (i > 0 && run.status !== 0) status = run.status === null ? 1 : run.status;
+    if (args[1] === "install" && run.status !== 0) status = run.status === null ? 1 : run.status;
   }
   // O carimbo fica fora do projeto, onde o sandbox impede o agente de gravar. Sem sandbox, o agente
   // consegue gravar lá: o portão continua avisando, mas deixa de ser barreira.
@@ -110,4 +117,24 @@ function addPlugins(names, project) {
       "mas deixa de ser barreira. Para ligar: https://code.claude.com/docs/en/sandboxing");
   }
   return status;
+}
+
+// O rtk comprime a saída dos comandos e economiza token. Não é plugin: é um programa da máquina. Entra
+// como hook do projeto que só roda se ele existir, para o clone sem rtk não quebrar.
+function addRtkHook(project) {
+  const file = path.join(project, ".claude", "settings.json");
+  let data = {};
+  try { data = JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) { /* novo */ }
+  const command = "if command -v rtk >/dev/null 2>&1; then rtk hook claude; fi";
+  data.hooks = data.hooks || {};
+  const groups = data.hooks.PreToolUse = data.hooks.PreToolUse || [];
+  const present = groups.some((g) => (g.hooks || []).some((h) => String(h.command || "").includes("rtk hook claude")));
+  if (!present) {
+    groups.push({ matcher: "Bash", hooks: [{ type: "command", command }] });
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(data, null, 2) + "\n");
+  }
+  if (spawnSync("sh", ["-c", "command -v rtk"]).status !== 0) {
+    console.log("\nAviso: o `rtk` não está instalado nesta máquina; o hook dele fica no projeto e passa a valer quando instalar.");
+  }
 }

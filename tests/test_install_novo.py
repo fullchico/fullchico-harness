@@ -35,12 +35,29 @@ class TestInstall(unittest.TestCase):
     def test_default_installs_the_plugins_and_registers_the_gates_from_the_project(self):
         r = self.install()
         self.assertEqual(r.returncode, 0, r.stderr)
-        for name in ("trilho", "bugs", "qualidade", "memoria"):
+        # A lib cuida do caminho e da aprendizagem: o núcleo é trilho e memoria. Começo e fim são do projeto.
+        for name in ("trilho", "memoria"):
             self.assertIn(f"plugin install {name}@fullchico --scope project", self.calls())
+        for name in ("bugs", "qualidade"):
+            self.assertNotIn(f"plugin install {name}@fullchico --scope project", self.calls())
+        # ponytail (código mínimo e reutilizável) vem junto, do marketplace dele
+        self.assertIn("plugin marketplace add DietrichGebert/ponytail", self.calls())
+        self.assertIn("plugin install ponytail@ponytail --scope project", self.calls())
+        # rtk não é plugin: é um programa da máquina; entra como hook do projeto, que só roda se ele existir
+        settings = json.loads((self.repo / ".claude/settings.json").read_text())
+        hooks = [h["command"] for g in settings["hooks"]["PreToolUse"] for h in g["hooks"]]
+        self.assertTrue(any("rtk hook claude" in c and "command -v rtk" in c for c in hooks), hooks)
         gates = json.loads((self.repo / ".claude/trilho.json").read_text())["portoes"]
         self.assertEqual(gates["qualidade"]["comando"], "pnpm lint && pnpm test", "veio do package.json do projeto")
         self.assertEqual(gates["processo"]["artefato"], "docs/specs/*/spec.md")
         self.assertIn("claude-projeto", r.stdout)
+
+    def test_running_it_twice_does_not_duplicate_the_rtk_hook(self):
+        self.install()
+        self.install()
+        settings = json.loads((self.repo / ".claude/settings.json").read_text())
+        hooks = [h["command"] for g in settings["hooks"]["PreToolUse"] for h in g["hooks"]]
+        self.assertEqual(sum("rtk hook claude" in c for c in hooks), 1)
 
     def test_padrao_uses_the_library_default(self):
         self.assertEqual(self.install("--padrao").returncode, 0)
