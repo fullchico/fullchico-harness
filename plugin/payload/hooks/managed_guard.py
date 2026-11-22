@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PreToolUse (Edit|Write): a região gerenciada do AGENTS.md só muda por atualização do harness,
+"""PreToolUse (Edit|Write|MultiEdit|NotebookEdit): a região gerenciada do AGENTS.md só muda por atualização do harness,
 e o código do aplicativo só muda pelo fluxo (common.is_code).
 
 Os outros arquivos gerenciados são negados por `permissions.deny`. O AGENTS.md é
@@ -54,12 +54,14 @@ def main():
     if not isinstance(payload, dict):
         common.deny("managed-guard: entrada do hook inválida; edição negada.")
     tool = payload.get("tool_name")
-    if tool not in ("Edit", "Write"):
+    if tool not in ("Edit", "Write", "MultiEdit", "NotebookEdit"):
         return
     tool_input = payload.get("tool_input") or {}
     cwd = payload.get("cwd")
     common.watch("managed_guard", cwd)
     file_path = tool_input.get("file_path")
+    if not isinstance(file_path, str):
+        file_path = tool_input.get("notebook_path")
     if not isinstance(file_path, str) or not isinstance(cwd, str):
         common.deny("managed-guard: caminho ausente na entrada do hook; edição negada.")
     target = os.path.realpath(os.path.join(cwd, file_path))
@@ -67,14 +69,18 @@ def main():
     for protected in common.git_dirs(cwd) + [os.path.realpath(common.state_root())]:
         if target == protected or target.startswith(protected + os.sep):
             common.deny(DENY_GIT)
-    if common.is_code(cwd, file_path) and not common.direct_open(cwd, payload.get("session_id")):
-        common.deny(common.DENY_CODE)
+    if common.is_code(cwd, file_path):
+        if not common.direct_open(cwd, payload.get("session_id")):
+            common.deny(common.DENY_CODE)
+        common.mark_writer(cwd, f"direct-{payload.get('session_id')}", "done")
     agents = os.path.realpath(os.path.join(root, "AGENTS.md")) if root else None
     # Num disco que não distingue maiúsculas, `agents.md` é o mesmo arquivo.
     same = bool(agents) and (target == agents or (os.path.exists(target) and os.path.exists(agents)
                                                   and os.path.samefile(target, agents)))
     if not same:
         return
+    if tool not in ("Edit", "Write"):  # só destas duas se sabe calcular o resultado
+        common.deny("O AGENTS.md é editado com Edit ou Write, que o harness consegue conferir.")
     after = None
     try:
         with open(target, encoding="utf-8") as f:

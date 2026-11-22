@@ -21,6 +21,7 @@ sys.dont_write_bytecode = True  # não deixa __pycache__ dentro de .harness/ do 
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common  # noqa: E402
+import code_watch  # noqa: E402
 
 DENY_SKIP = ("Pular os hooks de git (--no-verify, commit -n, core.hooksPath) não é permitido a agentes. "
              "Se o push foi negado, corrija o motivo; a exceção é do dono.")
@@ -69,8 +70,9 @@ def classify(command: str, cwd=None):
 # --- Leitura do comando ------------------------------------------------------------------------
 # O comando é lido como o shell o leria (aspas, redirecionamento, encadeamento), em vez de por
 # pedaço de texto: `grep hooksPath` não é pular hook, e `rm "src/a.ts"` é apagar código.
-# Não é um interpretador: variável, laço e programa que grava por conta própria passam. A
-# barreira de verdade continua sendo o portão do push; isto barra cedo as formas usuais.
+# Não é um interpretador: variável, laço e programa que grava por conta própria passam. Isto
+# barra cedo as formas usuais; a barreira de verdade é a conferência depois do comando
+# (code_watch.py), que mede o que mudou, e o portão do push.
 _HEREDOC = re.compile(r"(<<-?\s*(['\"]?)(\w+)\2[^\n]*)\n.*?\n[ \t]*\3[ \t]*(?=\n|$)", re.S)
 _OPS = {";", "&&", "||", "|", "&", "|&", "(", ")", ";;"}
 _OUT = {">", ">>", ">|", "&>", "&>>"}
@@ -322,6 +324,8 @@ def main():
         common.deny(reason)
     if isinstance(cwd, str) and writes_code(command, cwd) and not common.direct_open(cwd, payload.get("session_id")):
         common.deny(common.DENY_CODE)
+    if isinstance(cwd, str) and not _EXACT.match(command.strip()):
+        code_watch.begin(payload, command, cwd)  # a barreira de verdade: o que mudou é medido depois
     if command.strip() in CONF_FORMS and isinstance(cwd, str):
         conf_check(cwd)
     elif command.strip() in DESTROY_FORMS and isinstance(cwd, str):
