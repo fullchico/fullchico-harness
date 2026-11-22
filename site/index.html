@@ -225,8 +225,8 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
 
 <main>
   <div class="wrap hero">
-    <h1>O harness força a etapa, não a ferramenta.</h1>
-    <p class="lede">Cada projeto monta o próprio harness com plugins do Claude Code, ligados só nele. Uma entrega leva um passaporte, cada portão deixa um carimbo, e sem o carimbo o fluxo não passa.</p>
+    <h1>Entregas que não pulam etapa.</h1>
+    <p class="lede">Lib Node para projetos com Claude Code: o pedido só fecha depois que cada passo obrigatório é carimbado.</p>
 
     <div class="yard">
     <svg class="loco" viewBox="0 0 200 136" aria-hidden="true">
@@ -254,23 +254,30 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
 
     <div class="install">
       <div class="cmd"><code id="c1">npx @fullchico/harness@latest install</code><button type="button" data-copy="c1">Copiar</button></div>
-      <p class="note">No seu terminal, na pasta do projeto: o núcleo (caminho e aprendizagem), o ponytail e o rtk, e os portões ligados às ferramentas que o projeto já usa, sem tocar na configuração global. Só alguns? <code>npx @fullchico/harness@latest add bugs qualidade</code>.</p>
+      <p class="note">Rode na pasta do projeto; a configuração global não muda. Só alguns plugins? <code>npx @fullchico/harness@latest add bugs qualidade</code>.</p>
     </div>
   </div>
+
+  <section id="divisao">
+    <div class="wrap">
+      <h2>A divisão</h2>
+      <p class="intro"><strong>A lib garante o caminho (orquestração) e a aprendizagem (memória). Começo e fim ficam com as ferramentas do seu projeto.</strong></p>
+    </div>
+  </section>
 
   <section id="conceitos">
     <div class="wrap">
       <h2>Oito conceitos, nesta ordem</h2>
-      <p class="intro">O que se instala é um conjunto de plugins do Claude Code, ligados só no projeto. O harness não escolhe o seu lint nem o seu teste: exige que a etapa aconteça.</p>
+      <p class="intro">Portão é uma etapa obrigatória; carimbo é a prova de que ela passou. A lib não escolhe o seu lint nem o seu teste: exige que a etapa aconteça.</p>
       <ul class="cards count">
-        <li><h3>Harness</h3><p>O conjunto do projeto: plugins ligados, registro de portões e configuração. No <strong>modo puro</strong>, o projeto roda só com o que declara em <code>.claude/</code> mais o escopo local (<code>.claude/settings.local.json</code>, a ferramenta pessoal de quem usa, como Orca e rtk). O global do usuário não entra. Ative com <code>npx @fullchico/harness puro</code> e abra com <code>claude-projeto</code> no lugar de <code>claude</code>.</p></li>
-        <li><h3>Planejamento</h3><p>O portão de começo. Antes de escrever código, a mudança precisa de um artefato. No padrão, uma spec em <code>docs/specs/*/spec.md</code> alterada na branch, saída da entrevista com o grill-me. Noutro projeto pode ser o OpenSpec.</p></li>
-        <li><span class="tag">no modelo anterior</span><h3>Paralelismo com grafo</h3><p>Cards com dependências. A fronteira do grafo diz o que roda junto. Será migrado para o plugin <code>orquestracao</code>.</p></li>
-        <li><span class="tag">no modelo anterior</span><h3>Loops</h3><p>O loop gira até os carimbos fecharem. Também será migrado para o plugin <code>orquestracao</code>.</p></li>
-        <li><h3>Guardrails</h3><p>Barreiras imediatas que não são etapa: o sandbox do Claude Code e a proteção do registro de portões (o agente não edita os portões que o barram). Custam zero e não se customizam.</p></li>
-        <li><h3>Portões</h3><p>Só no começo (barra a escrita de código) ou no fim (barra o envio: <code>git push</code>, <code>gh pr create</code>). O meio do fluxo é livre. São customizáveis por projeto.</p></li>
-        <li><h3>Validações</h3><p>O que assina um carimbo: um <strong>comando</strong> que passa (<code>portao &lt;nome&gt;</code>), o <strong>veredito de um agente</strong> (ex.: o caçador de bugs) ou um <strong>artefato</strong> validado. O carimbo de fim é do commit: commit novo pede carimbo novo. O de começo é do plano: mudou o artefato, carimba de novo.</p></li>
-        <li><h3>Memória organizada</h3><p>Mapa do código e notas ancoradas, por projeto, no plugin <code>memoria</code>: entram no começo de cada sessão, e uma nota só nasce se o código de hoje a confirma.</p></li>
+        <li><h3>Harness</h3><p>O conjunto do projeto: plugins, portões e configuração. No <strong>modo puro</strong>, vale só o que está em <code>.claude/</code> (e no seu <code>.claude/settings.local.json</code>); o global não entra. Ative com <code>npx @fullchico/harness puro</code> e abra com <code>cc</code>.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
+        <li><h3>Planejamento</h3><p>O portão de começo: sem o carimbo (um artefato como OpenSpec ou <code>docs/specs/*/spec.md</code>, ou um comando), o código não é escrito. A lib liga a etapa à ferramenta que o projeto já usa.</p><p class="note"><strong>Status:</strong> o portão existe no <code>trilho</code>; a skill <code>trilho:configurar</code>, que entrevista a configuração, está em construção.</p></li>
+        <li><span class="tag">no modelo anterior</span><h3>Paralelismo com grafo</h3><p>Cards com dependências entre si: os que já podem começar rodam juntos.</p><p class="note"><strong>Status:</strong> no modelo anterior, a migrar para o plugin <code>orquestracao</code>.</p></li>
+        <li><span class="tag">no modelo anterior</span><h3>Loops</h3><p>Repete o trabalho até todos os carimbos fecharem.</p><p class="note"><strong>Status:</strong> no modelo anterior, a migrar para o plugin <code>orquestracao</code>.</p></li>
+        <li><h3>Guardrails</h3><p>Travas fixas: o sandbox do Claude Code e a proteção de <code>.claude/trilho.json</code> (só o plugin <code>trilho</code> escreve) e, com registro, de <code>.claude/settings.json</code>. Custam zero e não se customizam.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
+        <li><h3>Portões</h3><p>Só nas pontas: no começo barram a escrita, no fim barram o envio (<code>git push</code>, <code>gh pr create</code>). O meio é livre. Você os customiza em <code>.claude/trilho.json</code>.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
+        <li><h3>Validações</h3><p>O que dá o carimbo: um <strong>comando</strong> que passa, o <strong>veredito de um agente</strong> ou um <strong>artefato</strong> validado. O carimbo vale para um commit; commit novo pede carimbo novo.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
+        <li><h3>Memória organizada</h3><p>Mapa do código e notas ancoradas, por projeto, carregados no começo de cada sessão (plugin <code>memoria</code>).</p><p class="note"><strong>Status:</strong> disponível.</p></li>
       </ul>
     </div>
   </section>
@@ -278,7 +285,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
   <section id="fluxo" class="wash">
     <div class="wrap">
       <h2>Começo, meio livre, fim</h2>
-      <p class="intro">Os portões ficam só nas pontas. No começo, o de planejamento. No fim, os de qualidade, bugs e segurança. Cada um deixa o seu carimbo no passaporte da entrega.</p>
+      <p class="intro">Os portões ficam só nas pontas: planejamento no começo; qualidade, bugs e segurança (a vir) no fim. Cada um deixa um carimbo no passaporte da entrega.</p>
       <figure class="art" tabindex="0">
 <svg class="ill flow" viewBox="0 0 1200 520" role="img" aria-label="O fluxo de uma entrega. No começo, o portão de planejamento. No meio, livre, o trem anda com a orquestração e os guardrails. No fim, os portões de qualidade, bugs e segurança. Abaixo, o passaporte recebe um carimbo de cada portão.">
 <defs><g id="canc"><rect x="-7" y="-112" width="14" height="100" rx="5"/><rect x="0" y="-66" width="72" height="12" rx="6" transform="rotate(-55 0 -60)"/><circle class="solid" cx="0" cy="-60" r="4"/><rect x="-18" y="-14" width="36" height="10" rx="5"/></g></defs>
@@ -320,11 +327,13 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <h2>Plugins</h2>
       <p class="intro">Cada um é independente e se liga só no projeto.</p>
       <dl class="facts">
-        <div><dt><code>trilho</code></dt><dd>O núcleo: modo puro, registro de portões, comando <code>portao</code> e o aplicador único que barra.</dd></div>
-        <div><dt><code>bugs</code></dt><dd>O caçador de bugs lê o diff. Aprovado, o hook carimba o commit no fim.</dd></div>
-        <div><dt><code>qualidade</code></dt><dd>Roda a checagem do projeto. Passou, carimbo no fim.</dd></div>
-        <div><dt><code>memoria</code></dt><dd>Mapa do código e notas ancoradas, no começo de cada sessão.</dd></div>
-        <div><dt>A vir</dt><dd><code>planejamento</code>, <code>orquestracao</code> e <code>seguranca</code>.</dd></div>
+        <div><dt><code>trilho</code></dt><dd><strong>Disponível.</strong> O núcleo: modo puro, registro de portões e o comando <code>portao</code>.</dd></div>
+        <div><dt><code>memoria</code></dt><dd><strong>Disponível.</strong> Mapa do código e notas ancoradas, carregados a cada sessão.</dd></div>
+        <div><dt><code>bugs</code></dt><dd><strong>Sugerido</strong> se o projeto não tem validador próprio. Um agente lê o diff; aprovado, carimba o fim.</dd></div>
+        <div><dt><code>qualidade</code></dt><dd><strong>Sugerido</strong> se o projeto não tem validador próprio. Roda a checagem do projeto; passou, carimba o fim.</dd></div>
+        <div><dt><code>orquestracao</code></dt><dd><strong>A vir.</strong> Grafo, loop e worktrees.</dd></div>
+        <div><dt><code>planejamento</code></dt><dd><strong>A vir</strong>, como skill do <code>trilho</code> e não como plugin separado.</dd></div>
+        <div><dt><code>seguranca</code></dt><dd><strong>A vir.</strong> Portão de segurança no fim.</dd></div>
       </dl>
     </div>
   </section>
@@ -332,19 +341,24 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
   <section id="instalar" class="wash">
     <div class="wrap">
       <h2>Instalar</h2>
-      <h3 class="sub">Só o que você quiser</h3>
-      <p>Num projeto existente, instale os plugins que interessam. O <code>qualidade</code> lê o comando em <code>.claude/trilho.json</code>.</p>
+      <h3 class="sub">Tudo</h3>
+      <p><code>cc</code> (de "claude clean") abre o Claude só com o que o projeto declara, sem plugins nem MCPs globais. O <code>install</code> traz <code>trilho</code>, <code>memoria</code> e <code>ponytail</code> (código mínimo), e liga o hook do <code>rtk</code>. <em>O <code>mattpocock-skills</code> (processo e revisão) no <code>install</code> está em construção, previsto para uma versão seguinte.</em></p>
+      <ol class="steps">
+        <li><div><h3>Instale</h3><div class="cmd"><code id="c3">npx @fullchico/harness@latest install</code><button type="button" data-copy="c3">Copiar</button></div></div></li>
+        <li><div><h3>Proponha os portões</h3><p>Lê o que o projeto já usa e diz o porquê de cada portão.</p><div class="cmd"><code id="c4">npx @fullchico/harness portoes --analisar</code><button type="button" data-copy="c4">Copiar</button></div></div></li>
+        <li><div><h3>Grave</h3><p>Grava em <code>.claude/trilho.json</code> e o protege no sandbox.</p><div class="cmd"><code id="c5">npx @fullchico/harness portoes --gravar</code><button type="button" data-copy="c5">Copiar</button></div></div></li>
+        <li><div><h3>Modo puro e abertura</h3><div class="cmd"><code id="c6">npx @fullchico/harness puro</code><button type="button" data-copy="c6">Copiar</button></div><p style="margin-top:0.9rem">Depois, abra a sessão com <code>cc</code> no lugar de <code>claude</code>.</p></div></li>
+      </ol>
+      <p class="note" style="margin-top:1.5rem"><strong>Atenção:</strong> <code>cc</code> sobrepõe o <code>/usr/bin/cc</code> (compilador de C). Para compilar, chame <code>/usr/bin/cc</code> ou crie um alias.</p>
+
+      <h3 class="sub">Só o que quiser</h3>
+      <p>Num projeto existente, instale só os plugins que quiser. O <code>qualidade</code> lê o comando em <code>.claude/trilho.json</code>.</p>
       <div class="cmd" style="margin-top:1rem"><code id="c2">npx @fullchico/harness@latest add bugs qualidade</code><button type="button" data-copy="c2">Copiar</button></div>
       <pre class="verdict">{"qualidade": {"comando": "pnpm lint &amp;&amp; pnpm test"}}</pre>
 
-      <h3 class="sub">O harness completo</h3>
-      <ol class="steps">
-        <li><div><h3>Ligue os plugins</h3><div class="cmd"><code id="c3">npx @fullchico/harness@latest add trilho bugs qualidade</code><button type="button" data-copy="c3">Copiar</button></div></div></li>
-        <li><div><h3>Proponha os portões</h3><p>Lê o que o projeto já usa e diz o porquê de cada portão.</p><div class="cmd"><code id="c4">npx @fullchico/harness portoes --analisar</code><button type="button" data-copy="c4">Copiar</button></div></div></li>
-        <li><div><h3>Grave</h3><p>Grava em <code>.claude/trilho.json</code> e o protege no sandbox.</p><div class="cmd"><code id="c5">npx @fullchico/harness portoes --gravar</code><button type="button" data-copy="c5">Copiar</button></div></div></li>
-        <li><div><h3>Modo puro e abertura</h3><div class="cmd"><code id="c6">npx @fullchico/harness puro</code><button type="button" data-copy="c6">Copiar</button></div><p style="margin-top:0.9rem">Depois, abra o projeto com <code>claude-projeto</code> no lugar de <code>claude</code>.</p></div></li>
-      </ol>
-      <p class="note" style="margin-top:2rem"><strong>Cada clone precisa do install.</strong> Ligar o plugin no settings não baixa o plugin: é um limite da plataforma. Quem clona o projeto roda o <code>add</code> uma vez.</p>
+      <h3 class="sub">Legado</h3>
+      <div class="cmd" style="margin-top:1rem"><code id="c8">npx @fullchico/harness install . --legado</code><button type="button" data-copy="c8">Copiar</button></div>
+      <p class="note" style="margin-top:2rem"><strong>Cada clone precisa do install.</strong> Ligar o plugin no settings não o baixa (limite da plataforma). Quem clona roda o <code>add</code> uma vez.</p>
     </div>
   </section>
 
@@ -400,7 +414,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
   <section id="anterior">
     <div class="wrap">
       <h2>Modelo anterior (plugin <code>harness</code>)</h2>
-      <p class="intro">Antes dos plugins por projeto, o harness era um plugin só, com orquestrador, tickets e quatro revisores sobre a branch inteira. Ele continua instalável e está sendo migrado para os plugins novos.</p>
+      <p class="intro">Antes, o harness era um plugin só, com orquestrador, tickets e quatro revisores sobre a branch inteira. Continua instalável e está migrando para os plugins novos.</p>
       <div class="cmd" style="margin-top:1.5rem"><code id="c7">npx @fullchico/harness install . --legado</code><button type="button" data-copy="c7">Copiar</button></div>
       <dl class="facts">
         <div><dt><code>/harness:entregar</code></dt><dd>Conduz a mudança do pedido ao pull request: entrevista, spec, revisão da spec, tickets em paralelo, integração e envio.</dd></div>

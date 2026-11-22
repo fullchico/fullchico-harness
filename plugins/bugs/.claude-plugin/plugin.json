@@ -1,6 +1,6 @@
 {
   "name": "bugs",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Caçador de bugs para qualquer projeto: um agente lê o diff atrás de defeito e, se aprovar, o hook carimba o commit; sem o carimbo, o push e o pull request são barrados.",
   "author": {
     "name": "FullChico"

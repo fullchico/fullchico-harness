@@ -160,7 +160,7 @@ class TestBugsStamp(PluginCase, GateCases):
 
     def test_manifest_and_hooks(self):
         meta = json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text())
-        self.assertEqual((meta["name"], meta["version"]), ("bugs", "0.1.0"))
+        self.assertEqual((meta["name"], meta["version"]), ("bugs", "0.2.0"))
         hooks = json.loads((PLUGIN / "hooks/hooks.json").read_text())["hooks"]
         self.assertEqual(hooks["SubagentStop"][0]["matcher"], "^bugs:cacador$")
         self.assertEqual({g["matcher"] for g in hooks["PreToolUse"]}, {"SubagentHandback", "Bash"})

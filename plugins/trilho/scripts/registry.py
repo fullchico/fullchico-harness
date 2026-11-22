@@ -17,6 +17,7 @@ import ledger  # noqa: E402
 
 MOMENTOS = ("inicio", "fim")
 MODOS = ("comando", "artefato", "agente")
+DEFINIR = "@definir"  # comando ainda sem dono: o portão barra até o dono definir
 IGNORADOS = ("docs", ".claude", ".git")
 
 
@@ -171,6 +172,9 @@ def missing(root, momento, reg=None):
 
 def howto(name, gate):
     mode = gate["assina"]
+    if mode == "comando" and gate["comando"] == DEFINIR:
+        return (f"o comando do portão `{name}` ainda não foi definido: só o dono o define, no terminal, com "
+                f'`fullchico-harness portoes --definir {name} "<comando>"`')
     if mode == "comando":
         return f"rode `portao {name}` (sozinho numa chamada): `{gate['comando']}`"
     if mode == "artefato":

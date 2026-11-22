@@ -59,7 +59,7 @@ if (command === "puro") {
     "--projeto", project], { stdio: "inherit" });
   console.log("\nPróximos passos:\n" +
     "  1. Confira os portões em .claude/trilho.json (só você os altera: `fullchico-harness portoes`).\n" +
-    "  2. Para rodar o projeto só com o que ele declara: `fullchico-harness puro`, e abra com `claude-projeto`.\n" +
+    "  2. Para rodar o projeto só com o que ele declara: `fullchico-harness puro`, e abra com `cc`.\n" +
     "  3. Abra uma sessão nova no projeto e rode `portao` para ver o que cada etapa pede.\n" +
     "O modelo anterior (plugin único `harness`) continua em `fullchico-harness install --legado`.");
   process.exit(status || (gates.status === null ? 1 : gates.status));
@@ -101,6 +101,13 @@ function addPlugins(names, project, extras = []) {
     }
     // o marketplace já registrado não é erro; a instalação que falha é
     if (args[1] === "install" && run.status !== 0) status = run.status === null ? 1 : run.status;
+  }
+  // Cada plugin com `portao.json` registra o próprio portão (só acrescenta; entrada existente fica como está).
+  for (const name of names) {
+    const manifest = path.join(root, "plugins", name, "portao.json");
+    if (!fs.existsSync(manifest)) continue;
+    spawnSync("python3", ["-I", path.join(root, "plugins/trilho/scripts/portoes.py"), "--registrar", manifest,
+      "--projeto", project], { stdio: "inherit" });
   }
   // O carimbo fica fora do projeto, onde o sandbox impede o agente de gravar. Sem sandbox, o agente
   // consegue gravar lá: o portão continua avisando, mas deixa de ser barreira.

@@ -18,6 +18,7 @@ o carimbo o fluxo não passa. É 100% Claude Code.
 
 ## Sumário
 
+- [A divisão](#a-divisão)
 - [Os oito conceitos](#os-oito-conceitos)
 - [Plugins](#plugins)
 - [Instalar](#instalar)
@@ -25,6 +26,11 @@ o carimbo o fluxo não passa. É 100% Claude Code.
 - [Limites honestos](#limites-honestos)
 - [Modelo anterior (plugin `harness`)](#modelo-anterior-plugin-harness)
 - [Licença](#licença)
+
+## A divisão
+
+**A lib garante o caminho (orquestração) e a aprendizagem (memória). Começo e fim ficam com as
+ferramentas do seu projeto, ligadas pelos portões.**
 
 ## Os oito conceitos
 
@@ -35,39 +41,45 @@ O conjunto do projeto: os plugins ligados, o registro de portões e a configura�
 
 **Modo puro.** O projeto roda só com o que declara em `.claude/` mais o escopo local
 (`.claude/settings.local.json`, a ferramenta pessoal de quem usa, como Orca e rtk). O global do
-usuário não entra. Ative com `npx @fullchico/harness puro` e abra o projeto com `claude-projeto`
+usuário não entra. Ative com `npx @fullchico/harness puro` e abra a sessão com `cc`
 no lugar de `claude`.
+
+*Status: disponível.*
 
 ### 2. Planejamento
 
-O portão de começo. Antes de escrever código, a mudança precisa de um artefato. No padrão, é uma
-spec em `docs/specs/*/spec.md`, criada ou alterada na branch, saída da entrevista com o grill-me.
-Noutro projeto pode ser o OpenSpec.
+O portão de começo, assinado por um artefato (OpenSpec, `docs/specs/*/spec.md`) ou por comando. A
+lib não entrevista produto nem força uma stack de processo: ela liga a etapa à ferramenta que o
+projeto já usa.
+
+*Status: o portão existe no `trilho`; a skill `trilho:configurar` entrevista a configuração usando
+a `grilling` de `mattpocock-skills` como dependência mole (em construção).*
 
 ### 3. Paralelismo com grafo
 
-Cards com dependências. A fronteira do grafo diz o que roda junto e o que espera.
+Cards com dependências; a fronteira roda junto.
+
+*Status: no modelo anterior, a migrar para o plugin `orquestracao`.*
 
 ### 4. Loops
 
-O loop gira até os carimbos fecharem.
+O loop gira até os carimbos fecharem; o meio do fluxo é livre.
 
-> Os conceitos 3 e 4 (a orquestração) ainda estão no modelo anterior e serão migrados para um
-> plugin `orquestracao`.
+*Status: no modelo anterior, a migrar para o plugin `orquestracao`.*
 
 ### 5. Guardrails
 
-Barreiras imediatas que não são etapa: o sandbox do Claude Code e a proteção do registro de
-portões (o agente não edita os portões que o barram). Custam zero e não se customizam.
+O sandbox do Claude Code; a proteção do `.claude/trilho.json` (só o plugin `trilho` escreve) e,
+com registro, a do `.claude/settings.json`. Custam zero e não se customizam.
+
+*Status: disponível.*
 
 ### 6. Portões
 
-Só em dois momentos:
+Só no começo (barra a escrita) ou no fim (barra o envio: `git push`, `gh pr create`). O meio é
+livre. Customizáveis pelo registro `.claude/trilho.json`, protegido.
 
-- **começo**: barra a escrita de código;
-- **fim**: barra o envio (`git push`, `gh pr create`).
-
-O meio do fluxo é livre. Os portões são customizáveis por projeto.
+*Status: disponível.*
 
 ### 7. Validações
 
@@ -79,35 +91,56 @@ O que assina um carimbo. São três jeitos:
 | **agente** | o veredito do agente é aprovado (ex.: o caçador de bugs) |
 | **artefato** | o arquivo existe, está em commit e passa na validação |
 
-O carimbo de fim é do commit: commit novo pede carimbo novo. O de começo é do plano: mudou o
-artefato, carimba de novo.
+O carimbo guarda o commit, a versão do portão e a impressão digital; commit novo pede carimbo
+novo.
+
+*Status: disponível.*
 
 ### 8. Memória organizada
 
-Mapa do código e notas ancoradas, por projeto, no plugin `memoria`: o mapa e as notas em dia entram
-no começo de cada sessão; `/memoria:mapear` atualiza o mapa, a skill `memoria:dream` consolida o que
-as sessões ensinaram (proposto por um extrator isolado, conferido contra o código) e
-`/memoria:aprender` mede o consumo e faz a retrospectiva depois de uma entrega.
+Mapa do código e notas ancoradas, por projeto, injetadas no começo de cada sessão, no plugin
+`memoria`: `/memoria:mapear` atualiza o mapa, a skill `memoria:dream` consolida o que as sessões
+ensinaram (proposto por um extrator isolado, conferido contra o código) e `/memoria:aprender` mede
+o consumo e faz a retrospectiva depois de uma entrega.
+
+*Status: disponível.*
 
 ## Plugins
 
 | Plugin | O que faz | Estado |
 |---|---|---|
 | `trilho` | o núcleo: modo puro, registro de portões, comando `portao`, aplicador único | disponível |
-| `bugs` | o caçador de bugs lê o diff; aprovado, carimbo no fim | disponível |
-| `qualidade` | roda a checagem do projeto; passou, carimbo no fim | disponível |
-| `planejamento` | o portão de começo, com a entrevista | a vir |
-| `orquestracao` | grafo de cards e loops | a vir |
 | `memoria` | mapa do código e notas ancoradas, injetados no começo da sessão | disponível |
+| `bugs` | o caçador de bugs lê o diff; aprovado, carimbo no fim | opção sugerida quando o projeto não tem validador próprio |
+| `qualidade` | roda a checagem do projeto; passou, carimbo no fim | opção sugerida quando o projeto não tem validador próprio |
+| `orquestracao` | grafo de cards, loop e worktrees | a vir |
+| `planejamento` | o portão de começo, com a entrevista | a vir como skill fina do `trilho`, não como plugin separado |
 | `seguranca` | revisão de segurança, carimbo no fim | a vir |
 
 Cada plugin é independente e se liga só no projeto (`--scope project`).
 
 ## Instalar
 
-### Só o que você quiser
+### Tudo
 
-Num projeto existente, instale os plugins que interessam:
+```bash
+npx @fullchico/harness@latest install
+npx @fullchico/harness puro                 # liga o modo puro
+cc                                          # abre a sessão no modo do projeto
+```
+
+`cc` (de "claude clean") passa a ser o lançador. O `install` traz `trilho`, `memoria`, `ponytail`
+(código mínimo) e `mattpocock-skills` (processo e revisão: `grilling`, `domain-modeling`, `tdd`,
+`clean-code-guard`...), e liga o hook do `rtk`. *O `mattpocock-skills` no `install` está em
+construção, previsto para uma versão seguinte.* O `install` analisa o que o projeto já usa (specs,
+OpenSpec, scripts do `package.json`) e grava os portões em `.claude/trilho.json`. Para ver a
+proposta sem gravar, ou mudá-la depois: `npx @fullchico/harness portoes --analisar` e
+`portoes --gravar`; `portoes --padrao` grava o registro padrão da lib.
+
+> **Atenção:** `cc` sobrepõe o `/usr/bin/cc` do sistema (compilador de C). Quem precisa do
+> compilador chama `/usr/bin/cc` direto ou cria um alias.
+
+### Só o que quiser
 
 ```bash
 npx @fullchico/harness@latest add bugs qualidade
@@ -119,21 +152,11 @@ O `qualidade` lê o comando do projeto em `.claude/trilho.json`:
 {"qualidade": {"comando": "pnpm lint && pnpm test"}}
 ```
 
-### O harness completo
+### Legado
 
 ```bash
-npx @fullchico/harness@latest install       # trilho e memoria, mais ponytail e rtk, e os portões a partir do projeto
-npx @fullchico/harness@latest install --padrao   # o mesmo, com o registro padrão da lib
-npx @fullchico/harness puro                 # liga o modo puro
-claude-projeto                              # abre o Claude Code no modo do projeto
+npx @fullchico/harness install . --legado
 ```
-
-O `install` instala o núcleo (caminho e aprendizagem), traz o ponytail (código mínimo e reutilizável) e liga o rtk (economia de token, se o programa estiver instalado). Começo e fim ficam com as ferramentas do projeto: `bugs` e `qualidade` são opções, para quem não tem validador próprio. Ele analisa o que o projeto já usa (specs, OpenSpec, scripts do `package.json`, skills de
-entrevista) e grava os portões em `.claude/trilho.json`. Para ver a proposta sem gravar, ou
-mudá-la depois: `npx @fullchico/harness portoes --analisar` e `portoes --gravar`.
-
-`portoes --analisar` mostra o porquê de cada portão proposto. `portoes --padrao` grava o registro
-padrão da lib.
 
 ### Cada clone precisa do `install`
 
