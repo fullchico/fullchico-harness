@@ -6,6 +6,7 @@ import sys
 import unittest
 
 from tests.helpers import ROOT, commit_all, git, make_repo, run_hook, sync
+from tests.test_visual_gate import DIR, shoot
 
 sys.path.insert(0, str(ROOT / "plugin/payload"))
 import tickets_check  # noqa: E402
@@ -90,10 +91,11 @@ class TestEntregar(unittest.TestCase):
                      "docs/specs/exemplo/achados/01-rodada-1.md", "GLOSSARY.md", "docs/adr/0001-exemplo.md"):
             (repo / path).parent.mkdir(parents=True, exist_ok=True)
             (repo / path).write_text("# t\n\nStatus: claimed\nBlocked by:\nOwns: src/t\n" if "issues" in path else "x")
-        (repo / "harness.conf").write_text("PROJECT=p\n")
+        (repo / "harness.conf").write_text(f'PROJECT=p\nSCREENS_DIR="{DIR}"\n')
         base = git(repo, "rev-parse", "HEAD")
         git(repo, "checkout", "-q", "-b", "feat/exemplo")
         sha = commit_all(repo, "docs: add spec")
+        shoot(repo)  # o pedido ao revisor visual só passa com as capturas do commit no lugar
         found = 0
         for name, text in texts().items():
             for agent, body in re.findall(r"```pedido (\S+)\n(.*?)```", text, flags=re.S):

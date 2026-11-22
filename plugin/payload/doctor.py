@@ -25,7 +25,7 @@ import common  # noqa: E402
 
 OK, BAD, WARN, INFO = "✓", "✗", "!", "-"
 GATES = ("seguranca", "revisao", "bugs", "qualidade")
-CONF_KEYS = ("VALIDATE_PUSH", "VALIDATE_MERGE", "VALIDATE_ARCH", "MODULE_ROOTS", "CONTRACT_PATHS", "TOKENS_CSS")
+CONF_KEYS = ("VALIDATE_PUSH", "VALIDATE_MERGE", "VALIDATE_ARCH", "MODULE_ROOTS", "CONTRACT_PATHS", "TOKENS_CSS", "SCREENS_DIR")
 PERMISSION_WINDOW = 60  # minutos
 _HOOK = re.compile(r"\.harness/hooks/([\w-]+\.py)")
 _SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -209,7 +209,9 @@ def check_gates(report, state, root):
         report.add(INFO, "repositório sem commit")
         return
     report.add(INFO, f"HEAD {head[:10]}")
-    for gate in GATES:
+    # O portão visual só existe em projeto com tela: é o `SCREENS_DIR` que o liga, como no push.
+    screens = common.read_conf(os.path.join(root, "harness.conf")).get("SCREENS_DIR")
+    for gate in GATES + (("visual",) if screens else ()):
         try:
             with open(common.approval_path(state, gate, head), encoding="utf-8") as f:
                 record = json.load(f)

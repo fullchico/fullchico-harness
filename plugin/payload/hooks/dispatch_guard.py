@@ -25,6 +25,7 @@ REQUIRED = {
     "harness:revisor-bugs": ("diff", "commit"),
     "harness:revisor-ambiente": ("spec", "ticket", "diff", "commit"),
     "harness:extrator": ("resumo",),
+    "harness:revisor-visual": ("diff", "commit"),
 }
 # O que cada um pode receber. O implementador recebe a spec e o ticket, e numa rodada
 # de correção o arquivo com o achado; quem revisa recebe o que vai ler, e mais nada.
@@ -45,6 +46,8 @@ ALLOWED = {
     "harness:revisor-ambiente": ("diff", "commit", "spec", "ticket", "leitura", "achado"),
     # Quem propõe as notas lê só o resumo da sessão: nada do que o condutor acha que vale lembrar.
     "harness:extrator": ("resumo",),
+    # Quem olha a tela recebe o mesmo que os revisores da branch: o que julga são as capturas do commit.
+    "harness:revisor-visual": ("diff", "commit", "spec", "leitura"),
 }
 _LINE = re.compile(r"^(spec|ticket|diff|commit|leitura|achado|resumo): (\S.*)$")
 _SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -207,7 +210,7 @@ def ready_for_execution(prompt, root):
             if "harness.conf" not in f.read():
                 return ("Este projeto ainda não tem `harness.conf` preenchido, e a spec não diz o conteúdo dele. "
                         "Acrescente à spec uma seção `harness.conf` com as chaves (PROJECT, SERVICES, COMPOSE_FILE, "
-                        "INSTALL_CMD, AFTER_UP, DEV_CMD, VALIDATE_PUSH, VALIDATE_MERGE, VALIDATE_ARCH, CONTRACT_PATHS, MODULE_ROOTS, TOKENS_CSS, "
+                        "INSTALL_CMD, AFTER_UP, DEV_CMD, VALIDATE_PUSH, VALIDATE_MERGE, VALIDATE_ARCH, CONTRACT_PATHS, MODULE_ROOTS, TOKENS_CSS, SCREENS_DIR, "
                         "ENV_*) e faça o commit.")
     # Projeto que declara os tokens do front tem tela: a execução espera o design escolhido pelo dono.
     if common.read_conf(os.path.join(root, "harness.conf")).get("TOKENS_CSS") and not _committed(root, "DESIGN.md"):
@@ -242,6 +245,8 @@ def main():
         reason = already_done(agent, tool_input.get("prompt"), root)
     if not reason and agent == "harness:orquestrador":
         reason = ready_for_execution(tool_input.get("prompt"), root)
+    if not reason and agent == "harness:revisor-visual":
+        reason = screens_ready(root)
     if reason:
         common.deny(reason)
     record_request(agent, tool_input.get("prompt"), root)
@@ -254,6 +259,19 @@ def _resume():
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     import resume
     return resume
+
+
+def screens_ready(root):
+    """O revisor visual julga as capturas do commit: sem elas, ou com as de outro commit, não há o que olhar."""
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import screens
+    missing = screens.problems(root)
+    if not missing:
+        return None
+    return ("O `harness:revisor-visual` olha as capturas de tela do commit, e elas não estão no lugar: "
+            + "; ".join(missing) + ". Rode antes a suíte de ponta a ponta neste commit, pela checagem completa "
+            "(`.harness/validate --profile merge`): é ela que tira as capturas e grava o `telas.json`. "
+            "`.harness/screens check` confere.")
 
 
 def already_done(agent, prompt, root):

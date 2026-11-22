@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# O portão de push: quatro vereditos sobre o commit do topo (segurança, revisão, caça a bugs, qualidade) e a trava de spec.
+# O portão de push: quatro vereditos sobre o commit do topo (segurança, revisão, caça a bugs, qualidade), um quinto
+# em projeto com tela (visual, quando o harness.conf define SCREENS_DIR) e a trava de spec.
 #
 # Uso: gate-check <url do remoto>   com as linhas de ref no stdin, no formato do git:
 #      <ref local> <sha local> <ref remoto> <sha remoto>
@@ -115,6 +116,18 @@ while read -r LOCAL_REF LOCAL_SHA REMOTE_REF REMOTE_SHA; do
     echo "  (testes, fronteiras, ponta a ponta) nesse commit. Commit novo pede checagem nova." >&2
     FAIL=1
   fi
+  # Projeto com tela (SCREENS_DIR no harness.conf desse commit): alguém abriu as capturas dele e julgou o que viu.
+  if grep -Eq "^SCREENS_DIR=[\"']?[^\"'[:space:]]" <<EOT
+$(git show "$TIP:harness.conf" 2>/dev/null)
+EOT
+  then
+    if ! approved visual "$TIP" ""; then
+      echo "push negado: falta a aprovação de visual para o commit $TIP." >&2
+      echo "  Ela nasce do veredito do agente harness:revisor-visual, que abre as capturas de tela desse commit" >&2
+      echo "  (as que a suíte de ponta a ponta grava em SCREENS_DIR). Commit novo pede capturas e revisão novas." >&2
+      FAIL=1
+    fi
+  fi
 
   if [ -n "$BASE" ]; then
     SUBJECTS="$(git log --format=%s "$BASE..$TIP")"
@@ -148,10 +161,11 @@ done
 # Achado simples não bloqueou o ticket; em troca, não sai sem ser conferido.
 OPEN="$(python3 -I "$H/hooks/common.py" pendings 2>/dev/null)"
 if [ -n "$OPEN" ]; then
-  echo "push negado: há pendências do caçador de bugs que ninguém conferiu:" >&2
+  echo "push negado: há pendências dos revisores que ninguém conferiu:" >&2
   echo "$OPEN" | sed 's/^/  /' >&2
   echo "  Corrija cada uma com o teste indicado e peça o passe final ao harness:revisor-bugs:" >&2
-  echo "  é ele que fecha, com a linha RESOLVIDA: <id>." >&2
+  echo "  é ele que fecha, com a linha RESOLVIDA: <id>. Pendência de tela (a que cita uma captura) quem" >&2
+  echo "  fecha é o harness:revisor-visual, sobre as capturas do commit novo." >&2
   FAIL=1
 fi
 

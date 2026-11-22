@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Capturas de tela da entrega (pasta SCREENS_DIR do harness.conf, gravada pela suíte de ponta a ponta).
+# Uso: .harness/screens check     confere que as capturas existem e são do commit atual
+#      .harness/screens gallery   monta a galeria (index.html na pasta) para o dono abrir no navegador
+set -uo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd -P)"
+ROOT="$(cd "$HERE/.." && pwd -P)"
+exec python3 -I "$HERE/screens.py" "$ROOT" "$@"

@@ -55,7 +55,8 @@ não souber em que pé um ticket está.
   checagem que o roteiro manda depois da onda. O harness nega um segundo lote de tickets novos
   ao mesmo orquestrador.
 - **O fechamento,** quando não há ticket aberto nem em andamento: pendências, checagem completa,
-  revisores, envio, pull request e o aplicativo de pé.
+  revisores (em projeto com `SCREENS_DIR`, também o `harness:revisor-visual`, que olha as
+  capturas de tela do commit), envio, pull request e o aplicativo de pé.
 
 O que uma onda decide e a seguinte precisa saber vai para o documento (a spec, o ticket, o
 arquivo de achado), em commit. O que ficar só na sua resposta se perde.

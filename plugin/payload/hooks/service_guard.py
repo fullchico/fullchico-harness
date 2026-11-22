@@ -41,7 +41,7 @@ DENY_ALONE = ("Os scripts do harness que saem do sandbox rodam sozinho, um por c
 # Revisor roda no worktree da feature, que o orquestrador e os outros revisores também usam.
 # Trocar o commit dele no meio deixa a feature fora da branch: um commit nessa hora se perde.
 REVIEWERS = ("harness:revisor-bugs", "harness:revisor-ambiente", "harness:revisor", "harness:seguranca",
-             "harness:qualidade", "harness:revisor-spec")
+             "harness:qualidade", "harness:revisor-spec", "harness:revisor-visual")
 _MOVES = re.compile(r"\bgit\b(?:\s+-C\s+\S+|\s+-c\s+\S+)*\s+(?:checkout|switch|reset|restore|stash|clean)\b")
 DENY_MOVE = ("Revisor não muda o commit nem os arquivos deste worktree: ele é da feature inteira. "
              "Para ler o código de outro commit use `git show <commit>:<arquivo>` e `git diff`. Para rodar os "
@@ -292,7 +292,7 @@ def destroy_reason(cwd: str) -> str:
 
 
 CONF_FORMS = (".harness/conf-apply", "./.harness/conf-apply")
-CHECKS = ("VALIDATE_PUSH", "VALIDATE_MERGE", "VALIDATE_ARCH", "MODULE_ROOTS", "CONTRACT_PATHS", "TOKENS_CSS")
+CHECKS = ("VALIDATE_PUSH", "VALIDATE_MERGE", "VALIDATE_ARCH", "MODULE_ROOTS", "CONTRACT_PATHS", "TOKENS_CSS", "SCREENS_DIR")
 CONF_LIMIT = 4000
 
 
