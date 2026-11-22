@@ -24,6 +24,11 @@
       "name": "qualidade",
       "source": "./plugins/qualidade",
       "description": "Checagem de qualidade do projeto (.claude/trilho.json) como carimbo do commit; sem carimbo, o push é barrado."
+    },
+    {
+      "name": "memoria",
+      "source": "./plugins/memoria",
+      "description": "Memória do projeto ancorada em git: mapa do código e notas das sessões, injetados no começo de cada sessão."
     }
   ]
 }
