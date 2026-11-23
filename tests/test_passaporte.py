@@ -42,6 +42,16 @@ class TestPassport(unittest.TestCase):
         self.spec("# Spec\n\nPortões: e2e\n")
         self.assertEqual(self.missing(), ["qualidade", "e2e"], "qualidade é sempre; seo ficou fora")
 
+    def test_names_are_read_as_the_registry_writes_them(self):
+        self.spec("# Spec\n\n**Portões:** `e2e`, **seo**.\n")
+        self.assertEqual(self.missing(), ["qualidade", "e2e", "seo"])
+
+    def test_an_end_gate_by_artifact_is_validated_by_the_verifier(self):
+        portoes = dict(PORTOES, relatorio={"momento": "fim", "assina": "artefato", "artefato": "docs/relatorio.md"})
+        reg = {"portoes": portoes}
+        self.assertIn("relatorio", registry.validadores(reg)[registry.VERIFICADOR])
+        self.assertIn("/tr:qualidade-verificar", registry.howto("relatorio", portoes["relatorio"]))
+
     def test_the_passport_cannot_drop_a_required_gate(self):
         self.spec("# Spec\n\nPortões: seo\n")
         self.assertIn("qualidade", self.missing())

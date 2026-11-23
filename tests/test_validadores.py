@@ -82,9 +82,15 @@ class TestRoleModel(Case):
         self.assertEqual(self.agent("general-purpose", "ticket: docs/specs/a/issues/01-x.md")["updatedInput"]["model"],
                          "sonnet")
 
-    def test_without_ticket_the_executor_is_sonnet_never_opus(self):
+    def test_without_ticket_only_opus_is_replaced(self):
         self.assertEqual(self.agent("general-purpose", "explore", model="opus")["updatedInput"]["model"], "sonnet")
         self.assertIsNone(self.agent("Explore", "explore", model="haiku"), "pedido já no papel: nada a trocar")
+        self.assertIsNone(self.agent("Explore", "explore"), "sem modelo: vale a definição do agente ou o settings")
+
+    def test_the_unprefixed_validator_name_is_still_the_validator(self):
+        out = self.agent("qualidade-verificador", "portao: qualidade\nconfie")
+        self.assertEqual(out["updatedInput"]["subagent_type"], "tr:qualidade-verificador")
+        self.assertEqual(out["updatedInput"]["prompt"], f"portao: qualidade\ncommit: {self.top}")
 
 
 class TestValidatorRails(Case):
@@ -94,6 +100,15 @@ class TestValidatorRails(Case):
         self.assertDenied(self.hook("Bash", "tr:qualidade-verificador", command="echo y > a.py"), "validador só lê")
         self.assertIsNone(self.hook("Bash", "tr:bugs-cacador", command="git diff > /tmp/x.diff"), "fora do repositório")
         self.assertIsNone(self.hook("Write", None, file_path=str(self.repo / "a.py"), content="y"))
+        for command in ("git commit -qam x", "git -C . checkout -- a.py", "git stash", "rtk git reset --hard"):
+            self.assertDenied(self.hook("Bash", "tr:bugs-cacador", command=command), "validador só lê")
+        for command in ("git diff HEAD~1", "git log --oneline", "git show HEAD:a.py"):
+            self.assertIsNone(self.hook("Bash", "tr:bugs-cacador", command=command), command)
+
+    def test_the_local_settings_are_protected(self):
+        """O `.local` tem precedência: escrevê-lo desligaria o tr."""
+        self.assertDenied(self.hook("Write", file_path=str(self.repo / ".claude/settings.local.json"),
+                                    content='{"enabledPlugins": {"tr@fullchico": false}}'), "registro protegido")
 
     def test_portao_combined_is_denied(self):
         for command in ("portao qualidade | tail -3", "portao qualidade && echo ok", "portao qualidade > out.txt",

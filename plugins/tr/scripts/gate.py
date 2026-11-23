@@ -23,7 +23,6 @@ import registry  # noqa: E402
 import saida  # noqa: E402
 from saida import quadro  # noqa: E402
 
-PROTEGIDOS = (".claude/trilho.json", ".claude/settings.json")
 EDICAO = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 WRAPPERS = ledger._WRAPPERS
 
@@ -91,10 +90,15 @@ def disparo(root, reg, ti):
     tipo = ti.get("subagent_type") or "general-purpose"
     validadores = registry.validadores(reg)
     novo = dict(ti)
+    if ":" not in tipo and f"tr:{tipo}" in validadores:
+        tipo = novo["subagent_type"] = f"tr:{tipo}"  # o nome sem prefixo também é o validador
     if tipo not in validadores:
-        pedido = registry.modelo_do_ticket(root, ti.get("prompt"))
-        modelo = pedido or (ti.get("model") if ti.get("model") in ("haiku", "sonnet") else registry.MODELO_EXECUTOR)
-        if ti.get("model") == modelo:
+        # ticket com `Complexidade:` decide; sem ticket, só opus é trocado (o resto, a definição do agente
+        # ou o CLAUDE_CODE_SUBAGENT_MODEL do settings.local resolvem)
+        modelo = registry.modelo_do_ticket(root, ti.get("prompt"))
+        if not modelo and ti.get("model") == "opus":
+            modelo = registry.MODELO_EXECUTOR
+        if not modelo or ti.get("model") == modelo:
             return 0
         novo["model"] = modelo
         return permitir(novo)
@@ -134,6 +138,28 @@ def portao_combinado(command):
             words = words[1:]
         if words and os.path.basename(words[0]) == "portao" and len(words) > 1 and (len(parts) > 1 or len(words) > 2):
             return True
+    return False
+
+
+_GIT_MUDA = {"add", "commit", "checkout", "switch", "reset", "restore", "apply", "stash", "merge", "rebase",
+             "cherry-pick", "revert", "rm", "mv", "am", "pull", "push", "tag", "update-ref", "worktree", "clean"}
+
+
+def git_muda(command):
+    """O comando muda o repositório pelo git (commit, checkout, reset...)? Para o validador, que só lê."""
+    try:
+        parts = ledger._split(ledger.strip_heredocs(command))
+    except ValueError:
+        return False
+    for words in parts:
+        while words and (words[0] in WRAPPERS or re.fullmatch(r"\w+=.*", words[0])):
+            words = words[1:]
+        if words and os.path.basename(words[0]) == "git":
+            rest, i = words[1:], 0
+            while i < len(rest) and rest[i].startswith("-"):
+                i += 2 if rest[i] in ("-C", "-c", "--git-dir", "--work-tree") else 1
+            if i < len(rest) and rest[i] in _GIT_MUDA:
+                return True
     return False
 
 
@@ -186,7 +212,7 @@ def main():
     agente = payload.get("agent_type")
     if agente and agente in registry.validadores(reg):
         alvos = targets_pre if tool in EDICAO or tool == "Bash" else []
-        if any(registry.relative(root, t) for t in alvos):
+        if any(registry.relative(root, t) for t in alvos) or (tool == "Bash" and git_muda(ti.get("command") or "")):
             return deny(root, f"validador escreveu: {agente}", quadro("validador só lê", [
                 ("validador", agente), ("motivo", "quem valida não escreve: o carimbo é sobre o que outro fez"),
             ], ["  → relate o que achou no veredito; a correção é de quem implementa"]))
@@ -224,9 +250,9 @@ def main():
             return deny(root, f"git interno: {t}", quadro("estado do git protegido", [
                 ("arquivo", registry.relative(root, t)), ("motivo", "escrever em `.git/` muda o que a árvore limpa enxerga"),
             ], ["  → arquivo gerado vai no `.gitignore` (em commit); o resto, commit ou apague"]))
-        if registry.relative(root, t) == ".claude/settings.json":
+        if registry.relative(root, t) in (".claude/settings.json", ".claude/settings.local.json"):
             return deny(root, f"registro: {t}", quadro("registro protegido", [
-                ("arquivo", ".claude/settings.json"),
+                ("arquivo", registry.relative(root, t)),
                 ("motivo", "só o dono altera: ele liga os plugins que barram você"),
             ], rodape="o dono muda no terminal (`fullchico-harness install`, `fullchico-harness portoes`) ou à mão"))
     for t in targets:

@@ -82,6 +82,16 @@ class TestInstall(unittest.TestCase):
         self.assertEqual(json.loads((self.repo / ".claude/trilho.json").read_text()), reg)
         self.assertIn("existente mantido", r.stdout)
 
+    def test_an_unreadable_settings_file_stops_before_changing_anything(self):
+        local = self.repo / ".claude/settings.local.json"
+        local.parent.mkdir(exist_ok=True)
+        local.write_text('{"permissions": {"allow": ["Bash(ls)"],}}')
+        r = self.install()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("não é JSON válido", r.stderr)
+        self.assertEqual(local.read_text(), '{"permissions": {"allow": ["Bash(ls)"],}}')
+        self.assertFalse((self.bin / "calls").exists(), "nenhum plugin instalado")
+
     def test_writes_the_local_model_config_keeping_what_is_there(self):
         local = self.repo / ".claude/settings.local.json"
         local.parent.mkdir(exist_ok=True)

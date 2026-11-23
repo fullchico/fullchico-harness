@@ -74,7 +74,7 @@ O loop gira até os carimbos fecharem; o meio do fluxo é livre.
 ### 5. Guardrails
 
 O sandbox do Claude Code; a proteção do `.claude/trilho.json` (só o plugin `tr` escreve) e,
-com registro, a do `.claude/settings.json`. Com registro, o hook também:
+com registro, a do `.claude/settings.json` e do `.claude/settings.local.json` (e de `.git/`). Com registro, o hook também:
 
 - escreve o pedido de cada validador (o que quem escreveu o código disse é descartado);
 - mantém o validador só leitura;

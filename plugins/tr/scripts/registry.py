@@ -203,7 +203,7 @@ def satisfied(root, name, reg=None):
     return stamped_commit(root, name, reg["portoes"][name]) is not None
 
 
-_PORTOES = re.compile(r"(?mi)^\s*port(?:õ|o)es:\s*(.+?)\s*$")
+_PORTOES = re.compile(r"(?mi)^[\s>*_-]*port(?:õ|o)es[*_]*:[*_]*\s*(.+?)\s*$")
 
 
 def passaporte(root, reg):
@@ -216,7 +216,9 @@ def passaporte(root, reg):
         for rel in artifact_files(root, gate):
             text = _git(root, "show", f"HEAD:{rel}") or ""
             for m in _PORTOES.finditer(text):
-                found = (found or set()) | {n.strip() for n in re.split(r"[,\s]+", m.group(1)) if n.strip()}
+                # nome como o registro escreve: sem crase, negrito ou pontuação em volta (`e2e`, **seo**, e2e.)
+                names = {re.sub(r"^[^\w]+|[^\w]+$", "", n) for n in re.split(r"[,;\s]+", m.group(1))}
+                found = (found or set()) | {n for n in names if n}
     return found
 
 
@@ -246,8 +248,9 @@ def passos(name, gate):
         return [f"{INVOKERS[VERIFICADOR]} (o `{VERIFICADOR}` roda `{gate['comando']}` e o carimbo sai dele)"]
     if mode == "artefato":
         valida = f" e que passe em `{gate['valida']}`" if gate.get("valida") else ""
-        return [f"produza e faça o commit de `{gate['artefato']}` nesta branch{valida}",
-                f"depois rode `portao {name}` (sozinho numa chamada)"]
+        depois = (f"depois {INVOKERS[VERIFICADOR]} (o carimbo de fim sai do `{VERIFICADOR}`)" if gate["momento"] == "fim"
+                  else f"depois rode `portao {name}` (sozinho numa chamada)")
+        return [f"produza e faça o commit de `{gate['artefato']}` nesta branch{valida}", depois]
     if gate["agente"] in INVOKERS:
         return [INVOKERS[gate["agente"]]]
     return [f"dispare o agente `{gate['agente']}` sobre o commit do topo", "só ele assina"]
@@ -258,12 +261,12 @@ def howto(name, gate):
 
 
 def validadores(reg):
-    """agent_type de cada validador -> os portões de fim que ele valida."""
+    """agent_type de cada validador -> os portões de fim que ele valida (comando e artefato: o verificador)."""
     out = {}
     for name, gate in reg["portoes"].items():
         if gate["momento"] != "fim":
             continue
-        who = VERIFICADOR if gate["assina"] == "comando" else gate.get("agente") if gate["assina"] == "agente" else None
+        who = gate["agente"] if gate["assina"] == "agente" else VERIFICADOR
         if who:
             out.setdefault(who, []).append(name)
     return out

@@ -73,6 +73,16 @@ if (command === "puro") {
       "agente. Rode este mesmo comando no seu terminal, fora da sessão. Nada foi alterado.");
     process.exit(1);
   }
+  // Arquivo do dono que não faz parse não é reescrito do zero: para antes, sem mexer em nada.
+  const unreadable = [".claude/settings.json", ".claude/settings.local.json", ".claude/trilho.json"].filter((rel) => {
+    const file = path.join(project, rel);
+    if (!fs.existsSync(file)) return false;
+    try { JSON.parse(fs.readFileSync(file, "utf8")); return false; } catch (e) { return true; }
+  });
+  if (unreadable.length) {
+    console.error(`install: ${unreadable.join(" e ")} não é JSON válido. Corrija e rode de novo; nada foi alterado.`);
+    process.exit(1);
+  }
   const legacy = legacyState(project);
   if (legacy.length && rest.includes("--migrar")) migrateLegacy(project);
   // A lib cuida do caminho e da aprendizagem; começo e fim são das ferramentas do projeto, ligadas pelos
@@ -204,7 +214,11 @@ function isLegacyHook(h) {
 }
 
 function isLegacyGroup(event, g) {
-  return event === "SubagentStop" && /harness:/.test(String(g.matcher || ""));
+  return event === "SubagentStop" && /(^|[^\w-])harness:/.test(String(g.matcher || ""));
+}
+
+function hookGroups(data) {
+  return Object.entries(data.hooks || {}).filter(([, groups]) => Array.isArray(groups));
 }
 
 function readRegistry(project) {
@@ -223,7 +237,7 @@ function legacyState(project) {
   const enabled = data.enabledPlugins || {};
   if (enabled["harness@fullchico"]) found.push("plugin `harness@fullchico` ligado");
   for (const name of Object.keys(ABSORBED)) if (name in enabled) found.push(`plugin \`${name}\` (agora dentro do tr)`);
-  const hooks = Object.entries(data.hooks || {}).flatMap(([event, groups]) =>
+  const hooks = hookGroups(data).flatMap(([event, groups]) =>
     groups.flatMap((g) => isLegacyGroup(event, g) ? [{ command: ".harness/" }] : g.hooks || []));
   if (hooks.some(isLegacyHook)) found.push("hooks do harness antigo no settings");
   const perms = Object.values(data.permissions || {}).flat();
@@ -241,7 +255,7 @@ function migrateLegacy(project) {
     if (data.enabledPlugins["harness@fullchico"]) data.enabledPlugins["harness@fullchico"] = false;
     for (const name of Object.keys(ABSORBED)) delete data.enabledPlugins[name];
   }
-  for (const [event, groups] of Object.entries(data.hooks || {})) {
+  for (const [event, groups] of hookGroups(data)) {
     const kept = groups.filter((g) => !isLegacyGroup(event, g))
       .map((g) => ({ ...g, hooks: (g.hooks || []).filter((h) => !isLegacyHook(h)) }))
       .filter((g) => g.hooks.length);
