@@ -1,7 +1,7 @@
 """O `install` monta o harness do projeto no modelo novo: plugins por projeto e registro de portões.
 
-O dono escolhe o padrão da lib ou a análise do que o projeto já usa. O monólito antigo segue em
-`install --legado`, para quem ainda depende dele.
+O dono escolhe o padrão da lib ou a análise do que o projeto já usa; o `--migrar` tira o harness antigo
+e os plugins que o tr absorveu.
 """
 import json
 import os
@@ -9,8 +9,7 @@ import shutil
 import subprocess
 import unittest
 
-from tests.helpers import ROOT, _tmpdir, commit_all, make_repo
-from tests.test_plugin_qualidade import fake_claude
+from tests.helpers import ROOT, _tmpdir, commit_all, fake_claude, make_repo
 
 
 class TestInstall(unittest.TestCase):
@@ -67,11 +66,31 @@ class TestInstall(unittest.TestCase):
         gates = json.loads((self.repo / ".claude/trilho.json").read_text())["portoes"]
         self.assertEqual(set(gates), {"processo", "qualidade", "bugs"})
 
-    def test_padrao_installs_the_plugin_that_signs_the_agent_gate(self):
-        # o padrão grava o portão `bugs` (agente `bugs:cacador`): sem o plugin, ninguém o assinaria
+    def test_the_bug_gate_is_signed_by_the_tr_agent(self):
+        # o caçador é do tr: nenhum plugin a mais para o portão `bugs`
         self.assertEqual(self.install("--padrao").returncode, 0)
-        self.assertIn("plugin install bugs@fullchico --scope project", self.calls())
-        self.assertNotIn("plugin install qualidade@fullchico --scope project", self.calls())
+        gates = json.loads((self.repo / ".claude/trilho.json").read_text())["portoes"]
+        self.assertEqual(gates["bugs"]["agente"], "tr:bugs-cacador")
+        self.assertNotIn("plugin install bugs@fullchico --scope project", self.calls())
+
+    def test_an_existing_registry_is_kept(self):
+        reg = {"portoes": {"e2e": {"momento": "fim", "assina": "comando", "comando": "pnpm e2e"}}}
+        (self.repo / ".claude").mkdir(exist_ok=True)
+        (self.repo / ".claude/trilho.json").write_text(json.dumps(reg))
+        r = self.install()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(json.loads((self.repo / ".claude/trilho.json").read_text()), reg)
+        self.assertIn("existente mantido", r.stdout)
+
+    def test_writes_the_local_model_config_keeping_what_is_there(self):
+        local = self.repo / ".claude/settings.local.json"
+        local.parent.mkdir(exist_ok=True)
+        local.write_text(json.dumps({"permissions": {"allow": ["Bash(ls)"]}, "env": {"X": "1"}}))
+        self.assertEqual(self.install().returncode, 0)
+        data = json.loads(local.read_text())
+        self.assertEqual(data["model"], "opus")
+        self.assertEqual(data["env"], {"CLAUDE_CODE_SUBAGENT_MODEL": "sonnet", "X": "1"})
+        self.assertEqual(data["permissions"], {"allow": ["Bash(ls)"]})
 
     def test_padrao_takes_the_quality_command_from_the_project(self):
         self.install("--padrao")
@@ -132,10 +151,34 @@ class TestInstall(unittest.TestCase):
         self.assertFalse((self.repo / ".claude/trilho.json").exists())
         self.assertNotIn("Próximos passos", r.stdout)
 
-    def test_legacy_still_runs_the_old_installer(self):
-        r = self.install("--legado")
-        self.assertTrue((self.repo / ".harness").exists() or "harness" in (r.stdout + r.stderr).lower(), r.stderr)
-        self.assertNotIn("plugin install tr@fullchico --scope project", self.calls() if (self.bin / "calls").exists() else [])
+    def test_migrar_cleans_what_the_old_harness_and_the_absorbed_plugins_left(self):
+        """O caso do elephantfish: o AGENTS.md mandava `.harness/push`, e as permissões deixavam."""
+        settings = self.repo / ".claude/settings.json"
+        settings.parent.mkdir(exist_ok=True)
+        settings.write_text(json.dumps({
+            "permissions": {"allow": ["Bash(.harness/push)", "Bash(ls)"], "deny": ["Edit(/.harness/**)"],
+                            "ask": ["Bash(./.harness/destroy)"]},
+            "hooks": {"SubagentStop": [{"matcher": "^harness:(seguranca|revisor)$", "hooks": [
+                {"type": "command", "command": "python3 x.py"}]}],
+                "SessionStart": [{"hooks": [{"type": "command", "command": '"$CLAUDE_PROJECT_DIR/.harness/ports-free"'}]}]},
+            "sandbox": {"enabled": True, "excludedCommands": [".harness/up", "docker"]},
+            "enabledPlugins": {"tr@fullchico": True, "bugs@fullchico": True, "qualidade@fullchico": True}}))
+        (self.repo / ".claude/trilho.json").write_text(json.dumps({"portoes": {
+            "bugs": {"momento": "fim", "assina": "agente", "agente": "bugs:cacador"},
+            "seo": {"momento": "fim", "assina": "comando", "comando": "pnpm seo"}}}))
+        r = self.install("--migrar")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        data = json.loads(settings.read_text())
+        self.assertEqual(data["permissions"], {"allow": ["Bash(ls)"], "deny": [], "ask": []})
+        self.assertNotIn("SubagentStop", data["hooks"])
+        self.assertNotIn("SessionStart", data["hooks"])
+        self.assertEqual(data["sandbox"]["excludedCommands"], ["docker"])
+        self.assertNotIn("bugs@fullchico", data["enabledPlugins"])
+        self.assertNotIn("qualidade@fullchico", data["enabledPlugins"])
+        gates = json.loads((self.repo / ".claude/trilho.json").read_text())["portoes"]
+        self.assertEqual(gates["bugs"]["agente"], "tr:bugs-cacador")
+        self.assertEqual(gates["seo"]["comando"], "pnpm seo", "os portões do dono ficam")
+        self.assertIn("AGENTS.md", r.stdout)
 
     def test_not_a_repository_is_refused(self):
         r = subprocess.run([shutil.which("node"), str(ROOT / "bin/harness.js"), "install", "/caminho/que/nao/existe"],

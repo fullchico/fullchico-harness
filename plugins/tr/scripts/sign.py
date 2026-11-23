@@ -2,7 +2,8 @@
 """Assina os carimbos dos portões. Quem assina é o hook, nunca o agente.
 
 - `PostToolUse` de `Bash`: o comando foi exatamente `portao <nome>` e a saída termina em
-  `portao <nome>: passou` -> portão `comando` ou `artefato`. Árvore suja num portão de fim: não assina e recusa (JSON `decision: block`).
+  `portao <nome>: passou` -> portão `comando` ou `artefato`. Portão de fim só assina dentro do
+  `tr:qualidade-verificador` (quem escreveu não assina); o de início (o plano) assina onde rodar. Árvore suja num portão de fim: não assina e recusa (JSON `decision: block`).
 - `SubagentStop` e `PreToolUse` de `SubagentHandback`: o veredito APPROVED do agente de um portão `agente`.
   REJECTED apaga o carimbo.
 """
@@ -49,6 +50,10 @@ def from_command(payload, root, reg):
     lines = [l for l in output_of(payload.get("tool_response")).splitlines() if l.strip()]
     if not lines or lines[-1].strip() != f"portao {name}: passou":
         return 0
+    if gate["momento"] == "fim" and payload.get("agent_type") != registry.VERIFICADOR:
+        # quem escreveu o código vê o resultado, mas não assina: o carimbo vem de um subagente limpo
+        ledger.log(root, "trilho", "não assinou", f"{name}: rodado fora do {registry.VERIFICADOR}")
+        return saida.avisar(f"trilho · {name} passou aqui, mas o carimbo vem de {registry.INVOKERS[registry.VERIFICADOR]}")
     if gate["momento"] == "fim" and registry.dirty(root):
         ledger.log(root, "trilho", "não assinou", f"{name}: árvore suja")
         return saida.recusar(saida.quadro("carimbo recusado", [

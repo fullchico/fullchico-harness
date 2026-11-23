@@ -6,8 +6,7 @@ import subprocess
 import sys
 import unittest
 
-from tests.helpers import ROOT, _tmpdir, commit_all, git, make_repo, hook_verdict
-from tests.test_plugin_qualidade import fake_claude
+from tests.helpers import ROOT, _tmpdir, commit_all, fake_claude, git, make_repo, hook_verdict
 
 TRILHO = ROOT / "plugins/tr"
 NODE = shutil.which("node")
@@ -42,45 +41,6 @@ class Base(unittest.TestCase):
 
 
 class TestAdd(Base):
-    def test_qualidade_discovers_the_command_from_the_project(self):
-        self.pkg({"lint": "x", "test": "y"}, "pnpm-lock.yaml")
-        r = self.add("qualidade")
-        self.assertEqual(r.returncode, 0, r.stderr)
-        gate = self.trilho()["portoes"]["qualidade"]
-        self.assertEqual(gate["comando"], "pnpm lint && pnpm test")
-        self.assertEqual((gate["momento"], gate["assina"]), ("fim", "comando"))
-        self.assertIn("portão `qualidade` registrado", r.stdout)
-
-    def test_qualidade_without_scripts_asks_the_owner_to_define(self):
-        self.add("qualidade")
-        self.assertEqual(self.trilho()["portoes"]["qualidade"]["comando"], "@definir")
-
-    def test_qualidade_uses_the_old_format_command(self):
-        self.put_trilho({"qualidade": {"comando": "x"}})
-        self.add("qualidade")
-        data = self.trilho()
-        self.assertEqual(data["portoes"]["qualidade"]["comando"], "x")
-        self.assertEqual(data["qualidade"], {"comando": "x"}, "o formato antigo fica como estava")
-
-    def test_bugs_registers_the_agent_gate(self):
-        self.add("bugs")
-        gate = self.trilho()["portoes"]["bugs"]
-        self.assertEqual((gate["momento"], gate["assina"], gate["agente"]), ("fim", "agente", "bugs:cacador"))
-
-    def test_existing_entry_is_never_overwritten(self):
-        self.pkg({"test": "y"})
-        self.put_trilho({"portoes": {"qualidade": {"momento": "fim", "assina": "comando", "comando": "make check"}}})
-        r = self.add("qualidade")
-        self.assertEqual(self.trilho()["portoes"]["qualidade"]["comando"], "make check")
-        self.assertNotIn("registrado", r.stdout)
-
-    def test_sandbox_protects_the_registry(self):
-        (self.repo / ".claude").mkdir()
-        (self.repo / ".claude/settings.json").write_text(json.dumps({"sandbox": {"enabled": True}}))
-        self.add("bugs")
-        settings = json.loads((self.repo / ".claude/settings.json").read_text())
-        self.assertIn(".claude/trilho.json", settings["sandbox"]["filesystem"]["denyWrite"])
-
     def test_plugin_without_manifest_changes_nothing(self):
         self.add("memoria")
         self.assertFalse((self.repo / ".claude/trilho.json").exists())

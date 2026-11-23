@@ -76,3 +76,12 @@ def hook_verdict(r):
         reason = out.get("reason") or out["hookSpecificOutput"].get("permissionDecisionReason", "")
         return subprocess.CompletedProcess(r.args, 2, r.stdout, r.stderr + reason)
     return r
+
+
+def fake_claude(folder):
+    """Um `claude` de mentira que só registra os argumentos, um comando por linha."""
+    import stat
+    path = pathlib.Path(folder) / "claude"
+    path.write_text(f'#!/bin/sh\necho "$*" >> "{folder}/calls"\n')
+    path.chmod(path.stat().st_mode | stat.S_IEXEC)
+    return folder

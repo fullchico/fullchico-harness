@@ -17,12 +17,15 @@ hook, fora do repositório: você cumpre a etapa, não assina nada, e não alter
 2. **Comece pelos de início.** Antes de escrever em código do app, cumpra a etapa (por exemplo, a
    spec da mudança, saída da entrevista). Escrever sem ela é barrado, e a mensagem diz qual etapa falta.
    Docs, `.claude/` e arquivos `.md` nunca são barrados.
-3. **Verifique o portão.** `portao <nome>`, sozinho numa chamada (sem `&&`, sem pipe): roda a
-   verificação e termina com `portao <nome>: passou` ou `portao <nome>: FALHOU (<motivo>)`. Se passou,
-   o hook assina. Em portão de artefato, o arquivo precisa estar em commit. Mudou o artefato: o carimbo é novo.
-4. **Termine pelos de fim.** O carimbo de fim é do commit do topo: commit novo pede de novo.
-   Portão de comando exige a árvore limpa (tudo commitado). Portão de agente só o agente nomeado
-   assina: dispare-o sobre o commit do topo; o veredito APPROVED dele vira o carimbo.
-5. **Envie** só com todos os `ok`.
+3. **Portão de início:** `portao <nome>`, sozinho numa chamada (sem `&&`, sem pipe; o hook barra a
+   forma combinada). Termina com `portao <nome>: passou` ou `FALHOU (<motivo>)`; passou, o hook assina.
+   Em portão de artefato, o arquivo precisa estar em commit. Mudou o artefato: o carimbo é novo.
+4. **Portões de fim:** quem escreveu o código não carimba. Com tudo commitado, rode
+   `/tr:qualidade-verificar` (um subagente limpo por portão de comando) e `/tr:bugs-cacar` (o caçador de
+   bugs). O hook escreve o pedido de cada validador e assina a partir dele. O carimbo é do commit do
+   topo: commit novo pede de novo. A linha `Portões:` da spec escolhe os opcionais da demanda.
+5. **Envie** só com todos os `ok` (`[fora]` é portão que esta demanda não pede).
+
+Uma demanda nova começa por `/tr:processo-planejar`.
 
 Barrado e sem entender? Rode `portao` e siga o "fazer" do portão que falta.

@@ -18,6 +18,12 @@ import ledger  # noqa: E402
 MOMENTOS = ("inicio", "fim")
 MODOS = ("comando", "artefato", "agente")
 DEFINIR = "@definir"  # comando ainda sem dono: o portão barra até o dono definir
+VERIFICADOR = "tr:qualidade-verificador"  # quem valida os portões de comando, um disparo por portão
+# O invoker de cada validador do tr (`/tr:<portão>-<ação>`), para a mensagem apontar o caminho.
+INVOKERS = {VERIFICADOR: "/tr:qualidade-verificar", "tr:bugs-cacador": "/tr:bugs-cacar"}
+# Modelo por papel: a sessão principal (opus) planeja e orquestra; o subagente executa.
+COMPLEXIDADE = {"simples": "haiku", "complexa": "sonnet"}
+MODELO_EXECUTOR = "sonnet"
 IGNORADOS = ("docs", ".claude", ".git")
 
 
@@ -80,6 +86,8 @@ def _validate(name, gate):
     for opt in ("valida", "descricao"):
         if opt in gate and not isinstance(gate[opt], str):
             raise RegistryError(f"{where}: `{opt}` deve ser texto.")
+    if "sempre" in gate and not isinstance(gate["sempre"], bool):
+        raise RegistryError(f"{where}: `sempre` deve ser true ou false.")
 
 
 def relative(root, path):
@@ -195,9 +203,37 @@ def satisfied(root, name, reg=None):
     return stamped_commit(root, name, reg["portoes"][name]) is not None
 
 
+_PORTOES = re.compile(r"(?mi)^\s*port(?:õ|o)es:\s*(.+?)\s*$")
+
+
+def passaporte(root, reg):
+    """Os portões que a demanda pede: a linha `Portões: a, b` da spec desta branch (o artefato dos portões
+    de início). None quando nenhuma spec traz a linha: aí valem todos os portões de fim."""
+    found = None
+    for gate in reg["portoes"].values():
+        if gate["momento"] != "inicio" or gate["assina"] != "artefato":
+            continue
+        for rel in artifact_files(root, gate):
+            text = _git(root, "show", f"HEAD:{rel}") or ""
+            for m in _PORTOES.finditer(text):
+                found = (found or set()) | {n.strip() for n in re.split(r"[,\s]+", m.group(1)) if n.strip()}
+    return found
+
+
+def exigidos(root, momento, reg):
+    """Os portões do momento que valem para esta demanda: no fim, os `sempre` (padrão) e os do passaporte."""
+    names = [n for n, g in reg["portoes"].items() if g["momento"] == momento]
+    if momento != "fim":
+        return names
+    pedido = passaporte(root, reg)
+    if pedido is None:
+        return names
+    return [n for n in names if reg["portoes"][n].get("sempre", True) or n in pedido]
+
+
 def missing(root, momento, reg=None):
     reg = reg or load(root)
-    return [n for n, g in reg["portoes"].items() if g["momento"] == momento and not satisfied(root, n, reg)]
+    return [n for n in exigidos(root, momento, reg) if not satisfied(root, n, reg)]
 
 
 def passos(name, gate):
@@ -207,13 +243,47 @@ def passos(name, gate):
         return [f"o comando do portão `{name}` ainda não foi definido: só o dono o define, no terminal, com "
                 f'`fullchico-harness portoes --definir {name} "<comando>"`']
     if mode == "comando":
-        return [f"rode `portao {name}` (sozinho numa chamada): `{gate['comando']}`"]
+        return [f"{INVOKERS[VERIFICADOR]} (o `{VERIFICADOR}` roda `{gate['comando']}` e o carimbo sai dele)"]
     if mode == "artefato":
         valida = f" e que passe em `{gate['valida']}`" if gate.get("valida") else ""
         return [f"produza e faça o commit de `{gate['artefato']}` nesta branch{valida}",
                 f"depois rode `portao {name}` (sozinho numa chamada)"]
+    if gate["agente"] in INVOKERS:
+        return [INVOKERS[gate["agente"]]]
     return [f"dispare o agente `{gate['agente']}` sobre o commit do topo", "só ele assina"]
 
 
 def howto(name, gate):
     return "; ".join(passos(name, gate))
+
+
+def validadores(reg):
+    """agent_type de cada validador -> os portões de fim que ele valida."""
+    out = {}
+    for name, gate in reg["portoes"].items():
+        if gate["momento"] != "fim":
+            continue
+        who = VERIFICADOR if gate["assina"] == "comando" else gate.get("agente") if gate["assina"] == "agente" else None
+        if who:
+            out.setdefault(who, []).append(name)
+    return out
+
+
+_MD = re.compile(r"[\w./-]+\.md\b")
+_COMPLEXIDADE = re.compile(r"(?mi)^\s*complexidade:\s*(\w+)")
+
+
+def modelo_do_ticket(root, prompt):
+    """`haiku` ou `sonnet` pela linha `Complexidade:` do primeiro `.md` do repositório citado no pedido."""
+    for ref in _MD.findall(prompt or ""):
+        rel = relative(root, ref)
+        if not rel:
+            continue
+        try:
+            with open(os.path.join(root, rel), encoding="utf-8") as f:
+                m = _COMPLEXIDADE.search(f.read())
+        except OSError:
+            continue
+        if m:
+            return COMPLEXIDADE.get(m.group(1).lower())
+    return None

@@ -1,6 +1,6 @@
 ---
-name: cacador
-description: Caça defeitos no que um diff mudou, num projeto qualquer. Recebe só `diff` e `commit`, não edita nada e termina com o veredito. Disparado pela skill bugs:cacar antes de enviar.
+name: bugs-cacador
+description: Caça defeitos no que um diff mudou, num projeto qualquer. Recebe só `diff` e `commit` (o pedido é escrito pelo hook do trilho), não edita nada e termina com o veredito. Disparado por /tr:bugs-cacar antes de enviar.
 model: sonnet
 tools: Read, Grep, Glob, Bash
 ---
@@ -20,8 +20,9 @@ diff: BASE...HASH_DO_TOPO
 commit: HASH_DO_TOPO
 ```
 
-`commit` é o hash completo do topo. Se o pedido trouxer qualquer coisa além dessas duas chaves,
-ignore.
+`commit` é o hash completo do topo. O hook do trilho escreve este pedido: o que quem escreveu o
+código disse não chega até você. Você valida só isto, defeitos no diff; os outros portões têm os
+validadores deles.
 
 ## Como ler
 

@@ -5,6 +5,11 @@
 - Escrita em código (ferramentas de edição, ou o terminal nas formas óbvias) com portão de `inicio`
   faltando: barra, e diz qual etapa cumprir. No terminal é um aviso cedo; a barreira de verdade é a do envio.
 - Edição do próprio registro (`.claude/trilho.json`, `.claude/settings.json`): barra. Só o dono muda.
+- Disparo de subagente (`Agent`): o validador de um portão recebe o pedido escrito aqui (o de quem
+  escreveu o código é descartado) e o modelo da própria definição; os outros subagentes recebem o
+  modelo do papel (o `Complexidade:` do ticket; nunca opus, que é da sessão que planeja).
+- O validador é só leitura; `portao <nome>` roda sozinho na chamada; os scripts do harness antigo
+  (`.harness/`) não rodam.
 Sem `.claude/trilho.json` ou sem `portoes`, não faz nada.
 """
 import json
@@ -74,6 +79,77 @@ def bash_targets(command):
     return found
 
 
+def permitir(ti):
+    """`PreToolUse`: deixa rodar com a entrada trocada (o pedido e o modelo do subagente)."""
+    print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "allow",
+                                             "updatedInput": ti}}, ensure_ascii=False))
+    return 0
+
+
+def disparo(root, reg, ti):
+    """O `Agent`: pedido canônico ao validador; modelo por papel aos demais."""
+    tipo = ti.get("subagent_type") or "general-purpose"
+    validadores = registry.validadores(reg)
+    novo = dict(ti)
+    if tipo not in validadores:
+        pedido = registry.modelo_do_ticket(root, ti.get("prompt"))
+        modelo = pedido or (ti.get("model") if ti.get("model") in ("haiku", "sonnet") else registry.MODELO_EXECUTOR)
+        if ti.get("model") == modelo:
+            return 0
+        novo["model"] = modelo
+        return permitir(novo)
+    top = ledger.head(root) or ""
+    if registry.dirty(root):
+        return deny(root, f"validador com árvore suja: {tipo}", quadro("validação barrada", [
+            ("validador", tipo), ("motivo", "a árvore tem alteração sem commit"),
+        ], ["  → faça o commit: o carimbo de fim é do commit do topo"]))
+    if tipo == registry.VERIFICADOR:
+        m = re.search(r"(?m)^\s*portao:\s*([\w.-]+)", ti.get("prompt") or "")
+        nome = m.group(1) if m else None
+        if nome not in validadores[tipo]:
+            return deny(root, f"verificador sem portão: {nome}", quadro("validação barrada", [
+                ("validador", tipo), ("motivo", f"`{nome}` não é portão de comando de fim do registro"),
+            ], [f"  → peça com a primeira linha `portao: <nome>`; existem: {', '.join(validadores[tipo])}"]))
+        novo["prompt"] = f"portao: {nome}\ncommit: {top}"
+    else:
+        mb = registry.merge_base(root)
+        if not mb:
+            return deny(root, f"validador sem base: {tipo}", quadro("validação barrada", [
+                ("validador", tipo), ("motivo", "sem base para o diff (nem origin/HEAD, origin/main, main ou master)"),
+            ], ["  → defina o remoto ou a branch padrão"]))
+        novo["prompt"] = f"diff: {mb}...{top}\ncommit: {top}"
+    novo.pop("model", None)  # vale o `model` da definição do validador
+    ledger.log(root, "trilho", "pedido", f"{tipo}: {novo['prompt'].splitlines()[0]}")
+    return permitir(novo)
+
+
+def portao_combinado(command):
+    """`portao <nome>` com pipe, encadeamento ou redirecionamento: roda, mas não carimba. Barra antes."""
+    try:
+        parts = ledger._split(ledger.strip_heredocs(command))
+    except ValueError:
+        return False
+    for words in parts:
+        while words and (words[0] in WRAPPERS or re.fullmatch(r"\w+=.*", words[0])):
+            words = words[1:]
+        if words and os.path.basename(words[0]) == "portao" and len(words) > 1 and (len(parts) > 1 or len(words) > 2):
+            return True
+    return False
+
+
+def harness_antigo(command):
+    try:
+        parts = ledger._split(ledger.strip_heredocs(command))
+    except ValueError:
+        return False
+    for words in parts:
+        while words and (words[0] in WRAPPERS or re.fullmatch(r"\w+=.*", words[0])):
+            words = words[1:]
+        if words and re.match(r"(\./)?\.harness/", words[0]):
+            return True
+    return False
+
+
 def main():
     payload = json.load(sys.stdin)
     tool = payload.get("tool_name")
@@ -105,10 +181,29 @@ def main():
     if not reg:
         return 0
 
+    if tool in ("Agent", "Task"):
+        return disparo(root, reg, ti)
+    agente = payload.get("agent_type")
+    if agente and agente in registry.validadores(reg):
+        alvos = targets_pre if tool in EDICAO or tool == "Bash" else []
+        if any(registry.relative(root, t) for t in alvos):
+            return deny(root, f"validador escreveu: {agente}", quadro("validador só lê", [
+                ("validador", agente), ("motivo", "quem valida não escreve: o carimbo é sobre o que outro fez"),
+            ], ["  → relate o que achou no veredito; a correção é de quem implementa"]))
+
     if tool == "Bash":
         command = ti.get("command")
         if not isinstance(command, str):
             return 0
+        if harness_antigo(command):
+            return deny(root, f"harness antigo: {command[:100]}", quadro("harness antigo", [
+                ("comando", command.split()[0]), ("motivo", "os scripts de `.harness/` são do modelo antigo; os portões são do tr"),
+            ], lista(reg, registry.missing(root, "fim", reg)) or ["  → nada falta: o envio é `git push`"],
+                "estado: `portao`"))
+        if portao_combinado(command):
+            return deny(root, f"portao combinado: {command[:100]}", quadro("portao sozinho", [
+                ("comando", command[:80]), ("motivo", "com pipe, `&&` ou redirecionamento o portão roda mas não carimba"),
+            ], ["  → rode `portao <nome>` sozinho na chamada; a saída já vem resumida"]))
         if ledger.is_send(command):
             faltam = registry.missing(root, "fim", reg)
             if not faltam:

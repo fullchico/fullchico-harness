@@ -254,7 +254,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
 
     <div class="install">
       <div class="cmd"><code id="c1">npx @fullchico/harness@latest install</code><button type="button" data-copy="c1">Copiar</button></div>
-      <p class="note">Rode na pasta do projeto; a configuração global não muda. Só alguns plugins? <code>npx @fullchico/harness@latest add bugs qualidade</code>.</p>
+      <p class="note">Rode na pasta do projeto; a configuração global não muda. Depois, cada demanda começa por <code>/tr:processo-planejar</code>.</p>
     </div>
   </div>
 
@@ -327,12 +327,9 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <h2>Plugins</h2>
       <p class="intro">Cada um é independente e se liga só no projeto.</p>
       <dl class="facts">
-        <div><dt><code>tr</code></dt><dd><strong>Disponível.</strong> O núcleo: modo puro, registro de portões e o comando <code>portao</code>.</dd></div>
+        <div><dt><code>tr</code></dt><dd><strong>Disponível.</strong> Os portões: registro, <code>portao</code>, validadores em subagente limpo (<code>/tr:qualidade-verificar</code>, <code>/tr:bugs-cacar</code>), passaporte por demanda, modelo por papel, o orquestrador <code>/tr:processo-planejar</code> e o modo puro.</dd></div>
         <div><dt><code>memoria</code></dt><dd><strong>Disponível.</strong> Mapa do código e notas ancoradas, carregados a cada sessão.</dd></div>
-        <div><dt><code>bugs</code></dt><dd><strong>Sugerido</strong> se o projeto não tem validador próprio. Um agente lê o diff; aprovado, carimba o fim.</dd></div>
-        <div><dt><code>qualidade</code></dt><dd><strong>Sugerido</strong> se o projeto não tem validador próprio. Roda a checagem do projeto; passou, carimba o fim.</dd></div>
         <div><dt><code>orquestracao</code></dt><dd><strong>A vir.</strong> Grafo, loop e worktrees.</dd></div>
-        <div><dt><code>planejamento</code></dt><dd><strong>A vir</strong>, como skill do <code>tr</code> e não como plugin separado.</dd></div>
         <div><dt><code>seguranca</code></dt><dd><strong>A vir.</strong> Portão de segurança no fim.</dd></div>
       </dl>
     </div>
@@ -351,10 +348,6 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       </ol>
       <p class="note" style="margin-top:1.5rem"><strong>Atenção:</strong> <code>cc</code> sobrepõe o <code>/usr/bin/cc</code> (compilador de C). Para compilar, chame <code>/usr/bin/cc</code> ou crie um alias.</p>
 
-      <h3 class="sub">Só o que quiser</h3>
-      <p>Num projeto existente, instale só os plugins que quiser. O <code>qualidade</code> lê o comando em <code>.claude/trilho.json</code>.</p>
-      <div class="cmd" style="margin-top:1rem"><code id="c2">npx @fullchico/harness@latest add bugs qualidade</code><button type="button" data-copy="c2">Copiar</button></div>
-      <pre class="verdict">{"qualidade": {"comando": "pnpm lint &amp;&amp; pnpm test"}}</pre>
 
       <p class="note" style="margin-top:2rem"><strong>Cada clone precisa do install.</strong> Ligar o plugin no settings não o baixa (limite da plataforma). Quem clona roda o <code>add</code> uma vez.</p>
     </div>
@@ -381,7 +374,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
     "bugs": {
       "momento": "fim",
       "assina": "agente",
-      "agente": "bugs:cacador"
+      "agente": "tr:bugs-cacador"
     },
     "segredos": {
       "momento": "fim",
