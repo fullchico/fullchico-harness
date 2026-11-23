@@ -16,12 +16,17 @@ MOMENTO = {"inicio": "início", "fim": "fim"}
 
 def listar(root, reg):
     print("Portões deste projeto (os de início, antes de escrever código; os de fim, antes de enviar):\n")
+    top = registry.ledger.head(root)
     for name, gate in reg["portoes"].items():
-        ok = registry.satisfied(root, name, reg)
+        stamped = registry.stamped_commit(root, name, gate)
         desc = f" — {gate['descricao']}" if gate.get("descricao") else ""
-        print(f"[{'ok' if ok else 'falta'}] {name} ({MOMENTO[gate['momento']]}, assina por {gate['assina']}){desc}")
-        if not ok:
+        print(f"[{'ok' if stamped else 'falta'}] {name} ({MOMENTO[gate['momento']]}, assina por {gate['assina']}){desc}")
+        if not stamped:
             print(f"        fazer: {registry.howto(name, gate)}")
+        elif gate["momento"] == "fim" and stamped != top:
+            print(f"        carimbo de {stamped[:10]}; depois dele só mudou documentação")
+    if not registry.missing(root, "inicio", reg) and not registry.missing(root, "fim", reg):
+        print("\nTodos os portões carimbados: o envio (`git push`, `gh pr create`) está liberado pelo trilho.")
     return 0
 
 

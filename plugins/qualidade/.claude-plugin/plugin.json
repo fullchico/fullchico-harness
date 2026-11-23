@@ -1,6 +1,6 @@
 {
   "name": "qualidade",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Checagem de qualidade do próprio projeto (lint, testes) como carimbo: o comando fica em .claude/trilho.json, o hook carimba o commit limpo que passou, e sem o carimbo o push e o pull request são barrados.",
   "author": {
     "name": "FullChico"

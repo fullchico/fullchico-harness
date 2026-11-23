@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-"""`fullchico-harness portoes [--analisar] [--gravar] [--padrao] [--definir <portão> "<comando>"] [--projeto <pasta>]`.
+"""`fullchico-harness portoes [--analisar] [--gravar] [--padrao] [--definir <portão> "<comando>"] [--registrar <esboço.json>] [--projeto <pasta>]`.
 
 Lê o projeto e PROPÕE o registro de portões, com o porquê de cada um; com `--gravar`, grava em
-`.claude/trilho.json` (preservando as outras chaves) e protege o arquivo no sandbox.
+`.claude/trilho.json` (preservando as outras chaves) e protege o arquivo no sandbox. `--registrar`
+acrescenta os portões de um esboço JSON (`{"nome": {portão}}`) sem tocar nos que já existem.
+
+O registro é do dono: dentro de uma sessão com sandbox o arquivo é protegido e este comando para
+antes de gravar qualquer coisa, dizendo para rodá-lo no terminal.
 """
 import glob
 import json
@@ -13,7 +17,7 @@ PADRAO = {
     "portoes": {
         "processo": {"momento": "inicio", "assina": "artefato", "artefato": "docs/specs/*/spec.md",
                      "descricao": "spec da mudança, saída da entrevista"},
-        "qualidade": {"momento": "fim", "assina": "comando", "comando": "npm test"},
+        "qualidade": {"momento": "fim", "assina": "comando", "comando": "@descobrir"},
         "bugs": {"momento": "fim", "assina": "agente", "agente": "bugs:cacador"},
     }
 }
@@ -71,10 +75,52 @@ def mesclar(project, entradas):
         novos[nome] = gate
     if not novos:
         return []
+    conferir_gravacao(project)
     data["portoes"] = {**portoes, **novos}
     gravar_json(path, data)
     proteger_sandbox(project)
     return list(novos)
+
+
+USO = ('uso: fullchico-harness portoes [--analisar] [--gravar] [--padrao] [--definir <portão> "<comando>"] '
+       "[--registrar <esboço.json>] [--projeto <pasta>]")
+
+
+class SemPermissao(Exception):
+    """O registro (ou o settings que o protege) não pode ser gravado daqui."""
+
+
+def _gravavel(path):
+    """Tenta abrir para escrita sem mudar nada: o sandbox nega na abertura. Arquivo novo: testa a pasta."""
+    try:
+        if os.path.exists(path):
+            with open(path, "a", encoding="utf-8"):
+                pass
+        else:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            probe = path + ".gravavel"
+            with open(probe, "w", encoding="utf-8"):
+                pass
+            os.remove(probe)
+        return True
+    except OSError:
+        return False
+
+
+def conferir_gravacao(project):
+    """Antes de gravar: o registro e o settings (quando há sandbox a proteger) precisam aceitar escrita.
+
+    Assim nada fica pela metade (registro gravado e settings sem a proteção)."""
+    alvos = [os.path.join(project, ".claude", "trilho.json")]
+    sp = os.path.join(project, ".claude", "settings.json")
+    if isinstance(read_json(sp).get("sandbox"), dict):
+        alvos.append(sp)
+    negados = [a for a in alvos if not _gravavel(a)]
+    if negados:
+        raise SemPermissao(
+            "Sem permissão para gravar " + " e ".join(os.path.relpath(a, project) for a in negados) + ".\n"
+            "O registro de portões é do dono, e o sandbox da sessão o protege do agente. Rode este mesmo\n"
+            "comando no seu terminal, fora da sessão do Claude Code. Nada foi gravado.")
 
 
 def gravar_json(path, data):
@@ -105,6 +151,7 @@ def definir(project, nome, comando):
     if not isinstance(gate, dict) or gate.get("assina") != "comando":
         print(f"portão `{nome}` não existe ou não assina por comando.", file=sys.stderr)
         return 2
+    conferir_gravacao(project)
     gate["comando"] = comando
     gravar_json(path, data)
     print(f"portão `{nome}`: comando definido como `{comando}`")
@@ -149,6 +196,7 @@ def analisar(project):
 
 
 def gravar(project, reg):
+    conferir_gravacao(project)
     path = os.path.join(project, ".claude", "trilho.json")
     data = read_json(path)
     data.update(reg)
@@ -172,19 +220,37 @@ def main(argv):
         elif argv[i] in ("--analisar", "--gravar", "--padrao"):
             flags.add(argv[i])
         else:
-            print('uso: fullchico-harness portoes [--analisar] [--gravar] [--padrao] [--definir <portão> "<comando>"] [--projeto <pasta>]', file=sys.stderr)
+            print(USO, file=sys.stderr)
             return 2
         i += 1
-    project = os.path.abspath(project)
+    try:
+        return executar(os.path.abspath(project), flags, definindo, registrar)
+    except SemPermissao as e:
+        print(e, file=sys.stderr)
+        return 1
+
+
+def padrao(project):
+    """O registro padrão da lib, com o comando de qualidade tirado do próprio projeto."""
+    reg = json.loads(json.dumps(PADRAO))
+    reg["portoes"]["qualidade"]["comando"] = descobrir(project)
+    return reg
+
+
+def executar(project, flags, definindo, registrar):
     if definindo:
         return definir(project, *definindo)
     if registrar:
-        for nome in mesclar(project, read_json(registrar)):
+        esboco = read_json(registrar)
+        if not esboco:
+            print(f"esboço vazio ou inválido: {registrar}", file=sys.stderr)
+            return 2
+        for nome in mesclar(project, esboco):
             gate = read_json(os.path.join(project, ".claude", "trilho.json"))["portoes"][nome]
             print(f"portão `{nome}` registrado: {gate.get('comando') or gate.get('agente') or gate.get('artefato')}")
         return 0
     if "--padrao" in flags:
-        reg, why = PADRAO, [("padrão", "o registro padrão da lib")]
+        reg, why = padrao(project), [("padrão", "o registro padrão da lib; qualidade com o comando do projeto")]
     else:
         reg, why = analisar(project)
     print(json.dumps(reg, ensure_ascii=False, indent=2))

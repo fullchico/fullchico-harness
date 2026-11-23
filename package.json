@@ -1,6 +1,6 @@
 {
   "name": "@fullchico/harness",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Trilhos e portões para projetos desenvolvidos com agentes no Claude Code: orquestração por ticket, revisão independente presa ao commit, ambiente por feature.",
   "license": "MIT",
   "author": "FullChico",
@@ -20,6 +20,7 @@
     "hooks"
   ],
   "bin": {
+    "harness": "bin/harness.js",
     "fullchico-harness": "bin/harness.js",
     "cc": "bin/cc"
   },

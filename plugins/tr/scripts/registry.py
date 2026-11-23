@@ -159,10 +159,40 @@ def stamp_key(root, gate):
     return _hash(branch(root), merge_base(root) or "sem-base")
 
 
+DOC_ONLY_DEPTH = 50  # quantos commits para trás o carimbo de fim é procurado
+
+
+def doc_only(path):
+    """Arquivo que não muda o que um portão de fim verifica: só documentação (`docs/` ou `.md`)."""
+    return path.startswith("docs/") or path.endswith(".md")
+
+
+def stamped_commit(root, name, gate):
+    """O commit cujo carimbo vale para o topo, ou None.
+
+    Início: a chave do plano. Fim: o topo; ou um commit anterior carimbado, se do carimbo até o topo
+    só mudou documentação (um commit de relatório não refaz a rodada inteira de portões).
+    """
+    key = stamp_key(root, gate)
+    if not key:
+        return None
+    if ledger.has(root, name, key):
+        return key
+    if gate["momento"] != "fim":
+        return None
+    revs = (_git(root, "rev-list", "--first-parent", f"--max-count={DOC_ONLY_DEPTH}", "HEAD") or "").splitlines()[1:]
+    for commit in revs:
+        changed = (_git(root, "diff", "--name-only", commit, "HEAD") or "").splitlines()
+        if not all(doc_only(f) for f in changed):
+            return None  # daqui para trás o diff só cresce: nenhum carimbo anterior vale
+        if ledger.has(root, name, commit):
+            return commit
+    return None
+
+
 def satisfied(root, name, reg=None):
     reg = reg or load(root)
-    key = stamp_key(root, reg["portoes"][name])
-    return bool(key) and ledger.has(root, name, key)
+    return stamped_commit(root, name, reg["portoes"][name]) is not None
 
 
 def missing(root, momento, reg=None):

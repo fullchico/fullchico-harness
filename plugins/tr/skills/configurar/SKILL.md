@@ -5,9 +5,10 @@ description: Entrevista o dono e preenche o registro de portões (.claude/trilho
 
 # Configurar os portões do projeto
 
-Você vai entrevistar o dono e escrever `.claude/trilho.json` por ele. O agente **não escreve** esse
-arquivo: o hook do trilho barra. Quem escreve é o CLI `fullchico-harness portoes`. Você faz a
-pergunta, decide o comando, chama o CLI.
+Você vai entrevistar o dono e propor o registro `.claude/trilho.json`. O agente **não escreve** esse
+arquivo: o hook do trilho barra, e com sandbox o arquivo também é protegido para escrita. Quem grava é
+o CLI `fullchico-harness portoes`, rodado pelo dono no terminal dele. Você faz a pergunta, decide os
+portões, monta o esboço e entrega ao dono os comandos prontos.
 
 ## Como começar
 
@@ -34,18 +35,30 @@ Faça no máximo **duas perguntas**:
 Se a resposta para alguma for *"não sei ainda"*, deixe o portão como `@definir` e avise que o dono
 precisa rodar `fullchico-harness portoes --definir <nome> "<comando>"` depois.
 
-## Como escrever
+## Como entregar ao dono
 
-Para cada portão combinado, chame uma vez o CLI (sozinho na chamada, sem `&&`):
+1. **Portão novo** (nome que ainda não está no registro): monte um esboço JSON
+   `{"<nome>": {"momento": "fim", "assina": "comando", "comando": "...", "descricao": "..."}}` e grave-o
+   **fora do repositório** (a pasta temporária da sessão). Arquivo novo dentro do repositório suja a
+   árvore, e carimbo de fim não assina com a árvore suja.
+2. **Comando de portão que já existe**: `fullchico-harness portoes --definir <nome> "<comando>"`.
+3. Escreva para o dono os comandos exatos, um por linha, para ele rodar no terminal, fora da sessão:
 
-```bash
-fullchico-harness portoes --definir planejamento "openspec validate --strict"
-fullchico-harness portoes --definir qualidade "pnpm test"
-```
+   ```bash
+   npx @fullchico/harness portoes --definir qualidade "pnpm lint && pnpm test"
+   npx @fullchico/harness portoes --registrar /caminho/do/esboco.json
+   ```
 
-Para portão de artefato, prefira editar o registro pelo CLI (`portoes --registrar <arquivo>`) a
-partir de um esboço JSON que você monta e grava num arquivo temporário sob `.claude/`. Nunca tente
-`Write` ou `Edit` diretamente em `.claude/trilho.json` — o hook barra.
+   Se quiser tentar você mesmo, rode o CLI uma vez. Se ele responder "Sem permissão para gravar", não
+   insista nem procure outro caminho: é a proteção funcionando. Entregue os comandos e espere.
+4. Depois que o dono gravar, diga para ele fazer o commit de `.claude/trilho.json` (e do
+   `.claude/settings.json`, se mudou), porque carimbo de fim só assina com a árvore limpa.
+
+Nunca tente `Write` ou `Edit` em `.claude/trilho.json`: o hook barra.
+
+Um portão de comando roda exatamente o comando do registro, por `portao <nome>`, sem variável na
+frente. Se a checagem precisa de ambiente (porta, URL, navegador), ela lê de um arquivo que o projeto já
+carrega (por exemplo `.env`), não da linha de comando.
 
 Ao terminar, rode `portao` e mostre o resultado ao dono. Se algum portão falhar na primeira
 verificação, explique o que falta sem reescrever o registro.
@@ -54,5 +67,6 @@ verificação, explique o que falta sem reescrever o registro.
 
 - [ ] Li `package.json` (ou equivalente) e `docs/specs/` antes de perguntar.
 - [ ] Fiz no máximo duas perguntas.
-- [ ] Usei `fullchico-harness portoes --definir` (ou `--registrar`) para gravar, nunca `Write`/`Edit`.
+- [ ] Esboço fora do repositório; comandos `--definir`/`--registrar` entregues ao dono, nunca `Write`/`Edit`.
+- [ ] Lembrei o commit do registro antes de carimbar.
 - [ ] Rodei `portao` ao final e mostrei o estado.

@@ -92,7 +92,8 @@ O que assina um carimbo. São três jeitos:
 | **artefato** | o arquivo existe, está em commit e passa na validação |
 
 O carimbo guarda o commit, a versão do portão e a impressão digital; commit novo pede carimbo
-novo.
+novo. A exceção é commit só de documentação (`docs/` ou `.md`) depois do carimbo de fim: ele não muda
+o que os portões verificaram, e o carimbo continua valendo (`portao` mostra de qual commit ele veio).
 
 *Status: disponível.*
 
@@ -134,7 +135,33 @@ cc                                          # abre a sessão no modo do projeto
 `clean-code-guard`...), e liga o hook do `rtk`. O `install` analisa o que o projeto já usa (specs,
 OpenSpec, scripts do `package.json`) e grava os portões em `.claude/trilho.json`. Para ver a
 proposta sem gravar, ou mudá-la depois: `npx @fullchico/harness portoes --analisar` e
-`portoes --gravar`; `portoes --padrao` grava o registro padrão da lib.
+`portoes --gravar`; `portoes --padrao` grava o registro padrão da lib (com o comando de qualidade
+tirado do `package.json`). Portão que assina por agente traz o plugin do agente (`bugs:cacador` →
+`bugs`), e o marketplace fica preso a esta versão da lib.
+
+Instalar e gravar portões são passos **do dono, no terminal**: dentro de uma sessão com sandbox,
+`.claude/settings.json` e `.claude/trilho.json` são protegidos do agente, e os dois comandos param
+antes de gravar qualquer coisa. Depois de instalar, faça o commit desses dois arquivos: carimbo de
+fim só assina com a árvore limpa.
+
+Projeto com o harness antigo (`harness@fullchico`, hooks em `.harness/hooks/`): os dois juntos não
+funcionam. `npx @fullchico/harness install --migrar` desliga o antigo no `settings.json`; a pasta
+`.harness/` fica para você apagar.
+
+Portão novo, além dos que o `install` grava: monte um esboço `{"nome": {portão}}` e rode
+`npx @fullchico/harness portoes --registrar esboco.json`. Para trocar só o comando de um portão:
+`portoes --definir <nome> "<comando>"`.
+
+### Quanto a entrega custou
+
+```bash
+npx @fullchico/harness custo                      # a branch atual
+npx @fullchico/harness custo --desde 2026-11-22T21:55
+```
+
+Lê as transcrições do Claude Code e o livro de carimbos, sem gravar nada: tokens e US$ por modelo,
+sessão principal contra subagentes, tempo ativo contra paradas, e bloqueios e carimbos dos portões.
+O US$ é estimativa pelo preço de API e serve para comparar entregas e versões da lib.
 
 > **Atenção:** `cc` sobrepõe o `/usr/bin/cc` do sistema (compilador de C). Quem precisa do
 > compilador chama `/usr/bin/cc` direto ou cria um alias.
