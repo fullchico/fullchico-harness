@@ -11,6 +11,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ledger  # noqa: E402
+from gate import trilho_aplica  # noqa: E402
 
 AGENT = "bugs:cacador"
 
@@ -34,6 +35,8 @@ def main():
     payload = json.load(sys.stdin)
     if payload.get("agent_type") != AGENT:
         return
+    if trilho_aplica(payload.get("cwd") or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()):
+        return  # com registro de portões, quem assina o veredito é o `tr`: não carimba em dobro
     event = payload.get("hook_event_name")
     if event == "PreToolUse":
         if payload.get("tool_name") != "SubagentHandback":

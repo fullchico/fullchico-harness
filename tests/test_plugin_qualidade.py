@@ -68,7 +68,7 @@ class TestCheck(QualidadeCase):
 
     def test_manifest_and_hooks(self):
         meta = json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text())
-        self.assertEqual((meta["name"], meta["version"]), ("qualidade", "0.2.0"))
+        self.assertEqual((meta["name"], meta["version"]), ("qualidade", "0.2.1"))
         hooks = json.loads((PLUGIN / "hooks/hooks.json").read_text())["hooks"]
         self.assertEqual(hooks["PostToolUse"][0]["matcher"], "Bash")
         self.assertEqual(hooks["PreToolUse"][0]["matcher"], "Bash")

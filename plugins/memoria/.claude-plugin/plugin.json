@@ -1,6 +1,6 @@
 {
   "name": "memoria",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Memória do projeto ancorada em git: mapa do código e notas de sessões passadas, injetados no começo de cada sessão e marcados como envelhecidos quando o código muda.",
   "author": {
     "name": "FullChico"
