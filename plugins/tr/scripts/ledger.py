@@ -124,11 +124,24 @@ def _is_send(words):
     return False
 
 
+_HEREDOC = re.compile(r"<<-?[ \t]*(['\"]?)([A-Za-z_]\w*)\1([^\n]*)\n.*?\n[ \t]*\2[ \t]*(?=\n|$)", re.S)
+
+
+def strip_heredocs(command):
+    """O comando sem o corpo dos heredocs: o texto que vai para o arquivo não é comando.
+
+    Fica a linha que abre o heredoc (onde está o redirecionamento de verdade, `cat > alvo <<EOF`).
+    """
+    return _HEREDOC.sub(lambda m: m.group(3), command)
+
+
 def is_send(command):
     """O comando contém um envio (`git push`, `gh pr create`) em algum ponto do encadeamento?
 
-    Texto citado não conta: `grep "git push" README` é um comando `grep`.
+    Texto citado não conta: `grep "git push" README` é um comando `grep`, e o corpo de um heredoc
+    também não.
     """
+    command = strip_heredocs(command)
     try:
         return any(_is_send(c) for c in _split(command))
     except ValueError:

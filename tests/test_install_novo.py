@@ -67,6 +67,71 @@ class TestInstall(unittest.TestCase):
         gates = json.loads((self.repo / ".claude/trilho.json").read_text())["portoes"]
         self.assertEqual(set(gates), {"processo", "qualidade", "bugs"})
 
+    def test_padrao_installs_the_plugin_that_signs_the_agent_gate(self):
+        # o padrão grava o portão `bugs` (agente `bugs:cacador`): sem o plugin, ninguém o assinaria
+        self.assertEqual(self.install("--padrao").returncode, 0)
+        self.assertIn("plugin install bugs@fullchico --scope project", self.calls())
+        self.assertNotIn("plugin install qualidade@fullchico --scope project", self.calls())
+
+    def test_padrao_takes_the_quality_command_from_the_project(self):
+        self.install("--padrao")
+        gates = json.loads((self.repo / ".claude/trilho.json").read_text())["portoes"]
+        self.assertEqual(gates["qualidade"]["comando"], "pnpm lint && pnpm test")
+
+    def test_pins_the_marketplace_to_this_version(self):
+        settings = self.repo / ".claude/settings.json"
+        settings.parent.mkdir(exist_ok=True)
+        settings.write_text(json.dumps({"extraKnownMarketplaces": {"fullchico": {"source": {
+            "source": "github", "repo": "FullChico/fullchico-harness", "ref": "v0.1.8"}}}}))
+        self.assertEqual(self.install().returncode, 0)
+        version = json.loads((ROOT / "package.json").read_text())["version"]
+        ref = json.loads(settings.read_text())["extraKnownMarketplaces"]["fullchico"]["source"]["ref"]
+        self.assertEqual(ref, f"v{version}")
+
+    def legacy_settings(self):
+        settings = self.repo / ".claude/settings.json"
+        settings.parent.mkdir(exist_ok=True)
+        settings.write_text(json.dumps({
+            "enabledPlugins": {"harness@fullchico": True},
+            "hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [
+                {"type": "command", "command": 'python3 -I "$CLAUDE_PROJECT_DIR/.harness/hooks/service_guard.py"'},
+                {"type": "command", "command": "echo outro"}]}],
+                "SessionStart": [{"hooks": [
+                    {"type": "command", "command": 'python3 -I "$CLAUDE_PROJECT_DIR/.harness/hooks/session_context.py"'}]}]}}))
+        return settings
+
+    def test_the_old_harness_is_reported_and_kept_without_migrar(self):
+        settings = self.legacy_settings()
+        r = self.install()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("harness antigo", r.stdout)
+        self.assertIn("--migrar", r.stdout)
+        self.assertTrue(json.loads(settings.read_text())["enabledPlugins"]["harness@fullchico"])
+
+    def test_migrar_turns_the_old_harness_off_and_keeps_the_rest(self):
+        settings = self.legacy_settings()
+        self.assertEqual(self.install("--migrar").returncode, 0)
+        data = json.loads(settings.read_text())
+        self.assertFalse(data["enabledPlugins"]["harness@fullchico"])
+        commands = [h["command"] for groups in data["hooks"].values() for g in groups for h in g["hooks"]]
+        self.assertFalse(any(".harness/hooks/" in c for c in commands), commands)
+        self.assertIn("echo outro", commands)
+        self.assertNotIn("SessionStart", data["hooks"])
+
+    def test_refuses_to_start_when_the_settings_cannot_be_written(self):
+        # dentro de uma sessão com sandbox o settings é protegido: nada pela metade, e o recado é claro
+        settings = self.repo / ".claude/settings.json"
+        settings.parent.mkdir(exist_ok=True)
+        settings.write_text("{}\n")
+        settings.chmod(0o444)
+        self.addCleanup(settings.chmod, 0o644)
+        r = self.install("--padrao")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("fora da sessão", r.stderr)
+        self.assertFalse((self.bin / "calls").exists(), "nenhum plugin instalado")
+        self.assertFalse((self.repo / ".claude/trilho.json").exists())
+        self.assertNotIn("Próximos passos", r.stdout)
+
     def test_legacy_still_runs_the_old_installer(self):
         r = self.install("--legado")
         self.assertTrue((self.repo / ".harness").exists() or "harness" in (r.stdout + r.stderr).lower(), r.stderr)

@@ -4,6 +4,7 @@ O harness força a ETAPA do fluxo, não a ferramenta. O `portao` verifica, o hoo
 (fora do repositório) e o `gate.py` barra a escrita de código sem a etapa de início e o envio sem as de fim.
 """
 import json
+import pathlib
 import os
 import subprocess
 import sys
@@ -423,10 +424,124 @@ class TestPortoesCli(Case):
                          [".claude/trilho.json"])
 
     def test_default_registry(self):
+        # sem scripts no projeto, o comando de qualidade fica para o dono definir: nada de `npm test` às cegas
         out = self.cli("--padrao", "--projeto", str(self.repo))
         p = self.proposed(out.stdout)["portoes"]
         self.assertEqual((p["processo"]["artefato"], p["qualidade"]["comando"], p["bugs"]["agente"]),
-                         ("docs/specs/*/spec.md", "npm test", "bugs:cacador"))
+                         ("docs/specs/*/spec.md", "@definir", "bugs:cacador"))
+
+    def test_default_registry_takes_the_quality_command_from_the_project(self):
+        (self.repo / "package.json").write_text(json.dumps({"scripts": {"lint": "x", "typecheck": "y", "test": "z"}}))
+        (self.repo / "pnpm-lock.yaml").write_text("")
+        p = self.proposed(self.cli("--padrao", "--projeto", str(self.repo)).stdout)["portoes"]
+        self.assertEqual(p["qualidade"]["comando"], "pnpm lint && pnpm typecheck && pnpm test")
+
+    def test_usage_shows_registrar(self):
+        out = self.cli("--nada")
+        self.assertEqual(out.returncode, 2)
+        self.assertIn("--registrar <esboço.json>", out.stderr)
+
+    def test_registrar_adds_new_gates_and_keeps_the_existing_ones(self):
+        self.registry({"qualidade": QUALIDADE})
+        draft = self.home / "esboco.json"
+        draft.write_text(json.dumps({"seo": {"momento": "fim", "assina": "comando", "comando": "pnpm gate:seo"},
+                                     "qualidade": {"momento": "fim", "assina": "comando", "comando": "outro"}}))
+        out = self.cli("--registrar", str(draft), "--projeto", str(self.repo))
+        self.assertEqual(out.returncode, 0, out.stderr)
+        gates = json.loads((self.repo / ".claude/trilho.json").read_text())["portoes"]
+        self.assertEqual(gates["seo"]["comando"], "pnpm gate:seo")
+        self.assertEqual(gates["qualidade"]["comando"], "true", "o que já existe não muda")
+
+    def test_without_permission_nothing_is_written_and_the_owner_is_told(self):
+        # na sessão com sandbox o registro é protegido: o CLI para antes, sem deixar nada pela metade
+        r = self.project()
+        settings = r / ".claude/settings.json"
+        before = settings.read_text()
+        trilho = r / ".claude/trilho.json"
+        trilho.chmod(0o444)
+        self.addCleanup(trilho.chmod, 0o644)
+        out = self.cli("--gravar", "--projeto", str(r))
+        self.assertEqual(out.returncode, 1)
+        self.assertIn("fora da sessão", out.stderr)
+        self.assertIn("Nada foi gravado", out.stderr)
+        self.assertEqual(settings.read_text(), before)
+        self.assertEqual(json.loads(trilho.read_text()), {"qualidade": {"comando": "antigo"}})
+
+
+class TestHeredoc(Case):
+    """O corpo de um heredoc é texto do arquivo: não escreve em código nem envia."""
+
+    def setUp(self):
+        super().setUp()
+        self.registry({"processo": PROCESSO, "qualidade": QUALIDADE}, codigo=["apps"])
+
+    def test_a_doc_that_quotes_a_write_to_code_is_not_blocked(self):
+        cmd = "cat > docs/nota.md <<'EOF'\nrode: echo x > apps/a.ts\ne depois: git push\nEOF\n"
+        self.assertEqual(self.bash(cmd).returncode, 0)
+
+    def test_the_real_target_of_a_heredoc_still_counts(self):
+        r = self.bash("cat > apps/a.ts <<EOF\nexport const a = 1\nEOF\n")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("apps/a.ts", r.stderr)
+
+    def test_a_send_after_the_heredoc_still_counts(self):
+        self.assertEqual(self.bash("cat > docs/n.md <<EOF\nx\nEOF\ngit push").returncode, 2)
+
+
+class TestDocOnlyCommitsKeepTheEndStamps(Case):
+    """Commit só de documentação depois do carimbo não refaz a rodada de portões de fim."""
+
+    def setUp(self):
+        super().setUp()
+        self.registry({"qualidade": QUALIDADE, "bugs": BUGS})
+        self.stamped = commit_file(self.repo, "a.py", "feat: a")
+        self.sign_through_hook("qualidade")
+        ledger.sign(str(self.repo), "bugs", self.stamped, "trilho", "t", "bugs:cacador", "ok")
+
+    def test_a_docs_commit_keeps_them_and_the_list_says_from_where(self):
+        (self.repo / "docs").mkdir(exist_ok=True)
+        (self.repo / "docs/relatorio.md").write_text("x\n")
+        commit_all(self.repo, "docs: relatório")
+        (self.repo / "NOTAS.md").write_text("y\n")
+        commit_all(self.repo, "docs: notas")
+        self.assertTrue(self.signed("qualidade"))
+        self.assertTrue(self.signed("bugs"))
+        self.assertEqual(self.bash("git push").returncode, 0)
+        out = self.portao().stdout
+        self.assertIn(f"carimbo de {self.stamped[:10]}; depois dele só mudou documentação", out)
+        self.assertIn("Todos os portões carimbados", out)
+
+    def test_any_other_change_after_the_stamp_drops_them(self):
+        (self.repo / "docs").mkdir(exist_ok=True)
+        (self.repo / "docs/relatorio.md").write_text("x\n")
+        commit_all(self.repo, "docs: relatório")
+        commit_file(self.repo, "e2e.spec.ts", "test: muda a checagem")
+        (self.repo / "docs/mais.md").write_text("z\n")
+        commit_all(self.repo, "docs: mais")
+        self.assertFalse(self.signed("qualidade"))
+        self.assertEqual(self.bash("git push").returncode, 2)
+
+    def test_a_change_to_the_registry_drops_them(self):
+        data = json.loads((self.repo / ".claude/trilho.json").read_text())
+        data["portoes"]["qualidade"]["comando"] = "echo outro"
+        (self.repo / ".claude/trilho.json").write_text(json.dumps(data))
+        commit_all(self.repo, "chore: troca o comando")
+        self.assertFalse(self.signed("qualidade"))
+
+
+class TestBugsPluginDoesNotSignTwice(Case):
+    def test_with_a_registry_only_the_trilho_signs_the_verdict(self):
+        self.registry({"bugs": BUGS})
+        head = commit_file(self.repo, "a.py", "feat: a")
+        text = f"VEREDITO: APPROVED\nCOMMIT: {head}\nRESUMO: conferi\n"
+        payload = {"hook_event_name": "SubagentStop", "agent_type": "bugs:cacador", "cwd": str(self.repo),
+                   "last_assistant_message": text}
+        self.script("stamp.py", payload, plugin=ROOT / "plugins/bugs")
+        self.assertFalse(ledger.has(str(self.repo), "bugs", head), "o plugin bugs não assina com registro")
+        self.script("sign.py", payload)
+        self.assertTrue(ledger.has(str(self.repo), "bugs", head))
+        log = (pathlib.Path(ledger.state_dir(str(self.repo))) / "log.jsonl").read_text()
+        self.assertEqual(log.count('"assinou"'), 1, log)
 
 
 if __name__ == "__main__":

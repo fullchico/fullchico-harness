@@ -169,3 +169,54 @@ os trilhos ainda não resolvem sozinhos.
   é a vigia de arquivos, não o Turbopack. O revisor também não conseguiu encerrar o servidor
   que ele mesmo subiu (`kill: operation not permitted`), e a porta ficou ocupada.
 - Vigia de arquivos em contêiner com pasta montada do macOS, para a proposta 6.
+
+## Portões que não atuaram no teste de 2026-11-22 (v2.0.1, `porgy`)
+
+Assunto vizinho ao sandbox: o ambiente deixou o trabalho passar por fora dos trilhos.
+
+**O que aconteceu.** Entre 19:09 e 19:28 a sessão da lib (huchen) subiu o `porgy` para a
+2.0.1, escreveu a spec da tela A, mandou um subagente implementar, deu `git push` e abriu a
+PR #3 do agenda-ai-app. Nenhum portão barrou nada. Ninguém rodou `portao` em nenhum momento,
+então não há carimbo de `processo`, `qualidade` nem `bugs`. A própria sessão deixou o portão
+`bugs` "para o dono".
+
+**Causa 1: o plugin não estava carregado.** `tr`, `bugs` e `qualidade` estão instalados com
+escopo de projeto (só no `porgy`) e ligados no `.claude/settings.json` dele. A sessão foi aberta
+no huchen, que não tem `settings.json` de projeto nem `trilho.json`, e operou o `porgy` por
+`cd`. Nas transcrições da sessão e do subagente rodaram só os hooks do rtk, do ponytail e o
+genérico do ambiente. `gate.py` e `sign.py` não aparecem nenhuma vez.
+
+**Causa 2: mesmo carregado, o gate olharia o repositório errado.** O `gate.py` (linha 72 na
+0.3.0 do `tr`) tira a raiz de `payload.cwd`, o diretório da sessão. Em
+`cd ~/orca/workspaces/agenda-ai-app/porgy && git push …` a raiz continua sendo o huchen. Lá não
+há registro, e o gate sai em `if not reg: return 0`. O `ledger.is_send` reconhece o push; o erro
+está só em qual repositório ele consulta.
+
+**Prova.** Chamei `registry.missing` do próprio plugin com a raiz no `porgy`, sem disparar o
+hook. Faltam `processo` (início) e `qualidade` e `bugs` (fim). Numa sessão aberta no `porgy`, a
+escrita em `apps/`, o push e o `gh pr create` seriam barrados.
+
+**O que isso diz da lib.**
+- A barreira inteira mora em hooks do Claude Code ligados ao projeto aberto. Quem opera o
+  repositório de fora (outra sessão, um subagente com outro `cwd`, o terminal) passa livre.
+- O gate deveria resolver a raiz pelo alvo do comando: `cd X &&`, `git -C X`,
+  `gh --repo`/`-R` e o caminho absoluto do `file_path` em `Edit`/`Write`. Hoje usa só o
+  `cwd` da sessão.
+- Falta uma barreira no próprio repositório para o portão de fim: um hook de git `pre-push`
+  que leia o mesmo carimbo. Assim o push sem carimbo falha venha de onde vier. Ela não cobre
+  o `gh pr create` de uma branch que já está no remoto; para isso, um check de CI que leia o
+  carimbo, ou o carimbo publicado junto da branch.
+- O teste de uma versão da lib precisa ser feito numa sessão aberta dentro do projeto
+  testado. Do contrário mede o agente, não o harness.
+- Também visto no teste: o `settings.json` do `porgy` fixa o marketplace em `ref: v0.6.0`,
+  que não tem o plugin `tr`. Funcionou porque o cache já tinha a versão nova. Numa máquina
+  limpa, a instalação pode falhar ou trazer o `trilho` antigo. O `update` da lib deveria
+  atualizar esse `ref`.
+- Os plugins `qualidade` e `bugs` têm um gate de push próprio, além do `tr`. No `porgy` estão
+  instalados na 0.1.0, que barra o envio sozinha sempre que o commit do topo não tem carimbo. A
+  0.2.0 da lib cede ao `tr` quando há `trilho.json` com `portoes`. A cópia 0.2.0 no cache foi
+  marcada como órfã às 19:58, então o projeto ficou com plugins de gerações diferentes. No
+  teste, o `619db56` do `porgy` não tinha carimbo de `qualidade` nem de `bugs`: o push deveria
+  ter sido barrado três vezes (`tr`, `qualidade`, `bugs`). Nenhum dos três estava carregado na
+  sessão. Se estivessem, o `qualidade` olharia o huchen (raiz pelo `cwd` da sessão) e barraria
+  por falta de carimbo lá: certo por acaso, no repositório errado.

@@ -1,6 +1,6 @@
 {
   "name": "tr",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Núcleo do harness por projeto: o modo puro e, nos próximos passos, o passaporte de cada card com os carimbos que os outros plugins assinam.",
   "author": {
     "name": "FullChico"
