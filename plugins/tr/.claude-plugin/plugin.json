@@ -1,7 +1,7 @@
 {
   "name": "tr",
-  "version": "0.4.0",
-  "description": "Núcleo do harness por projeto: o modo puro e, nos próximos passos, o passaporte de cada card com os carimbos que os outros plugins assinam.",
+  "version": "1.0.0",
+  "description": "Portões do projeto: registro, carimbos assinados por hook, validadores em subagente limpo (/tr:qualidade-verificar, /tr:bugs-cacar), passaporte por demanda, modelo por papel e o orquestrador /tr:processo-planejar.",
   "author": {
     "name": "FullChico"
   },

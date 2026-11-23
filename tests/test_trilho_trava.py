@@ -6,7 +6,7 @@ import subprocess
 import sys
 import unittest
 
-from tests.helpers import ROOT, _tmpdir, commit_all, make_repo, run_hook
+from tests.helpers import ROOT, _tmpdir, commit_all, make_repo, hook_verdict
 
 PLUGIN = ROOT / "plugins/tr"
 GATE = PLUGIN / "scripts/gate.py"
@@ -20,16 +20,16 @@ def with_registry(repo):
 
 def write_hook(repo, path, cwd=None):
     env = dict(os.environ, CLAUDE_PROJECT_DIR=str(cwd or repo), CLAUDE_PLUGIN_ROOT=str(PLUGIN))
-    return subprocess.run([sys.executable, "-I", str(GATE)], env=env, capture_output=True, text=True,
+    return hook_verdict(subprocess.run([sys.executable, "-I", str(GATE)], env=env, capture_output=True, text=True,
                           input=json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Write",
-                                            "cwd": str(cwd or repo), "tool_input": {"file_path": str(path), "content": "x"}}))
+                                            "cwd": str(cwd or repo), "tool_input": {"file_path": str(path), "content": "x"}})))
 
 
 def bash_hook(repo, command, cwd=None):
     env = dict(os.environ, CLAUDE_PROJECT_DIR=str(cwd or repo), CLAUDE_PLUGIN_ROOT=str(PLUGIN))
-    return subprocess.run([sys.executable, "-I", str(GATE)], env=env, capture_output=True, text=True,
+    return hook_verdict(subprocess.run([sys.executable, "-I", str(GATE)], env=env, capture_output=True, text=True,
                           input=json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Bash",
-                                            "cwd": str(cwd or repo), "tool_input": {"command": command}}))
+                                            "cwd": str(cwd or repo), "tool_input": {"command": command}})))
 
 
 class TestLock(unittest.TestCase):

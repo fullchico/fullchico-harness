@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-# Memória do projeto ancorada em git: o mapa do código e as âncoras do glossário e dos ADRs.
-# Uso: .harness/memory <units|check|record|show|slice|index|forget|anchor|anchors> ...
-set -uo pipefail
-HERE="$(cd "$(dirname "$0")" && pwd -P)"
-ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || ROOT="$(cd "$HERE/.." && pwd -P)"
-exec python3 -I "$HERE/memory.py" "$ROOT" "$@"

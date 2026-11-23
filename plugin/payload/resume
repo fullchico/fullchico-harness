@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-# Retomada de uma entrega: diz o estado real de cada ticket que não está concluído na feature
-# (onde está o commit, em que pé está a revisão) e a próxima ação. Só lê.
-# Uso: .harness/resume <pasta da spec> [--json]
-# Ações: integrar | revisar | esperar | corrigir | despachar | parado
-set -uo pipefail
-HERE="$(cd "$(dirname "$0")" && pwd -P)"
-ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || { echo "resume: fora de um repositório git." >&2; exit 2; }
-exec python3 -I "$HERE/resume.py" "$ROOT" "$@"

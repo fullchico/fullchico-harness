@@ -11,7 +11,7 @@ import sys
 import unittest
 from unittest import mock
 
-from tests.helpers import ROOT, _tmpdir, commit_all, commit_file, git, make_repo
+from tests.helpers import ROOT, _tmpdir, commit_all, commit_file, git, make_repo, hook_verdict
 
 PLUGIN = ROOT / "plugins/tr"
 sys.path.insert(0, str(PLUGIN / "scripts"))
@@ -22,7 +22,7 @@ CHECK_SPEC = "import sys\nsys.exit(0 if all('ok' in open(f).read() for f in sys.
 PROCESSO = {"momento": "inicio", "assina": "artefato", "artefato": "docs/specs/*/spec.md",
             "valida": "python3 tools/check-spec.py", "descricao": "spec da mudança, saída da entrevista"}
 QUALIDADE = {"momento": "fim", "assina": "comando", "comando": "true"}
-BUGS = {"momento": "fim", "assina": "agente", "agente": "bugs:cacador"}
+BUGS = {"momento": "fim", "assina": "agente", "agente": "tr:bugs-cacador"}
 
 
 class Case(unittest.TestCase):
@@ -44,16 +44,20 @@ class Case(unittest.TestCase):
 
     def script(self, name, payload, plugin=PLUGIN, raw=None):
         env = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(plugin), CLAUDE_PROJECT_DIR=str(self.repo))
-        return subprocess.run([sys.executable, str(plugin / "scripts" / name)],
-                              input=raw if raw is not None else json.dumps(payload),
-                              capture_output=True, text=True, env=env, cwd=self.repo)
+        return hook_verdict(subprocess.run([sys.executable, str(plugin / "scripts" / name)],
+                                           input=raw if raw is not None else json.dumps(payload),
+                                           capture_output=True, text=True, env=env, cwd=self.repo))
 
     def portao(self, *args):
         return subprocess.run([str(PLUGIN / "bin/portao"), *args], capture_output=True, text=True, cwd=self.repo)
 
-    def post(self, command, stdout):
-        return self.script("sign.py", {"hook_event_name": "PostToolUse", "tool_name": "Bash", "cwd": str(self.repo),
-                                       "tool_input": {"command": command}, "tool_response": {"stdout": stdout}})
+    def post(self, command, stdout, agent_type="tr:qualidade-verificador"):
+        """O `PostToolUse` do `portao`, por padrão dentro do verificador (o único que assina portão de fim)."""
+        payload = {"hook_event_name": "PostToolUse", "tool_name": "Bash", "cwd": str(self.repo),
+                   "tool_input": {"command": command}, "tool_response": {"stdout": stdout}}
+        if agent_type:
+            payload["agent_type"] = agent_type
+        return self.script("sign.py", payload)
 
     def pre(self, tool, **tool_input):
         return self.script("gate.py", {"hook_event_name": "PreToolUse", "tool_name": tool, "cwd": str(self.repo),
@@ -206,6 +210,35 @@ class TestEndGateByCommand(Case):
         self.registry({"qualidade": QUALIDADE})
         commit_file(self.repo, "a.py", "feat: a")
 
+    def test_the_block_is_a_hook_decision_not_an_error(self):
+        """Exit 2 faz o Claude Code mostrar o caminho do script antes da mensagem; o JSON `deny` não."""
+        env = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(PLUGIN), CLAUDE_PROJECT_DIR=str(self.repo))
+        raw = subprocess.run([sys.executable, str(PLUGIN / "scripts/gate.py")], capture_output=True, text=True,
+                             env=env, cwd=self.repo, input=json.dumps({
+                                 "hook_event_name": "PreToolUse", "tool_name": "Bash", "cwd": str(self.repo),
+                                 "tool_input": {"command": "git push"}}))
+        self.assertEqual((raw.returncode, raw.stderr), (0, ""))
+        out = json.loads(raw.stdout)["hookSpecificOutput"]
+        self.assertEqual(out["permissionDecision"], "deny")
+        reason = out["permissionDecisionReason"]
+        self.assertTrue(reason.startswith("⛔ trilho · envio barrado"), reason)
+        self.assertIn("  ✗ qualidade · ", reason)
+        self.assertIn("    → /tr:qualidade-verificar", reason)
+
+    def test_only_the_verifier_signs_an_end_gate(self):
+        out = self.portao("qualidade")
+        r = self.post("portao qualidade", out.stdout, agent_type=None)
+        self.assertIn("/tr:qualidade-verificar", json.loads(r.stdout)["systemMessage"])
+        self.assertFalse(self.signed("qualidade"))
+        self.post("portao qualidade", out.stdout, agent_type="general-purpose")
+        self.assertFalse(self.signed("qualidade"))
+        self.post("portao qualidade", out.stdout)
+        self.assertTrue(self.signed("qualidade"))
+
+    def test_a_signed_stamp_tells_the_owner(self):
+        r = self.sign_through_hook("qualidade")
+        self.assertEqual(json.loads(r.stdout)["systemMessage"][:30], "✓ trilho · qualidade carimbado")
+
     def test_signs_only_with_a_clean_tree(self):
         (self.repo / "sujo.py").write_text("x\n")
         r = self.post("portao qualidade", "portao qualidade: passou\n")
@@ -231,7 +264,7 @@ class TestEndGateByCommand(Case):
             r = self.bash(cmd)
             self.assertEqual(r.returncode, 2, cmd)
             self.assertIn("qualidade", r.stderr)
-            self.assertIn("portao qualidade", r.stderr)
+            self.assertIn("/tr:qualidade-verificar", r.stderr)
         self.assertEqual(self.bash("git status").returncode, 0)
         self.sign_through_hook("qualidade")
         self.assertEqual(self.bash("git push origin x").returncode, 0)
@@ -244,7 +277,7 @@ class TestEndGateByCommand(Case):
     def test_the_list_shows_state_and_what_to_do(self):
         out = self.portao().stdout
         self.assertIn("[falta] qualidade (fim, assina por comando)", out)
-        self.assertIn("fazer: rode `portao qualidade`", out)
+        self.assertIn("fazer: /tr:qualidade-verificar", out)
         self.sign_through_hook("qualidade")
         self.assertIn("[ok] qualidade", self.portao().stdout)
 
@@ -258,11 +291,11 @@ class TestEndGateByAgent(Case):
     def block(self, verdict="APPROVED", commit=None):
         return f"VEREDITO: {verdict}\nCOMMIT: {commit or self.head}\nRESUMO: conferi o diff\n"
 
-    def stop(self, text, agent="bugs:cacador"):
+    def stop(self, text, agent="tr:bugs-cacador"):
         return self.script("sign.py", {"hook_event_name": "SubagentStop", "agent_type": agent, "cwd": str(self.repo),
                                        "last_assistant_message": text})
 
-    def handback(self, text, agent="bugs:cacador"):
+    def handback(self, text, agent="tr:bugs-cacador"):
         return self.script("sign.py", {"hook_event_name": "PreToolUse", "tool_name": "SubagentHandback",
                                        "agent_type": agent, "cwd": str(self.repo), "tool_input": {"message": text}})
 
@@ -287,13 +320,13 @@ class TestEndGateByAgent(Case):
     def test_portao_explains_that_only_the_agent_signs(self):
         out = self.portao("bugs")
         self.assertNotEqual(out.returncode, 0)
-        self.assertIn("bugs:cacador", out.stdout)
+        self.assertIn("tr:bugs-cacador", out.stdout)
         self.assertNotIn("portao bugs: passou", out.stdout)
 
     def test_the_send_is_blocked_pointing_at_the_agent(self):
         r = self.bash("git push")
         self.assertEqual(r.returncode, 2)
-        self.assertIn("bugs:cacador", r.stderr)
+        self.assertIn("/tr:bugs-cacar", r.stderr)
         self.stop(self.block())
         self.assertEqual(self.bash("git push").returncode, 0)
 
@@ -331,36 +364,23 @@ class TestProtectionAndInit(Case):
         hooks = json.loads((PLUGIN / "hooks/hooks.json").read_text())["hooks"]
         self.assertIn("SessionStart", hooks)
         self.assertEqual({g["matcher"] for g in hooks["PreToolUse"]},
-                         {"Bash", "Edit|Write|MultiEdit|NotebookEdit", "SubagentHandback"})
+                         {"Bash", "Edit|Write|MultiEdit|NotebookEdit", "Agent|Task", "SubagentHandback"})
         self.assertEqual(hooks["PostToolUse"][0]["matcher"], "Bash")
         self.assertNotIn("matcher", hooks["SubagentStop"][0])
         self.assertTrue(os.access(PLUGIN / "bin/portao", os.X_OK))
-        self.assertTrue((PLUGIN / "skills/portoes/SKILL.md").exists())
+        for skill in ("portoes", "configurar", "processo-planejar", "qualidade-verificar", "bugs-cacar"):
+            self.assertTrue((PLUGIN / f"skills/{skill}/SKILL.md").exists(), skill)
+        for agent in ("bugs-cacador", "qualidade-verificador"):
+            text = (PLUGIN / f"agents/{agent}.md").read_text()
+            self.assertIn(f"name: {agent}\n", text)
+            self.assertRegex(text, r"\nmodel: (haiku|sonnet)\n")
 
 
-class TestNoDoubleEnforcement(Case):
-    """Com registro, o trilho aplica; bugs e qualidade seguem sozinhos sem ele."""
-
-    def check(self, name):
-        plugin = ROOT / f"plugins/{name}"
-        return self.script("gate.py", {"hook_event_name": "PreToolUse", "tool_name": "Bash", "cwd": str(self.repo),
-                                       "tool_input": {"command": "git push"}}, plugin=plugin)
-
-    def test_they_still_block_without_a_registry(self):
-        for name in ("bugs", "qualidade"):
-            self.assertEqual(self.check(name).returncode, 2, name)
-
-    def test_they_step_aside_when_there_is_a_registry(self):
-        self.registry({"qualidade": QUALIDADE})
-        for name in ("bugs", "qualidade"):
-            self.assertEqual(self.check(name).returncode, 0, name)
-        self.assertEqual(self.bash("git push").returncode, 2)
-
-    def test_a_trilho_json_without_gates_does_not_silence_them(self):
-        (self.repo / ".claude").mkdir()
-        (self.repo / ".claude/trilho.json").write_text('{"qualidade": {"comando": "true"}}')
-        for name in ("bugs", "qualidade"):
-            self.assertEqual(self.check(name).returncode, 2, name)
+class TestLedgerCopies(unittest.TestCase):
+    def test_each_plugin_copy_is_identical_to_the_shared_one(self):
+        shared = (ROOT / "plugins/_shared/ledger.py").read_text()
+        for copy in ROOT.glob("plugins/*/scripts/ledger.py"):
+            self.assertEqual(copy.read_text(), shared, copy)
 
 
 class TestPortoesCli(Case):
@@ -395,7 +415,7 @@ class TestPortoesCli(Case):
                          ("inicio", "artefato", "docs/specs/*/spec.md"))
         self.assertIn("grill-me", p["processo"]["descricao"])
         self.assertEqual(p["qualidade"], {"momento": "fim", "assina": "comando", "comando": "pnpm lint && pnpm test"})
-        self.assertEqual(p["bugs"], {"momento": "fim", "assina": "agente", "agente": "bugs:cacador"})
+        self.assertEqual(p["bugs"], {"momento": "fim", "assina": "agente", "agente": "tr:bugs-cacador"})
         self.assertIn("- qualidade:", out.stdout)
         self.assertEqual(json.loads((r / ".claude/trilho.json").read_text()), {"qualidade": {"comando": "antigo"}})
 
@@ -428,7 +448,7 @@ class TestPortoesCli(Case):
         out = self.cli("--padrao", "--projeto", str(self.repo))
         p = self.proposed(out.stdout)["portoes"]
         self.assertEqual((p["processo"]["artefato"], p["qualidade"]["comando"], p["bugs"]["agente"]),
-                         ("docs/specs/*/spec.md", "@definir", "bugs:cacador"))
+                         ("docs/specs/*/spec.md", "@definir", "tr:bugs-cacador"))
 
     def test_default_registry_takes_the_quality_command_from_the_project(self):
         (self.repo / "package.json").write_text(json.dumps({"scripts": {"lint": "x", "typecheck": "y", "test": "z"}}))
@@ -496,7 +516,7 @@ class TestDocOnlyCommitsKeepTheEndStamps(Case):
         self.registry({"qualidade": QUALIDADE, "bugs": BUGS})
         self.stamped = commit_file(self.repo, "a.py", "feat: a")
         self.sign_through_hook("qualidade")
-        ledger.sign(str(self.repo), "bugs", self.stamped, "trilho", "t", "bugs:cacador", "ok")
+        ledger.sign(str(self.repo), "bugs", self.stamped, "trilho", "t", "tr:bugs-cacador", "ok")
 
     def test_a_docs_commit_keeps_them_and_the_list_says_from_where(self):
         (self.repo / "docs").mkdir(exist_ok=True)
@@ -529,20 +549,3 @@ class TestDocOnlyCommitsKeepTheEndStamps(Case):
         self.assertFalse(self.signed("qualidade"))
 
 
-class TestBugsPluginDoesNotSignTwice(Case):
-    def test_with_a_registry_only_the_trilho_signs_the_verdict(self):
-        self.registry({"bugs": BUGS})
-        head = commit_file(self.repo, "a.py", "feat: a")
-        text = f"VEREDITO: APPROVED\nCOMMIT: {head}\nRESUMO: conferi\n"
-        payload = {"hook_event_name": "SubagentStop", "agent_type": "bugs:cacador", "cwd": str(self.repo),
-                   "last_assistant_message": text}
-        self.script("stamp.py", payload, plugin=ROOT / "plugins/bugs")
-        self.assertFalse(ledger.has(str(self.repo), "bugs", head), "o plugin bugs não assina com registro")
-        self.script("sign.py", payload)
-        self.assertTrue(ledger.has(str(self.repo), "bugs", head))
-        log = (pathlib.Path(ledger.state_dir(str(self.repo))) / "log.jsonl").read_text()
-        self.assertEqual(log.count('"assinou"'), 1, log)
-
-
-if __name__ == "__main__":
-    unittest.main()

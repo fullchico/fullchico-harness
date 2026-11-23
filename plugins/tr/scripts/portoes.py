@@ -18,7 +18,7 @@ PADRAO = {
         "processo": {"momento": "inicio", "assina": "artefato", "artefato": "docs/specs/*/spec.md",
                      "descricao": "spec da mudança, saída da entrevista"},
         "qualidade": {"momento": "fim", "assina": "comando", "comando": "@descobrir"},
-        "bugs": {"momento": "fim", "assina": "agente", "agente": "bugs:cacador"},
+        "bugs": {"momento": "fim", "assina": "agente", "agente": "tr:bugs-cacador"},
     }
 }
 
@@ -182,9 +182,8 @@ def analisar(project):
         portoes["qualidade"] = {"momento": "fim", "assina": "comando", "comando": comando_dos_scripts(found, pm)}
         why.append(("qualidade", f"`package.json` tem os scripts {', '.join(found)}; gerenciador {pm} pelo lockfile"))
 
-    if plugin_on(settings, "bugs@"):
-        portoes["bugs"] = {"momento": "fim", "assina": "agente", "agente": "bugs:cacador"}
-        why.append(("bugs", "o plugin `bugs` está ligado em .claude/settings.json: o caçador assina"))
+    portoes["bugs"] = {"momento": "fim", "assina": "agente", "agente": "tr:bugs-cacador"}
+    why.append(("bugs", "o caçador de bugs do tr (`/tr:bugs-cacar`) valida o diff num subagente limpo"))
 
     reg = {}
     codigo = [d for d in ("apps", "packages", "src") if os.path.isdir(p(d))]
