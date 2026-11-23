@@ -17,7 +17,12 @@ MOMENTO = {"inicio": "início", "fim": "fim"}
 def listar(root, reg):
     print("Portões deste projeto (os de início, antes de escrever código; os de fim, antes de enviar):\n")
     top = registry.ledger.head(root)
+    pedido = registry.passaporte(root, reg)
+    exigidos = set(registry.exigidos(root, "fim", reg)) | set(registry.exigidos(root, "inicio", reg))
     for name, gate in reg["portoes"].items():
+        if name not in exigidos:
+            print(f"[fora] {name} (fim, fora do passaporte desta demanda)")
+            continue
         stamped = registry.stamped_commit(root, name, gate)
         desc = f" — {gate['descricao']}" if gate.get("descricao") else ""
         print(f"[{'ok' if stamped else 'falta'}] {name} ({MOMENTO[gate['momento']]}, assina por {gate['assina']}){desc}")
@@ -25,6 +30,9 @@ def listar(root, reg):
             print(f"        fazer: {registry.howto(name, gate)}")
         elif gate["momento"] == "fim" and stamped != top:
             print(f"        carimbo de {stamped[:10]}; depois dele só mudou documentação")
+    fim = {n for n, g in reg["portoes"].items() if g["momento"] == "fim"}
+    for name in sorted((pedido or set()) - fim):
+        print(f"aviso: o passaporte pede `{name}`, que não é portão de fim do registro; ignorado")
     if not registry.missing(root, "inicio", reg) and not registry.missing(root, "fim", reg):
         print("\nTodos os portões carimbados: o envio (`git push`, `gh pr create`) está liberado pelo trilho.")
     return 0

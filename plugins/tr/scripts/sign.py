@@ -2,7 +2,8 @@
 """Assina os carimbos dos portões. Quem assina é o hook, nunca o agente.
 
 - `PostToolUse` de `Bash`: o comando foi exatamente `portao <nome>` e a saída termina em
-  `portao <nome>: passou` -> portão `comando` ou `artefato`. Árvore suja num portão de fim: não assina, sai 2.
+  `portao <nome>: passou` -> portão `comando` ou `artefato`. Portão de fim só assina dentro do
+  `tr:qualidade-verificador` (quem escreveu não assina); o de início (o plano) assina onde rodar. Árvore suja num portão de fim: não assina e recusa (JSON `decision: block`).
 - `SubagentStop` e `PreToolUse` de `SubagentHandback`: o veredito APPROVED do agente de um portão `agente`.
   REJECTED apaga o carimbo.
 """
@@ -14,6 +15,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ledger  # noqa: E402
 import registry  # noqa: E402
+import saida  # noqa: E402
 
 
 def version():
@@ -48,17 +50,22 @@ def from_command(payload, root, reg):
     lines = [l for l in output_of(payload.get("tool_response")).splitlines() if l.strip()]
     if not lines or lines[-1].strip() != f"portao {name}: passou":
         return 0
+    if gate["momento"] == "fim" and payload.get("agent_type") != registry.VERIFICADOR:
+        # quem escreveu o código vê o resultado, mas não assina: o carimbo vem de um subagente limpo
+        ledger.log(root, "trilho", "não assinou", f"{name}: rodado fora do {registry.VERIFICADOR}")
+        return saida.avisar(f"trilho · {name} passou aqui, mas o carimbo vem de {registry.INVOKERS[registry.VERIFICADOR]}")
     if gate["momento"] == "fim" and registry.dirty(root):
         ledger.log(root, "trilho", "não assinou", f"{name}: árvore suja")
-        print(f"Portão `{name}` passou, mas a árvore tem alteração sem commit: o carimbo de um portão de fim é do "
-              "commit do topo. Faça o commit e rode `portao " + name + "` de novo.", file=sys.stderr)
-        return 2
+        return saida.recusar(saida.quadro("carimbo recusado", [
+            ("portão", name), ("motivo", "passou, mas a árvore tem alteração sem commit"),
+        ], [f"  → faça o commit e rode `portao {name}` de novo"],
+            "o carimbo de um portão de fim é do commit do topo"))
     key = registry.stamp_key(root, gate)
     if not key:
         return 0
     ledger.sign(root, name, key, "trilho", version(), f"portao {name}", f"{name} passou ({gate['assina']})")
     ledger.log(root, "trilho", "assinou", f"{name}: {key[:10]}")
-    return 0
+    return saida.avisar(f"✓ trilho · {name} carimbado ({key[:10]})")
 
 
 def from_agent(payload, root, reg):
@@ -78,6 +85,7 @@ def from_agent(payload, root, reg):
     commit = once(r"^[ \t]*COMMIT: ([0-9a-f]{40})[ \t]*$", text)
     summary = once(r"^[ \t]*RESUMO: (\S.*?)[ \t]*$", text)
     top = ledger.head(root)
+    avisos = []
     for name, gate in gates.items():
         key = registry.stamp_key(root, gate)
         if not (verdict and commit and summary):
@@ -91,10 +99,12 @@ def from_agent(payload, root, reg):
         elif verdict == "APPROVED":
             ledger.sign(root, name, key, "trilho", version(), agent, summary)
             ledger.log(root, "trilho", "assinou", f"{name}: {key[:10]}: {summary}")
+            avisos.append(f"✓ trilho · {name} carimbado por {agent} ({key[:10]})")
         else:
             ledger.forget(root, name, key)
             ledger.log(root, "trilho", "reprovou", f"{name}: {key[:10]}: {summary}")
-    return 0
+            avisos.append(f"✗ trilho · {name} reprovado por {agent} ({key[:10]}): {summary}")
+    return saida.avisar("\n".join(avisos)) if avisos else 0
 
 
 def main():

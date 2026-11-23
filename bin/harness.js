@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-// Entrada do pacote: `npx @fullchico/harness install [pasta do projeto] [--profile <perfil>] [--force]`
-// e `npx @fullchico/harness@latest update [pasta do projeto] [--force]`, para o projeto que já tem o harness.
-// O trabalho é do script `install`, em shell e Python: aqui só se acha a pasta do pacote e se repassa.
+// Entrada do pacote: `npx @fullchico/harness <comando>`. Os comandos repassam aos scripts do plugin `tr`
+// (Python); aqui só se acha a pasta do pacote, se instalam os plugins no projeto e se grava o settings.
 "use strict";
 const { spawnSync } = require("node:child_process");
 const fs = require("node:fs");
@@ -10,12 +9,14 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const [command, ...rest] = process.argv.slice(2);
 const version = require(path.join(root, "package.json")).version;
+const LEGACY = /\.harness\//;
+// Plugins de portão que o tr absorveu na 3.0: o agente mudou de nome junto.
+const ABSORBED = { "bugs@fullchico": true, "qualidade@fullchico": true };
+const RENAMED_AGENTS = { "bugs:cacador": "tr:bugs-cacador" };
 const usage = "uso: fullchico-harness install [pasta do projeto] [--padrao] [--migrar]   (plugins por projeto e portões)\n" +
-  "     fullchico-harness install [pasta do projeto] --legado [--profile ...] [--force]   (modelo anterior)\n" +
-  "     fullchico-harness update [pasta do projeto] [--force]\n" +
   "     fullchico-harness puro [pasta do projeto]\n" +
   "     fullchico-harness portoes [--analisar] [--gravar] [--padrao] [--definir <portão> \"<comando>\"] [--registrar <esboço.json>] [--projeto <pasta>]\n" +
-  "     fullchico-harness add <plugin> [<plugin>...] [--project <pasta>]   (tr, bugs, qualidade)\n" +
+  "     fullchico-harness add <plugin> [<plugin>...] [--project <pasta>]   (tr, memoria)\n" +
   "     fullchico-harness custo [pasta do projeto] [--desde <commit|AAAA-MM-DD[THH:MM]>] [--json]   (o que a entrega custou)\n" +
   "     fullchico-harness --version\n" +
   "  (pelo npx: npx @fullchico/harness <comando>)";
@@ -49,7 +50,12 @@ if (command === "puro") {
   // Só lê: transcrições do Claude Code e o livro de carimbos. Não grava nada no projeto.
   const run = spawnSync("python3", ["-I", path.join(root, "plugins/tr/scripts/custo.py"), ...rest], { stdio: "inherit" });
   process.exit(run.status === null ? 1 : run.status);
-} else if (command === "install" && !rest.includes("--legado")) {
+} else if (command === "install") {
+  const unknown = rest.filter((arg) => arg.startsWith("-") && !["--padrao", "--migrar"].includes(arg));
+  if (unknown.length) {
+    console.error(`install: opção desconhecida ${unknown.join(" ")}\n${usage}`);
+    process.exit(2);
+  }
   // O harness do projeto no modelo novo: plugins por projeto e registro de portões. O dono escolhe
   // o padrão da lib (--padrao) ou a análise do que o projeto já usa (o padrão do comando).
   const project = rest.find((arg) => !arg.startsWith("-")) || ".";
@@ -67,6 +73,16 @@ if (command === "puro") {
       "agente. Rode este mesmo comando no seu terminal, fora da sessão. Nada foi alterado.");
     process.exit(1);
   }
+  // Arquivo do dono que não faz parse não é reescrito do zero: para antes, sem mexer em nada.
+  const unreadable = [".claude/settings.json", ".claude/settings.local.json", ".claude/trilho.json"].filter((rel) => {
+    const file = path.join(project, rel);
+    if (!fs.existsSync(file)) return false;
+    try { JSON.parse(fs.readFileSync(file, "utf8")); return false; } catch (e) { return true; }
+  });
+  if (unreadable.length) {
+    console.error(`install: ${unreadable.join(" e ")} não é JSON válido. Corrija e rode de novo; nada foi alterado.`);
+    process.exit(1);
+  }
   const legacy = legacyState(project);
   if (legacy.length && rest.includes("--migrar")) migrateLegacy(project);
   // A lib cuida do caminho e da aprendizagem; começo e fim são das ferramentas do projeto, ligadas pelos
@@ -76,11 +92,18 @@ if (command === "puro") {
     ["claude-plugins-official", "anthropics/claude-plugins-official", "mattpocock-skills"],
   ]);
   addRtkHook(project);
-  const mode = rest.includes("--padrao") ? "--padrao" : "--analisar";
-  console.log(`\n$ fullchico-harness portoes ${mode} --gravar`);
-  const gates = spawnSync("python3", ["-I", path.join(root, "plugins/tr/scripts/portoes.py"), mode, "--gravar",
-    "--projeto", project], { stdio: "inherit" });
-  // Portão que assina por agente precisa do plugin que traz o agente (`bugs:cacador` → `bugs`).
+  writeLocalModels(project);
+  // O registro do dono não é reescrito por um install de novo: os portões dele (e2e, seo...) ficam.
+  let gates = { status: 0 };
+  if (hasRegistry(project)) {
+    console.log("\nRegistro de portões existente mantido (.claude/trilho.json). Para refazer: `fullchico-harness portoes --gravar`.");
+  } else {
+    const mode = rest.includes("--padrao") ? "--padrao" : "--analisar";
+    console.log(`\n$ fullchico-harness portoes ${mode} --gravar`);
+    gates = spawnSync("python3", ["-I", path.join(root, "plugins/tr/scripts/portoes.py"), mode, "--gravar",
+      "--projeto", project], { stdio: "inherit" });
+  }
+  // Portão que assina por agente de outro plugin do FullChico precisa desse plugin (os do tr já vêm).
   const agents = agentPlugins(project).filter((n) => !["tr", "memoria"].includes(n));
   if (agents.length) {
     console.log(`\nOs portões pedem os agentes de: ${agents.join(", ")}`);
@@ -101,22 +124,11 @@ if (command === "puro") {
     "  1. Faça o commit de `.claude/settings.json` e `.claude/trilho.json`: carimbo de fim só assina com a árvore limpa.\n" +
     "  2. Ligue o modo puro: `fullchico-harness puro`, e abra o projeto com `cc` (claude clean).\n" +
     "  3. Na sessão, peça `/tr:configurar` para a entrevista propor os portões; quem grava é você, no terminal.\n" +
-    "  4. Confira com `portao` o que cada etapa pede.");
+    "  4. Confira com `portao` o que cada etapa pede.\n" +
+    "  5. Cada demanda começa com `/tr:processo-planejar` (entrevista, spec, tickets); os portões de fim\n" +
+    "     são validados por `/tr:qualidade-verificar` e `/tr:bugs-cacar`.\n" +
+    "  Modelo por papel em .claude/settings.local.json: a sessão em opus planeja; subagentes em sonnet ou haiku.");
   process.exit(0);
-} else if (command === "install" || command === "update") {
-  const env = { ...process.env };
-  if (command === "update") {
-    // Atualizar é instalar por cima, na versão deste pacote: os mesmos arquivos, plugins e skills.
-    const project = rest.find((arg) => !arg.startsWith("-")) || ".";
-    if (!fs.existsSync(path.join(project, ".harness"))) {
-      console.error(`update: ${path.resolve(project)} ainda não tem o harness. Use: fullchico-harness install`);
-      process.exit(2);
-    }
-    env.HARNESS_UPDATE = "1";
-  }
-  const legacy = rest.filter((arg) => arg !== "--legado");
-  const run = spawnSync("bash", [path.join(root, "install"), ...legacy], { stdio: "inherit", env });
-  process.exit(run.status === null ? 1 : run.status);
 } else {
   console.error(usage);
   process.exit(command === "--help" || command === "-h" ? 0 : 2);
@@ -196,33 +208,90 @@ function writeSettings(project, data) {
   fs.writeFileSync(file, JSON.stringify(data, null, 2) + "\n");
 }
 
+
 function isLegacyHook(h) {
-  return /\.harness\/hooks\//.test(String(h.command || ""));
+  return LEGACY.test(String(h.command || ""));
 }
 
-// O que resta do harness antigo (plugin `harness@fullchico` e hooks de `.harness/hooks/`).
+function isLegacyGroup(event, g) {
+  return event === "SubagentStop" && /(^|[^\w-])harness:/.test(String(g.matcher || ""));
+}
+
+function hookGroups(data) {
+  return Object.entries(data.hooks || {}).filter(([, groups]) => Array.isArray(groups));
+}
+
+function readRegistry(project) {
+  try { return JSON.parse(fs.readFileSync(path.join(project, ".claude", "trilho.json"), "utf8")); } catch (e) { return null; }
+}
+
+function hasRegistry(project) {
+  const reg = readRegistry(project);
+  return !!(reg && reg.portoes && Object.keys(reg.portoes).length);
+}
+
+// O que resta do harness antigo e dos plugins que o tr absorveu.
 function legacyState(project) {
   const data = readSettings(project);
   const found = [];
-  if ((data.enabledPlugins || {})["harness@fullchico"]) found.push("plugin `harness@fullchico` ligado");
-  const hooks = Object.values(data.hooks || {}).flat().flatMap((g) => g.hooks || []);
-  if (hooks.some(isLegacyHook)) found.push("hooks de `.harness/hooks/` no settings");
+  const enabled = data.enabledPlugins || {};
+  if (enabled["harness@fullchico"]) found.push("plugin `harness@fullchico` ligado");
+  for (const name of Object.keys(ABSORBED)) if (name in enabled) found.push(`plugin \`${name}\` (agora dentro do tr)`);
+  const hooks = hookGroups(data).flatMap(([event, groups]) =>
+    groups.flatMap((g) => isLegacyGroup(event, g) ? [{ command: ".harness/" }] : g.hooks || []));
+  if (hooks.some(isLegacyHook)) found.push("hooks do harness antigo no settings");
+  const perms = Object.values(data.permissions || {}).flat();
+  const excluded = (data.sandbox || {}).excludedCommands || [];
+  if ([...perms, ...excluded].some((p) => LEGACY.test(String(p)))) found.push("permissões de `.harness/` no settings");
+  const gates = Object.values((readRegistry(project) || {}).portoes || {});
+  if (gates.some((g) => g && RENAMED_AGENTS[g.agente])) found.push("agente `bugs:cacador` no registro");
   return found;
 }
 
 // Desliga o antigo no settings do projeto (o git guarda o anterior). A pasta `.harness/` fica: apagar é do dono.
 function migrateLegacy(project) {
   const data = readSettings(project);
-  if (data.enabledPlugins && data.enabledPlugins["harness@fullchico"]) data.enabledPlugins["harness@fullchico"] = false;
-  for (const [event, groups] of Object.entries(data.hooks || {})) {
-    const kept = groups.map((g) => ({ ...g, hooks: (g.hooks || []).filter((h) => !isLegacyHook(h)) }))
+  if (data.enabledPlugins) {
+    if (data.enabledPlugins["harness@fullchico"]) data.enabledPlugins["harness@fullchico"] = false;
+    for (const name of Object.keys(ABSORBED)) delete data.enabledPlugins[name];
+  }
+  for (const [event, groups] of hookGroups(data)) {
+    const kept = groups.filter((g) => !isLegacyGroup(event, g))
+      .map((g) => ({ ...g, hooks: (g.hooks || []).filter((h) => !isLegacyHook(h)) }))
       .filter((g) => g.hooks.length);
     if (kept.length) data.hooks[event] = kept;
     else delete data.hooks[event];
   }
+  for (const [kind, list] of Object.entries(data.permissions || {})) {
+    if (Array.isArray(list)) data.permissions[kind] = list.filter((p) => !LEGACY.test(String(p)));
+  }
+  if (data.sandbox && Array.isArray(data.sandbox.excludedCommands)) {
+    data.sandbox.excludedCommands = data.sandbox.excludedCommands.filter((c) => !LEGACY.test(String(c)));
+  }
   writeSettings(project, data);
-  console.log("Harness antigo desligado no .claude/settings.json (plugin e hooks de `.harness/hooks/`). " +
-    "A pasta `.harness/` ficou; apague quando não precisar mais dela.");
+  const reg = readRegistry(project);
+  if (reg && reg.portoes) {
+    let renamed = false;
+    for (const gate of Object.values(reg.portoes)) {
+      if (gate && RENAMED_AGENTS[gate.agente]) { gate.agente = RENAMED_AGENTS[gate.agente]; renamed = true; }
+    }
+    if (renamed) fs.writeFileSync(path.join(project, ".claude", "trilho.json"), JSON.stringify(reg, null, 2) + "\n");
+  }
+  console.log("Harness antigo desligado no .claude/settings.json (plugin, hooks e permissões de `.harness/`; " +
+    "bugs e qualidade agora são do tr). A pasta `.harness/` ficou; apague quando não precisar mais dela.\n" +
+    "Se o AGENTS.md ou docs/agents/ ainda descrevem `.harness/push` e os revisores antigos, atualize: o agente segue o que lê.");
+}
+
+// Modelo por papel, na configuração local (não versionada): a sessão principal planeja e orquestra em
+// opus; subagente sem modelo definido roda em sonnet. O hook do tr garante o resto (haiku no ticket simples).
+function writeLocalModels(project) {
+  const file = path.join(project, ".claude", "settings.local.json");
+  let data = {};
+  try { data = JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) { /* novo */ }
+  data.model = data.model || "opus";
+  data.env = { CLAUDE_CODE_SUBAGENT_MODEL: "sonnet", ...(data.env || {}) };
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(data, null, 2) + "\n");
 }
 
 // Plugins do FullChico que trazem os agentes dos portões `assina: agente` (`bugs:cacador` → `bugs`).

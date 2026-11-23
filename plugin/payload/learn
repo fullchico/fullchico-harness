@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-# Lê as transcrições de sessão deste projeto: consumo por papel e resumo enxuto de cada sessão.
-# Uso: .harness/learn <sessions [--all]|digest <id> <arquivo>|usage [<id>...]|mark <id>...>
-set -uo pipefail
-HERE="$(cd "$(dirname "$0")" && pwd -P)"
-ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || ROOT="$(cd "$HERE/.." && pwd -P)"
-exec python3 -I "$HERE/learn.py" "$ROOT" "$@"

@@ -1,7 +1,7 @@
 {
   "name": "@fullchico/harness",
-  "version": "2.1.0",
-  "description": "Trilhos e portões para projetos desenvolvidos com agentes no Claude Code: orquestração por ticket, revisão independente presa ao commit, ambiente por feature.",
+  "version": "3.0.0",
+  "description": "Harness de plugins para Claude Code: portões com carimbo assinado por hook, validadores em subagente limpo e memória do projeto.",
   "license": "MIT",
   "author": "FullChico",
   "repository": {
@@ -26,8 +26,6 @@
   },
   "files": [
     "bin/",
-    "install",
-    "plugin/",
     "plugins/",
     ".claude-plugin/",
     "LICENSE",

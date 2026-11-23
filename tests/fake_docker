@@ -1,8 +1,0 @@
-#!/bin/sh
-# Docker falso para os testes: registra a chamada e devolve o que o teste mandar.
-echo "$*" >> "${FAKE_DOCKER_LOG:-/dev/null}"
-case " $* " in
-  *" config "*) cat "${FAKE_DOCKER_CONFIG:-/dev/null}" ;;
-  *" ps "*) [ -n "${FAKE_DOCKER_RUNNING:-}" ] && echo abc123 ;;
-esac
-exit "${FAKE_DOCKER_RC:-0}"
