@@ -219,6 +219,11 @@ def main():
         return 0
 
     for t in targets:
+        if (registry.relative(root, t) or "").startswith(".git/"):
+            # `.git/info/exclude` esconde arquivo sem commit da checagem de árvore limpa: o carimbo mentiria
+            return deny(root, f"git interno: {t}", quadro("estado do git protegido", [
+                ("arquivo", registry.relative(root, t)), ("motivo", "escrever em `.git/` muda o que a árvore limpa enxerga"),
+            ], ["  → arquivo gerado vai no `.gitignore` (em commit); o resto, commit ou apague"]))
         if registry.relative(root, t) == ".claude/settings.json":
             return deny(root, f"registro: {t}", quadro("registro protegido", [
                 ("arquivo", ".claude/settings.json"),

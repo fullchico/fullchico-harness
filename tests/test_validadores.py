@@ -102,6 +102,12 @@ class TestValidatorRails(Case):
         for command in ("portao", "portao qualidade", "portao | head", 'git commit -m "portao qualidade | x"'):
             self.assertIsNone(self.hook("Bash", command=command), command)
 
+    def test_git_internals_are_not_written(self):
+        """Na sessão real, a IA pôs `__pycache__/` em `.git/info/exclude` para a árvore parecer limpa."""
+        self.assertDenied(self.hook("Bash", command="echo '__pycache__/' >> .git/info/exclude"), "estado do git")
+        self.assertDenied(self.hook("Write", file_path=str(self.repo / ".git/info/exclude"), content="x"), "estado do git")
+        self.assertIsNone(self.hook("Bash", command="git add -A"))
+
     def test_legacy_harness_scripts_are_denied(self):
         for command in (".harness/push", "./.harness/gate-check", "rtk ./.harness/pr x"):
             self.assertDenied(self.hook("Bash", command=command), "harness antigo", "/tr:")
