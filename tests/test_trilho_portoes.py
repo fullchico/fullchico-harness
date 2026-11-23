@@ -11,7 +11,7 @@ import sys
 import unittest
 from unittest import mock
 
-from tests.helpers import ROOT, _tmpdir, commit_all, commit_file, git, make_repo
+from tests.helpers import ROOT, _tmpdir, commit_all, commit_file, git, make_repo, hook_verdict
 
 PLUGIN = ROOT / "plugins/tr"
 sys.path.insert(0, str(PLUGIN / "scripts"))
@@ -44,9 +44,9 @@ class Case(unittest.TestCase):
 
     def script(self, name, payload, plugin=PLUGIN, raw=None):
         env = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(plugin), CLAUDE_PROJECT_DIR=str(self.repo))
-        return subprocess.run([sys.executable, str(plugin / "scripts" / name)],
-                              input=raw if raw is not None else json.dumps(payload),
-                              capture_output=True, text=True, env=env, cwd=self.repo)
+        return hook_verdict(subprocess.run([sys.executable, str(plugin / "scripts" / name)],
+                                           input=raw if raw is not None else json.dumps(payload),
+                                           capture_output=True, text=True, env=env, cwd=self.repo))
 
     def portao(self, *args):
         return subprocess.run([str(PLUGIN / "bin/portao"), *args], capture_output=True, text=True, cwd=self.repo)
@@ -205,6 +205,25 @@ class TestEndGateByCommand(Case):
         super().setUp()
         self.registry({"qualidade": QUALIDADE})
         commit_file(self.repo, "a.py", "feat: a")
+
+    def test_the_block_is_a_hook_decision_not_an_error(self):
+        """Exit 2 faz o Claude Code mostrar o caminho do script antes da mensagem; o JSON `deny` não."""
+        env = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(PLUGIN), CLAUDE_PROJECT_DIR=str(self.repo))
+        raw = subprocess.run([sys.executable, str(PLUGIN / "scripts/gate.py")], capture_output=True, text=True,
+                             env=env, cwd=self.repo, input=json.dumps({
+                                 "hook_event_name": "PreToolUse", "tool_name": "Bash", "cwd": str(self.repo),
+                                 "tool_input": {"command": "git push"}}))
+        self.assertEqual((raw.returncode, raw.stderr), (0, ""))
+        out = json.loads(raw.stdout)["hookSpecificOutput"]
+        self.assertEqual(out["permissionDecision"], "deny")
+        reason = out["permissionDecisionReason"]
+        self.assertTrue(reason.startswith("⛔ trilho · envio barrado"), reason)
+        self.assertIn("  ✗ qualidade · ", reason)
+        self.assertIn("    → rode `portao qualidade`", reason)
+
+    def test_a_signed_stamp_tells_the_owner(self):
+        r = self.sign_through_hook("qualidade")
+        self.assertEqual(json.loads(r.stdout)["systemMessage"][:30], "✓ trilho · qualidade carimbado")
 
     def test_signs_only_with_a_clean_tree(self):
         (self.repo / "sujo.py").write_text("x\n")

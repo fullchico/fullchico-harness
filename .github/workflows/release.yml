@@ -24,8 +24,7 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME#v}"
           PKG="$(node -p "require('./package.json').version")"
-          PLUGIN="$(node -p "require('./plugin/.claude-plugin/plugin.json').version")"
-          [ "$TAG" = "$PKG" ] && [ "$TAG" = "$PLUGIN" ] || { echo "tag $TAG, pacote $PKG, plugin $PLUGIN: precisam ser iguais"; exit 1; }
+          [ "$TAG" = "$PKG" ] || { echo "tag $TAG, pacote $PKG: precisam ser iguais"; exit 1; }
       - run: git config --global user.name ci && git config --global user.email ci@example.invalid
       - run: python3 -W error -m unittest discover -s tests
       # A publicação confiável exige npm 11.5 ou mais novo.

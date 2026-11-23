@@ -15,6 +15,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ledger  # noqa: E402
 import registry  # noqa: E402
+import saida  # noqa: E402
+from saida import quadro  # noqa: E402
 
 PROTEGIDOS = (".claude/trilho.json", ".claude/settings.json")
 EDICAO = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
@@ -23,13 +25,16 @@ WRAPPERS = ledger._WRAPPERS
 
 def deny(root, what, message):
     ledger.log(root, "trilho", "barrou", what[:160])
-    print(message, file=sys.stderr)
-    return 2
+    return saida.barrar(message)
 
 
-def lista(root, reg, names):
-    return "\n".join(f"- {n}: {reg['portoes'][n].get('descricao') or '(sem descrição)'}\n    como: "
-                     f"{registry.howto(n, reg['portoes'][n])}" for n in names)
+def lista(reg, names):
+    linhas = []
+    for n in names:
+        gate = reg["portoes"][n]
+        linhas.append(f"  ✗ {n} · {gate.get('descricao') or '(sem descrição)'}")
+        linhas += [f"    → {p}" for p in registry.passos(n, gate)]
+    return linhas
 
 
 # BSD: `sed -i '' 's/a/b/' alvo`; GNU: `sed -i 's/a/b/' alvo` ou `sed -i.bak ...`.
@@ -85,15 +90,17 @@ def main():
         targets_pre = []
     for t in targets_pre:
         if registry.relative(root, t) == ".claude/trilho.json":
-            return deny(root, f"registro: {t}",
-                        "Barrado pelo trilho: `.claude/trilho.json` só o dono altera, por "
-                        "`fullchico-harness portoes` (o plugin tr escreve ali; o agente não).")
+            return deny(root, f"registro: {t}", quadro("registro protegido", [
+                ("arquivo", ".claude/trilho.json"),
+                ("motivo", "só o dono altera, por `fullchico-harness portoes` no terminal"),
+            ], rodape="o plugin tr escreve ali; o agente não"))
 
     try:
         reg = registry.load(root)
     except registry.RegistryError as e:
         if tool == "Bash" and isinstance(ti.get("command"), str) and ledger.is_send(ti["command"]):
-            return deny(root, "registro inválido", f"Envio barrado pelo trilho: o registro de portões está inválido. {e}")
+            return deny(root, "registro inválido", quadro("envio barrado", [
+                ("registro", ".claude/trilho.json"), ("motivo", f"registro de portões inválido: {e}")]))
         return 0
     if not reg:
         return 0
@@ -106,10 +113,9 @@ def main():
             faltam = registry.missing(root, "fim", reg)
             if not faltam:
                 return 0
-            return deny(root, f"envio: {command[:100]}",
-                        "Envio barrado pelo trilho: faltam portões de fim para o commit do topo "
-                        f"({(ledger.head(root) or '?')[:10]}).\n{lista(root, reg, faltam)}\n"
-                        "O carimbo é do commit: commit novo pede os portões de novo.")
+            return deny(root, f"envio: {command[:100]}", quadro("envio barrado", [
+                ("commit", (ledger.head(root) or "?")[:10]), ("motivo", "faltam portões de fim"),
+            ], lista(reg, faltam), "o carimbo é do commit: commit novo pede os portões de novo · estado: `portao`"))
         targets = bash_targets(command)
     elif tool in EDICAO:
         path = ti.get("file_path") or ti.get("notebook_path")
@@ -119,17 +125,17 @@ def main():
 
     for t in targets:
         if registry.relative(root, t) == ".claude/settings.json":
-            return deny(root, f"registro: {t}",
-                        "Barrado pelo trilho: `.claude/settings.json` só o dono altera (ele liga os plugins "
-                        "que barram você; mude com `fullchico-harness` ou à mão, nunca com `fullchico-harness portoes`).")
+            return deny(root, f"registro: {t}", quadro("registro protegido", [
+                ("arquivo", ".claude/settings.json"),
+                ("motivo", "só o dono altera: ele liga os plugins que barram você"),
+            ], rodape="o dono muda no terminal (`fullchico-harness install`, `fullchico-harness portoes`) ou à mão"))
     for t in targets:
         if registry.is_code(root, t, reg):
             faltam = registry.missing(root, "inicio", reg)
             if faltam:
-                return deny(root, f"escrita em código: {t}",
-                            f"Escrita em código barrada pelo trilho: falta cumprir a etapa de início antes de "
-                            f"escrever em `{registry.relative(root, t)}`.\n{lista(root, reg, faltam)}\n"
-                            "Veja o estado com `portao`.")
+                return deny(root, f"escrita em código: {t}", quadro("escrita barrada", [
+                    ("arquivo", registry.relative(root, t)), ("motivo", "falta a etapa de início"),
+                ], lista(reg, faltam), "estado: `portao`"))
     return 0
 
 

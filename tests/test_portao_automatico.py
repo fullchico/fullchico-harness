@@ -6,7 +6,7 @@ import subprocess
 import sys
 import unittest
 
-from tests.helpers import ROOT, _tmpdir, commit_all, git, make_repo
+from tests.helpers import ROOT, _tmpdir, commit_all, git, make_repo, hook_verdict
 from tests.test_plugin_qualidade import fake_claude
 
 TRILHO = ROOT / "plugins/tr"
@@ -164,8 +164,8 @@ class TestDefinir(Base):
 
     def run_script(self, name, payload):
         env = dict(self.env, CLAUDE_PLUGIN_ROOT=str(TRILHO), CLAUDE_PROJECT_DIR=str(self.repo))
-        return subprocess.run([sys.executable, str(TRILHO / "scripts" / name)], input=json.dumps(payload),
-                              capture_output=True, text=True, env=env, cwd=self.repo)
+        return hook_verdict(subprocess.run([sys.executable, str(TRILHO / "scripts" / name)], input=json.dumps(payload),
+                                           capture_output=True, text=True, env=env, cwd=self.repo))
 
     def test_portao_fails_telling_the_owner_what_to_do(self):
         r = subprocess.run([str(TRILHO / "bin/portao"), "qualidade"], capture_output=True, text=True,

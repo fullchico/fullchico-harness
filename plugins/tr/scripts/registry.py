@@ -200,15 +200,20 @@ def missing(root, momento, reg=None):
     return [n for n, g in reg["portoes"].items() if g["momento"] == momento and not satisfied(root, n, reg)]
 
 
-def howto(name, gate):
+def passos(name, gate):
+    """O que fazer para o portão assinar, um passo por item."""
     mode = gate["assina"]
     if mode == "comando" and gate["comando"] == DEFINIR:
-        return (f"o comando do portão `{name}` ainda não foi definido: só o dono o define, no terminal, com "
-                f'`fullchico-harness portoes --definir {name} "<comando>"`')
+        return [f"o comando do portão `{name}` ainda não foi definido: só o dono o define, no terminal, com "
+                f'`fullchico-harness portoes --definir {name} "<comando>"`']
     if mode == "comando":
-        return f"rode `portao {name}` (sozinho numa chamada): `{gate['comando']}`"
+        return [f"rode `portao {name}` (sozinho numa chamada): `{gate['comando']}`"]
     if mode == "artefato":
         valida = f" e que passe em `{gate['valida']}`" if gate.get("valida") else ""
-        return (f"produza e faça o commit de `{gate['artefato']}` nesta branch{valida}; depois rode `portao {name}` "
-                "(sozinho numa chamada)")
-    return f"dispare o agente `{gate['agente']}` sobre o commit do topo; só ele assina"
+        return [f"produza e faça o commit de `{gate['artefato']}` nesta branch{valida}",
+                f"depois rode `portao {name}` (sozinho numa chamada)"]
+    return [f"dispare o agente `{gate['agente']}` sobre o commit do topo", "só ele assina"]
+
+
+def howto(name, gate):
+    return "; ".join(passos(name, gate))

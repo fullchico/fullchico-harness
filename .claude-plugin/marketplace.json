@@ -6,11 +6,6 @@
   },
   "plugins": [
     {
-      "name": "harness",
-      "source": "./plugin",
-      "description": "Ambiente de desenvolvimento com agentes: orquestração, portões de push, memória ancorada em git."
-    },
-    {
       "name": "tr",
       "source": "./plugins/tr",
       "description": "Núcleo do harness por projeto: modo puro e passaporte de carimbos."
