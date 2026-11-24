@@ -26,17 +26,44 @@ def _git(cwd, *args):
 
 
 def state_dir(cwd):
-    """Pasta do estado do projeto em `cwd`, ou None fora de um repositório git."""
+    """Pasta do estado, identificada pelo projeto ou pelo Git comum dos worktrees."""
     common = _git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir")
-    if not common:
-        return None
-    ident = hashlib.sha256(os.path.realpath(common).encode()).hexdigest()[:16]
+    ident = hashlib.sha256(os.path.realpath(common or cwd).encode()).hexdigest()[:16]
     return os.path.join(os.path.expanduser("~"), ".claude", "trilho", ident)
 
 
 def head(cwd):
-    """Commit do topo (HEAD) do repositório em `cwd`, ou None."""
-    return _git(cwd, "rev-parse", "HEAD")
+    """SHA do conteúdo atual do projeto, independente de Git."""
+    digest = hashlib.sha1()
+    ignored = {".git", ".harness-run", "node_modules", ".venv", "dist", "build", "coverage", ".next", ".turbo", ".cache", ".pytest_cache", "__pycache__", "docs"}
+    root = os.path.realpath(cwd)
+    for folder, dirs, files in os.walk(root):
+        dirs[:] = sorted(d for d in dirs if d not in ignored and not (folder == root and d == ".codex"))
+        for name in sorted(files):
+            if name.endswith(".md"):
+                continue
+            path = os.path.join(folder, name)
+            if os.path.islink(path):
+                continue
+            rel = os.path.relpath(path, root).replace(os.sep, "/")
+            digest.update(rel.encode() + b"\0")
+            try:
+                with open(path, "rb") as stream:
+                    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                        digest.update(chunk)
+            except OSError:
+                continue
+    for rel in (".codex/config.toml", ".codex/hooks.json"):
+        path = os.path.join(root, rel)
+        if os.path.isfile(path) and not os.path.islink(path):
+            digest.update(rel.encode() + b"\0")
+            with open(path, "rb") as stream:
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(chunk)
+    local_git_config = _git(cwd, "config", "--local", "--list")
+    if local_git_config:
+        digest.update(b"git-config\0" + local_git_config.encode())
+    return digest.hexdigest()
 
 
 def _path(cwd, stamp, commit):
@@ -89,7 +116,6 @@ def log(cwd, plugin, what, detail):
 
 
 _WRAPPERS = {"sudo", "env", "command", "time", "nohup", "rtk", "exec"}
-_SHELLS = {"bash", "sh", "zsh"}
 
 
 def _split(command):
@@ -107,23 +133,6 @@ def _split(command):
     return [c for c in commands if c]
 
 
-def _is_send(words):
-    while words and (words[0] in _WRAPPERS or re.fullmatch(r"\w+=.*", words[0])):
-        words = words[1:]
-    if not words:
-        return False
-    if os.path.basename(words[0]) in _SHELLS and "-c" in words[1:-1]:
-        return is_send(words[words.index("-c") + 1])
-    if words[0] == "gh":
-        return words[1:3] == ["pr", "create"]
-    if words[0] == "git":
-        rest, i = words[1:], 0
-        while i < len(rest) and rest[i].startswith("-"):  # git -C pasta push, git -c k=v push
-            i += 2 if rest[i] in ("-C", "-c", "--git-dir", "--work-tree") else 1
-        return i < len(rest) and rest[i] == "push"
-    return False
-
-
 _HEREDOC = re.compile(r"<<-?[ \t]*(['\"]?)([A-Za-z_]\w*)\1([^\n]*)\n.*?\n[ \t]*\2[ \t]*(?=\n|$)", re.S)
 
 
@@ -133,17 +142,3 @@ def strip_heredocs(command):
     Fica a linha que abre o heredoc (onde está o redirecionamento de verdade, `cat > alvo <<EOF`).
     """
     return _HEREDOC.sub(lambda m: m.group(3), command)
-
-
-def is_send(command):
-    """O comando contém um envio (`git push`, `gh pr create`) em algum ponto do encadeamento?
-
-    Texto citado não conta: `grep "git push" README` é um comando `grep`, e o corpo de um heredoc
-    também não.
-    """
-    command = strip_heredocs(command)
-    try:
-        return any(_is_send(c) for c in _split(command))
-    except ValueError:
-        # aspas desbalanceadas: não dá para separar; na dúvida, trata como envio se o texto o menciona
-        return bool(re.search(r"\bgit\s+push\b|\bgh\s+pr\s+create\b", command))

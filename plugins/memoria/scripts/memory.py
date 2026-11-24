@@ -140,6 +140,8 @@ class Changes:
     def _compute(self, commit):
         if not isinstance(commit, str) or not COMMIT.match(commit):
             return None
+        if not common._git(self.root, "rev-parse", "--is-inside-work-tree"):
+            return set() if commit == common.head_sha(self.root) else {"."}
         if _git(self.root, "cat-file", "-e", commit + "^{commit}").returncode != 0:
             return None
         diff = _git(self.root, "diff", "--name-only", "-z", "--ignore-submodules=all", commit, "--")
@@ -151,6 +153,8 @@ class Changes:
         """Algum dos caminhos (arquivo ou pasta) mudou desde o commit? Commit sumido conta como sim."""
         changed = self.files(commit)
         if changed is None:
+            return True
+        if "." in changed:
             return True
         prefixes = [p.rstrip("/") for p in paths]
         return any(name == p or name.startswith(p + "/") for name in changed for p in prefixes)
@@ -183,7 +187,14 @@ def _layout(root):
 def units(root) -> list:
     depth, excluded = _layout(root)
     found = {"."}
-    for path in _git(root, "ls-files", "-z").stdout.split("\0"):
+    if common._git(root, "rev-parse", "--is-inside-work-tree"):
+        paths = _git(root, "ls-files", "-z").stdout.split("\0")
+    else:
+        paths = [os.path.relpath(os.path.join(folder, file), root).replace(os.sep, "/")
+                 for folder, dirs, files in os.walk(root)
+                 for file in files if not any(part in {".git", ".harness-run", "node_modules", ".codex", ".venv"}
+                                             for part in os.path.relpath(folder, root).split(os.sep))]
+    for path in paths:
         unit = _unit_of_file(path, depth, excluded) if path else None
         # Nome com caractere de controle não entra: ele iria parar no texto de toda sessão.
         if unit and not any(ord(ch) < 32 for ch in unit):
@@ -254,6 +265,8 @@ def adrs(root) -> list:
 
 
 def _exists_in_head(root, path) -> bool:
+    if not common._git(root, "rev-parse", "--is-inside-work-tree"):
+        return os.path.exists(os.path.join(root, path))
     return bool(_git(root, "ls-files", "--", ":(literal)" + path).stdout.strip())
 
 
@@ -437,7 +450,7 @@ def slice_for(root, paths, state=None) -> str:
     for unit in wanted:
         text = summary(root, unit)
         if text is None:
-            parts.append(f"## {unit}\n(sem resumo: rode /memoria:mapear)")
+            parts.append(f"## {unit}\n(sem resumo: rode /tr:memory-mapear)")
         else:
             parts.append(f"## {unit}{STALE if unit in state['stale'] else ''}\n{text}")
     return "\n\n".join(parts)

@@ -36,7 +36,15 @@ def _git(root, *args):
 
 
 def toplevel(cwd):
-    return _git(cwd, "rev-parse", "--show-toplevel") or cwd
+    folder = os.path.realpath(cwd)
+    while True:
+        if os.path.isfile(os.path.join(folder, ".claude", "trilho.json")):
+            return folder
+        parent = os.path.dirname(folder)
+        if parent == folder:
+            break
+        folder = parent
+    return _git(cwd, "rev-parse", "--show-toplevel") or os.path.realpath(cwd)
 
 
 def load(root):
@@ -57,9 +65,12 @@ def load(root):
     codigo = data.get("codigo")
     if codigo is not None and not (isinstance(codigo, list) and all(isinstance(c, str) and c for c in codigo)):
         raise RegistryError("`codigo` em .claude/trilho.json deve ser uma lista de caminhos (texto).")
+    base_ref = data.get("base_ref")
+    if base_ref is not None and (not isinstance(base_ref, str) or not re.fullmatch(r"[A-Za-z0-9_./-]+", base_ref)):
+        raise RegistryError("`base_ref` deve ser uma referência Git válida em texto.")
     for name, gate in portoes.items():
         _validate(name, gate)
-    return {"codigo": codigo, "portoes": portoes}
+    return {"codigo": codigo, "portoes": portoes, "base_ref": base_ref}
 
 
 def has_gates(root):
@@ -72,6 +83,8 @@ def has_gates(root):
 
 def _validate(name, gate):
     where = f"portão `{name}` em .claude/trilho.json"
+    if name == "entrega":
+        raise RegistryError("`entrega` é reservado para a validação final (`portao entrega`).")
     if not re.fullmatch(r"[\w.-]+", name):
         raise RegistryError(f"{where}: o nome só pode ter letras, números, `_`, `.` e `-`.")
     if not isinstance(gate, dict):
@@ -118,14 +131,13 @@ def is_code(root, path, reg=None):
 
 
 def base(root):
-    """A referência da base: origin/HEAD, senão origin/main, main, master. None se nenhuma existe."""
-    ref = _git(root, "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
-    if ref and _git(root, "rev-parse", "--verify", "-q", ref):
-        return ref
-    for cand in ("origin/main", "main", "master"):
-        if _git(root, "rev-parse", "--verify", "-q", cand):
-            return cand
-    return None
+    """Base Git configurada pelo projeto; por padrão, o primeiro commit local."""
+    reg = load(root)
+    ref = reg.get("base_ref") if reg else None
+    if ref:
+        return ref if _git(root, "rev-parse", "--verify", "-q", ref) else None
+    roots = (_git(root, "rev-list", "--max-parents=0", "HEAD") or "").splitlines()
+    return roots[0] if roots else None
 
 
 def merge_base(root):
@@ -138,18 +150,21 @@ def branch(root):
 
 
 def artifact_files(root, gate):
-    """Arquivos que casam com o glob `artefato`, adicionados ou modificados nesta branch (em commit)."""
-    mb = merge_base(root)
-    if not mb:
-        return []
-    out = _git(root, "diff", "--name-only", "--diff-filter=AM", mb, "HEAD") or ""
-    return sorted(f for f in out.splitlines() if fnmatch.fnmatchcase(f, gate["artefato"]))
+    """Arquivos atuais que casam com o glob do portão."""
+    import glob
+    files = sorted(os.path.relpath(f, root).replace(os.sep, "/") for f in
+                   glob.glob(os.path.join(root, gate["artefato"]), recursive=True) if os.path.isfile(f))
+    active = os.path.join(root, ".claude", "demanda-atual")
+    if gate["artefato"].startswith("docs/specs/") and os.path.isfile(active):
+        with open(active, encoding="utf-8") as stream:
+            demand = stream.read().strip()
+        files = [f for f in files if f.startswith(f"docs/specs/{demand}/")]
+    return files
 
 
 def dirty(root, files=None):
-    """Há alteração sem commit (nos `files`, se dados)?"""
-    args = ["status", "--porcelain"] + (["--", *files] if files else [])
-    return bool(_git(root, *args))
+    """Carimbos usam o estado atual; mudanças sem commit são válidas."""
+    return False
 
 
 def _hash(*parts):
@@ -157,14 +172,19 @@ def _hash(*parts):
 
 
 def stamp_key(root, gate):
-    """Chave do carimbo (40 hex). Fim: o commit do topo. Início: o plano (branch + artefato, ou branch + base)."""
+    """Chave do carimbo (40 hex). Fim: snapshot do código. Início: artefato ou definição do portão."""
     if gate["momento"] == "fim":
         return ledger.head(root)
     if gate["assina"] == "artefato":
         files = artifact_files(root, gate)
-        blobs = [_git(root, "rev-parse", f"HEAD:{f}") for f in files]
-        return _hash(branch(root), *[f"{f} {b}" for f, b in zip(files, blobs)]) if files else None
-    return _hash(branch(root), merge_base(root) or "sem-base")
+        if not files:
+            return None
+        blobs = []
+        for file in files:
+            with open(os.path.join(root, file), "rb") as stream:
+                blobs.append(f"{file} {hashlib.sha1(stream.read()).hexdigest()}")
+        return _hash(*blobs)
+    return _hash(os.path.realpath(root), json.dumps(gate, sort_keys=True))
 
 
 DOC_ONLY_DEPTH = 50  # quantos commits para trás o carimbo de fim é procurado
@@ -186,15 +206,6 @@ def stamped_commit(root, name, gate):
         return None
     if ledger.has(root, name, key):
         return key
-    if gate["momento"] != "fim":
-        return None
-    revs = (_git(root, "rev-list", "--first-parent", f"--max-count={DOC_ONLY_DEPTH}", "HEAD") or "").splitlines()[1:]
-    for commit in revs:
-        changed = (_git(root, "diff", "--name-only", commit, "HEAD") or "").splitlines()
-        if not all(doc_only(f) for f in changed):
-            return None  # daqui para trás o diff só cresce: nenhum carimbo anterior vale
-        if ledger.has(root, name, commit):
-            return commit
     return None
 
 
@@ -207,14 +218,22 @@ _PORTOES = re.compile(r"(?mi)^[\s>*_-]*port(?:õ|o)es[*_]*:[*_]*\s*(.+?)\s*$")
 
 
 def passaporte(root, reg):
-    """Os portões que a demanda pede: a linha `Portões: a, b` da spec desta branch (o artefato dos portões
+    """Os portões que a demanda pede: a linha `Portões: a, b` da spec ativa (o artefato dos portões
     de início). None quando nenhuma spec traz a linha: aí valem todos os portões de fim."""
     found = None
+    active = os.path.join(root, ".claude", "demanda-atual")
+    demand = None
+    if os.path.isfile(active):
+        with open(active, encoding="utf-8") as stream:
+            demand = stream.read().strip()
     for gate in reg["portoes"].values():
         if gate["momento"] != "inicio" or gate["assina"] != "artefato":
             continue
         for rel in artifact_files(root, gate):
-            text = _git(root, "show", f"HEAD:{rel}") or ""
+            if demand and not rel.startswith(f"docs/specs/{demand}/"):
+                continue
+            with open(os.path.join(root, rel), encoding="utf-8") as stream:
+                text = stream.read()
             for m in _PORTOES.finditer(text):
                 # nome como o registro escreve: sem crase, negrito ou pontuação em volta (`e2e`, **seo**, e2e.)
                 names = {re.sub(r"^[^\w]+|[^\w]+$", "", n) for n in re.split(r"[,;\s]+", m.group(1))}
@@ -225,9 +244,14 @@ def passaporte(root, reg):
 def exigidos(root, momento, reg):
     """Os portões do momento que valem para esta demanda: no fim, os `sempre` (padrão) e os do passaporte."""
     names = [n for n, g in reg["portoes"].items() if g["momento"] == momento]
+    import tasks  # tickets com passaporte próprio tornam portões opcionais locais à task
     if momento != "fim":
-        return names
+        return ([n for n in names if reg["portoes"][n].get("sempre", True)]
+                if tasks.tickets(root) else names)
     pedido = passaporte(root, reg)
+    if pedido is None:
+        if tasks.tickets(root):
+            pedido = set()
     if pedido is None:
         return names
     return [n for n in names if reg["portoes"][n].get("sempre", True) or n in pedido]
@@ -248,12 +272,11 @@ def passos(name, gate):
         return [f"{INVOKERS[VERIFICADOR]} (o `{VERIFICADOR}` roda `{gate['comando']}` e o carimbo sai dele)"]
     if mode == "artefato":
         valida = f" e que passe em `{gate['valida']}`" if gate.get("valida") else ""
-        depois = (f"depois {INVOKERS[VERIFICADOR]} (o carimbo de fim sai do `{VERIFICADOR}`)" if gate["momento"] == "fim"
-                  else f"depois rode `portao {name}` (sozinho numa chamada)")
-        return [f"produza e faça o commit de `{gate['artefato']}` nesta branch{valida}", depois]
+        depois = f"depois {INVOKERS[VERIFICADOR]} (o carimbo sai do `{VERIFICADOR}`)"
+        return [f"produza `{gate['artefato']}` no projeto{valida}", depois]
     if gate["agente"] in INVOKERS:
         return [INVOKERS[gate["agente"]]]
-    return [f"dispare o agente `{gate['agente']}` sobre o commit do topo", "só ele assina"]
+    return [f"dispare o agente `{gate['agente']}` sobre o estado atual do projeto", "só ele assina"]
 
 
 def howto(name, gate):
@@ -261,11 +284,9 @@ def howto(name, gate):
 
 
 def validadores(reg):
-    """agent_type de cada validador -> os portões de fim que ele valida (comando e artefato: o verificador)."""
+    """agent_type de cada validador -> os portões que ele valida (comando e artefato: o verificador)."""
     out = {}
     for name, gate in reg["portoes"].items():
-        if gate["momento"] != "fim":
-            continue
         who = gate["agente"] if gate["assina"] == "agente" else VERIFICADOR
         if who:
             out.setdefault(who, []).append(name)

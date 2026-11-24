@@ -6,6 +6,8 @@ import sys
 import unittest
 
 from tests.helpers import ROOT, commit_all, git, make_repo
+sys.path.insert(0, str(ROOT / "plugins/tr/scripts"))
+import ledger  # noqa: E402
 
 PLUGIN = ROOT / "plugins/tr"
 REGISTRO = {"portoes": {
@@ -23,6 +25,7 @@ class Case(unittest.TestCase):
         git(self.repo, "checkout", "-q", "-b", "feat")
         (self.repo / "a.py").write_text("x = 1\n")
         self.top = commit_all(self.repo, "feat: a")
+        self.top = ledger.head(str(self.repo))
 
     def hook(self, tool, agent_type=None, **tool_input):
         payload = {"hook_event_name": "PreToolUse", "tool_name": tool, "cwd": str(self.repo), "tool_input": tool_input}
@@ -51,28 +54,29 @@ class TestValidatorPrompt(Case):
         self.assertNotIn("model", out["updatedInput"])
 
     def test_verifier_for_unknown_gate_is_denied(self):
-        self.assertDenied(self.agent("tr:qualidade-verificador", "portao: inexistente"), "não é portão de comando")
-        self.assertDenied(self.agent("tr:qualidade-verificador", "rode a qualidade"), "não é portão de comando")
+        self.assertDenied(self.agent("tr:qualidade-verificador", "portao: inexistente"), "não é portão de comando ou artefato")
+        self.assertDenied(self.agent("tr:qualidade-verificador", "rode a qualidade"), "não é portão de comando ou artefato")
 
     def test_validator_on_dirty_tree_is_denied(self):
         (self.repo / "b.py").write_text("y\n")
-        self.assertDenied(self.agent("tr:bugs-cacador", "olha aí"), "alteração sem commit")
+        self.assertIn("snapshot:", self.agent("tr:bugs-cacador", "olha aí")["updatedInput"]["prompt"])
 
     def test_bug_hunter_prompt_is_rewritten(self):
         out = self.agent("tr:bugs-cacador", "diff: abc..def\ncommit: def\nfoco no que eu mudei, está certo")
-        base = git(self.repo, "merge-base", "HEAD", "main")
-        self.assertEqual(out["updatedInput"]["prompt"], f"diff: {base}...{self.top}\ncommit: {self.top}")
+        self.assertEqual(out["updatedInput"]["prompt"],
+                         f"snapshot: {self.top}\ncommit: {self.top}\nInspecione os arquivos atuais do projeto.")
 
     def test_bug_hunter_without_base_is_denied(self):
         git(self.repo, "branch", "-m", "main", "antiga")
-        self.assertDenied(self.agent("tr:bugs-cacador", "x"), "sem base")
+        self.assertIn("snapshot:", self.agent("tr:bugs-cacador", "x")["updatedInput"]["prompt"])
 
 
 class TestRoleModel(Case):
     def ticket(self, complexidade):
         path = self.repo / "docs/specs/a/issues/01-x.md"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(f"# Ticket\n\nStatus: open\nComplexidade: {complexidade}\n")
+        path.write_text(f"# Ticket\n\nStatus: open\nComplexidade: {complexidade}\n"
+                        "Bloqueado por: nenhum\nEntrada: nenhum\nPortões: nenhum\nArquivos: a.py\n")
 
     def test_executor_model_from_ticket(self):
         self.ticket("simples")

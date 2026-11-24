@@ -7,21 +7,38 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
-const [command, ...rest] = process.argv.slice(2);
+const [command, ...originalArgs] = process.argv.slice(2);
+let rest = originalArgs;
+let environment = "ambos";
 const version = require(path.join(root, "package.json")).version;
 const LEGACY = /\.harness\//;
 // Plugins de portão que o tr absorveu na 3.0: o agente mudou de nome junto.
 const ABSORBED = { "bugs@fullchico": true, "qualidade@fullchico": true };
 const RENAMED_AGENTS = { "bugs:cacador": "tr:bugs-cacador" };
-const usage = "uso: fullchico-harness install [pasta do projeto] [--padrao] [--migrar]   (plugins por projeto e portões)\n" +
+const usage = "uso: fullchico-harness install [pasta do projeto] [--ambiente claude|codex|ambos] [--padrao] [--migrar]\n" +
+  "     fullchico-harness install-codex [pasta do projeto] [--padrao]   (portões e memória no Codex)\n" +
   "     fullchico-harness puro [pasta do projeto]\n" +
   "     fullchico-harness portoes [--analisar] [--gravar] [--padrao] [--definir <portão> \"<comando>\"] [--registrar <esboço.json>] [--projeto <pasta>]\n" +
+  "     fullchico-harness entregar [pasta do projeto]   (valida portões e passaportes na entrega)\n" +
   "     fullchico-harness add <plugin> [<plugin>...] [--project <pasta>]   (tr, memoria)\n" +
   "     fullchico-harness custo [pasta do projeto] [--desde <commit|AAAA-MM-DD[THH:MM]>] [--json]   (o que a entrega custou)\n" +
   "     fullchico-harness --version\n" +
   "  (pelo npx: npx @fullchico/harness <comando>)";
 
-if (command === "puro") {
+if (command === "install") {
+  const chosen = selectEnvironment(rest);
+  if (chosen.error) {
+    console.error(`install: ${chosen.error}\n${usage}`);
+    process.exit(2);
+  }
+  rest = chosen.args;
+  environment = chosen.environment;
+}
+
+if (command === "install-codex") {
+  const run = spawnSync("python3", ["-I", path.join(root, "tools/install_codex.py"), ...rest], { stdio: "inherit" });
+  process.exit(run.status === null ? 1 : run.status);
+} else if (command === "puro") {
   // Marca o projeto como puro e traz do global só a ferramenta pessoal (Orca, rtk), para o escopo local.
   const project = rest.find((arg) => !arg.startsWith("-")) || ".";
   const run = spawnSync("python3", ["-I", path.join(root, "plugins/tr/scripts/make_pure.py"), project], { stdio: "inherit" });
@@ -29,6 +46,11 @@ if (command === "puro") {
 } else if (command === "portoes") {
   // Propõe (--analisar, o padrão) ou grava (--gravar) o registro de portões do projeto em .claude/trilho.json.
   const run = spawnSync("python3", ["-I", path.join(root, "plugins/tr/scripts/portoes.py"), ...rest], { stdio: "inherit" });
+  process.exit(run.status === null ? 1 : run.status);
+} else if (command === "entregar") {
+  const project = path.resolve(rest[0] || ".");
+  const run = spawnSync("python3", ["-I", path.join(root, "plugins/tr/scripts/portao.py"), "entrega"],
+    { cwd: project, stdio: "inherit" });
   process.exit(run.status === null ? 1 : run.status);
 } else if (command === "add") {
   const names = [];
@@ -59,9 +81,15 @@ if (command === "puro") {
   // O harness do projeto no modelo novo: plugins por projeto e registro de portões. O dono escolhe
   // o padrão da lib (--padrao) ou a análise do que o projeto já usa (o padrão do comando).
   const project = rest.find((arg) => !arg.startsWith("-")) || ".";
-  const inGit = spawnSync("git", ["-C", project, "rev-parse", "--show-toplevel"], { encoding: "utf8" });
-  if (inGit.status !== 0) {
-    console.error(`install: ${project} não é um repositório git.`);
+  if (environment === "codex") {
+    if (rest.includes("--migrar")) {
+      console.error("install: --migrar só se aplica à instalação do Claude Code.");
+      process.exit(2);
+    }
+    process.exit(installCodex(project, rest.includes("--padrao")));
+  }
+  if (!fs.existsSync(project) || !fs.statSync(project).isDirectory()) {
+    console.error(`install: ${project} não é uma pasta do projeto.`);
     process.exit(2);
   }
   // Instalar é passo do dono: dentro de uma sessão com sandbox o settings do projeto é protegido, e
@@ -85,6 +113,15 @@ if (command === "puro") {
   }
   const legacy = legacyState(project);
   if (legacy.length && rest.includes("--migrar")) migrateLegacy(project);
+  const gitCheck = spawnSync("git", ["-C", project, "rev-parse", "--show-toplevel"], { encoding: "utf8" });
+  if (gitCheck.status !== 0) {
+    const init = spawnSync("git", ["-C", project, "init", "-q"], { encoding: "utf8" });
+    if (init.status !== 0) {
+      console.error(`install: não foi possível iniciar o repositório Git do projeto. ${init.stderr || ""}`);
+      process.exit(1);
+    }
+    console.log(`Git local iniciado em ${project}.`);
+  }
   // A lib cuida do caminho e da aprendizagem; começo e fim são das ferramentas do projeto, ligadas pelos
   // portões. O ponytail (código mínimo) e o mattpocock-skills (processo: grilling, tdd, revisão) vêm junto.
   let status = addPlugins(["tr", "memoria"], project, [
@@ -113,25 +150,68 @@ if (command === "puro") {
   const ok = !status && gates.status === 0;
   if (legacy.length && !rest.includes("--migrar")) {
     console.log("\nAviso: o projeto ainda tem o harness antigo (" + legacy.join("; ") + ").\n" +
-      "Os dois juntos não funcionam: o envio do antigo (`.harness/push`) passa por fora dos portões novos e o\n" +
+      "Os dois juntos não funcionam: a etapa final do antigo (`.harness/push`) conflita com a entrega nova e o\n" +
       "mapa do código entra duas vezes. Para desligar o antigo: `fullchico-harness install --migrar`.");
   }
   if (!ok) {
     console.error("\ninstall: terminou com erro (veja acima). Corrija e rode de novo; os passos seguintes dependem disto.");
     process.exit(status || (gates.status === null ? 1 : gates.status) || 1);
   }
+  if (environment === "ambos") {
+    const codexStatus = installCodex(project, rest.includes("--padrao"));
+    if (codexStatus) process.exit(codexStatus);
+  }
   console.log("\nPróximos passos:\n" +
-    "  1. Faça o commit de `.claude/settings.json` e `.claude/trilho.json`: carimbo de fim só assina com a árvore limpa.\n" +
+    "  1. Revise `.claude/settings.json` e `.claude/trilho.json`; o install inicia Git se necessário.\n" +
     "  2. Ligue o modo puro: `fullchico-harness puro`, e abra o projeto com `cc` (claude clean).\n" +
     "  3. Na sessão, peça `/tr:configurar` para a entrevista propor os portões; quem grava é você, no terminal.\n" +
-    "  4. Confira com `portao` o que cada etapa pede.\n" +
+    "  4. Confira com `portao` o que cada etapa pede; ao final, rode `fullchico-harness entregar`.\n" +
     "  5. Cada demanda começa com `/tr:processo-planejar` (entrevista, spec, tickets); os portões de fim\n" +
     "     são validados por `/tr:qualidade-verificar` e `/tr:bugs-cacar`.\n" +
-    "  Modelo por papel em .claude/settings.local.json: a sessão em opus planeja; subagentes em sonnet ou haiku.");
+    "  Modelo por papel em .claude/settings.local.json: a sessão em opus planeja; subagentes em sonnet ou haiku." +
+    (environment === "ambos" ? "\n  Codex: abra uma sessão nova e aceite os hooks locais; use a skill tr-codex." : ""));
   process.exit(0);
 } else {
   console.error(usage);
   process.exit(command === "--help" || command === "-h" ? 0 : 2);
+}
+
+function installCodex(project, padrao) {
+  const args = ["-I", path.join(root, "tools/install_codex.py"), project];
+  if (padrao) args.push("--padrao");
+  const run = spawnSync("python3", args, { stdio: "inherit" });
+  return run.status === null ? 1 : run.status;
+}
+
+function selectEnvironment(args) {
+  const kept = [];
+  let selected;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] !== "--ambiente") {
+      kept.push(args[i]);
+      continue;
+    }
+    if (selected !== undefined) return { error: "--ambiente foi informado mais de uma vez." };
+    selected = args[++i];
+  }
+  if (selected !== undefined && !["claude", "codex", "ambos"].includes(selected)) {
+    return { error: "--ambiente deve ser claude, codex ou ambos." };
+  }
+  if (!selected && process.stdin.isTTY && process.stdout.isTTY) {
+    process.stdout.write("\nInstalar o harness em qual ambiente?\n  1. Claude Code\n  2. Codex\n  3. Ambos\nEscolha [3]: ");
+    const buffer = Buffer.alloc(32);
+    let line = "";
+    while (!line.includes("\n") && line.length < 32) {
+      const count = fs.readSync(0, buffer, 0, buffer.length, null);
+      if (!count) return { error: "nenhuma escolha recebida." };
+      line += buffer.toString("utf8", 0, count);
+    }
+    const answer = line.trim();
+    selected = ({ "": "ambos", "1": "claude", "2": "codex", "3": "ambos",
+      "claude": "claude", "codex": "codex", "ambos": "ambos" })[answer];
+    if (!selected) return { error: "escolha inválida; use 1, 2 ou 3." };
+  }
+  return { environment: selected || "ambos", args: kept };
 }
 
 // Instala plugins do marketplace do FullChico no escopo do projeto, pelo `claude`. Devolve o status.
@@ -149,6 +229,7 @@ function addPlugins(names, project, extras = []) {
     if (run.error && run.error.code === "ENOENT") {
       console.log("\nO `claude` não está no PATH. Rode você, na pasta do projeto:");
       for (const left of commands.slice(i)) console.log(`  claude ${left.join(" ")}`);
+      status = 1;
       break;
     }
     // o marketplace já registrado não é erro; a instalação que falha é

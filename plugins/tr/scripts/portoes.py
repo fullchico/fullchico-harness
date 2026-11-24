@@ -173,7 +173,7 @@ def analisar(project):
     elif os.path.isdir(p("docs", "specs")):
         portoes["processo"] = {"momento": "inicio", "assina": "artefato", "artefato": "docs/specs/*/spec.md",
                                "descricao": "spec da mudança, saída da entrevista" + (" (grill-me)" if grill else "")}
-        why.append(("processo", "a pasta `docs/specs/` existe: a etapa é haver uma spec nova ou alterada na branch"))
+        why.append(("processo", "a pasta `docs/specs/` existe: a etapa é haver uma spec para a demanda atual"))
     if grill and "processo" in portoes:
         why.append(("processo", "há skill de entrevista (grill-me) no projeto: a descrição a cita"))
 

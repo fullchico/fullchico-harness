@@ -32,11 +32,13 @@ class TestPackage(unittest.TestCase):
         self.assertEqual(run("install", "--legado").returncode, 2, "o modelo antigo saiu")
         r = run("install", "/caminho/que/nao/existe")
         self.assertEqual(r.returncode, 2)
-        self.assertIn("não é um repositório git", r.stderr)
+        self.assertIn("não é uma pasta do projeto", r.stderr)
 
     def test_everything_the_package_ships_exists(self):
         package = json.loads((ROOT / "package.json").read_text())
         for entry in package["files"]:
+            if entry.startswith("!"):
+                continue
             self.assertTrue((ROOT / entry.rstrip("/")).exists(), entry)
         self.assertTrue((ROOT / package["bin"]["fullchico-harness"]).exists())
 

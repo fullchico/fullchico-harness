@@ -1,0 +1,22 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {"matcher": "Bash|apply_patch|spawn_agent|Agent", "hooks": [
+        {"type": "command", "command": "python3 -I \"${PLUGIN_ROOT}/scripts/codex_hook.py\"", "timeout": 30}
+      ]}
+    ],
+    "PostToolUse": [
+      {"matcher": "Bash", "hooks": [
+        {"type": "command", "command": "python3 -I \"${PLUGIN_ROOT}/scripts/codex_hook.py\"", "timeout": 30}
+      ]}
+    ],
+    "Stop": [
+      {"hooks": [{"type": "command", "command": "python3 -I \"${PLUGIN_ROOT}/scripts/delivery_stop.py\"", "timeout": 30}]}
+    ],
+    "SubagentStop": [
+      {"hooks": [
+        {"type": "command", "command": "python3 -I \"${PLUGIN_ROOT}/scripts/codex_hook.py\"", "timeout": 30}
+      ]}
+    ]
+  }
+}

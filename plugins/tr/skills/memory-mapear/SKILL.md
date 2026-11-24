@@ -1,5 +1,5 @@
 ---
-name: mapear
+name: memory-mapear
 description: Gera ou atualiza o mapa do código e as âncoras do glossário e dos ADRs. Use quando o mapa não existe, quando `memoria check` acusa itens envelhecidos, ou depois de uma mudança grande.
 ---
 
