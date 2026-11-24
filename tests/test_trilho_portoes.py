@@ -98,7 +98,7 @@ class TestRegistry(Case):
     def test_invalid_registries_give_a_clear_error(self):
         casos = {
             "não é json": "não pôde ser lido",
-            json.dumps({"portoes": {"a": {"momento": "meio", "assina": "comando", "comando": "x"}}}): "`momento`",
+            json.dumps({"portoes": {"a": {"momento": "meio-invalido", "assina": "comando", "comando": "x"}}}): "`momento`",
             json.dumps({"portoes": {"a": {"momento": "fim", "assina": "magia"}}}): "`assina`",
             json.dumps({"portoes": {"a": {"momento": "fim", "assina": "comando"}}}): "campo `comando`",
             json.dumps({"portoes": {"a b": QUALIDADE}}): "o nome",
@@ -351,7 +351,7 @@ class TestProtectionAndInit(Case):
 
     def test_an_invalid_registry_blocks_the_send_with_the_reason(self):
         (self.repo / ".claude").mkdir()
-        (self.repo / ".claude/trilho.json").write_text(json.dumps({"portoes": {"a": {"momento": "meio"}}}))
+        (self.repo / ".claude/trilho.json").write_text(json.dumps({"portoes": {"a": {"momento": "inválido"}}}))
         r = self.portao("entrega")
         self.assertEqual(r.returncode, 2)
         self.assertIn("`momento`", r.stdout)

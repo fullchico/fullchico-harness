@@ -23,6 +23,12 @@ pode exigir um remoto ou publicação por meio de um portão próprio em `.claud
 Por exemplo, um portão de comando pode verificar `git remote get-url <nome>`; o nome e o momento
 desse portão são escolhidos pelo projeto.
 
+Para registrar modelos por papel, rode `fullchico-harness modelos configurar` no terminal
+(interativo) ou informe pares, por exemplo `modelos configurar planejamento claude:opus
+execucao codex:luna revisao codex:sol apoio claude:sonnet`. `modelos mostrar` exibe os espelhos
+iniciais Opus/Sol, Sonnet/Luna, Haiku/Terra e Fable/Astra. A configuração registra a intenção;
+o disparo misto entre CLIs e a troca automática por limite ainda não são executados por esse comando.
+
 ## Sumário
 
 - [A divisão](#a-divisão)
@@ -95,9 +101,9 @@ com registro, a do `.claude/settings.json` e do `.claude/settings.local.json` (e
 
 - escreve o pedido de cada validador (o que quem escreveu o código disse é descartado);
 - mantém o validador só leitura;
-- fixa o **modelo por papel**: a sessão principal (opus, gravado no `.claude/settings.local.json` pelo
-  `install`) planeja e orquestra; o subagente de ticket `Complexidade: simples` roda em haiku, o de
-  `complexa` (ou sem marca) em sonnet; subagente nunca roda em opus;
+- mantém a seleção existente por complexidade do ticket (haiku ou sonnet) nos subagentes Claude;
+  `fullchico-harness modelos configurar` registra separadamente os modelos desejados para
+  planejamento, execução, revisão e apoio antes de um fluxo misto;
 - barra `portao <nome>` combinado com pipe ou `&&` (rodaria sem carimbar) e os scripts do harness
   antigo (`.harness/`).
 
@@ -136,7 +142,9 @@ mudanças apenas em `docs/` ou arquivos `.md` não invalidam portões de fim.
 Mapa do código e notas ancoradas, por projeto, injetadas no começo de cada sessão, no plugin
 `memoria`: `/tr:memory-mapear` atualiza o mapa, `/tr:memory-dream` consolida o que as sessões
 ensinaram (proposto por um extrator isolado, conferido contra o código) e `/tr:memory-aprender` mede
-o consumo e faz a retrospectiva depois de uma entrega.
+o consumo e faz a retrospectiva depois de uma entrega. `memoria graph rebuild` atualiza o
+Graphify local quando instalado; `memoria graph search <termos>` cruza o grafo de código com
+resumos, notas, glossário e ADRs. Os dados gerados ficam fora dos arquivos versionados.
 
 *Status: disponível.*
 
@@ -145,7 +153,7 @@ o consumo e faz a retrospectiva depois de uma entrega.
 | Plugin | O que faz | Estado |
 |---|---|---|
 | `tr` | os portões: registro, `portao`, aplicador único, validadores, passaporte, modelo por papel, modo puro | disponível |
-| `memoria` | mapa do código e notas ancoradas, injetados no começo da sessão | disponível |
+| `memoria` | mapa, grafo local e notas ancoradas, compartilhados entre Claude e Codex | disponível |
 | `orquestracao` | automação dedicada de worktrees e execução em segundo plano | a vir; o grafo, a fronteira e a conferência já estão no `tr` |
 
 Toda skill própria é acionada pelo `tr`, inclusive as de memória, com invoker `/tr:<nome>`:
@@ -183,6 +191,8 @@ em `.codex/agents/`. As oito skills próprias e o fluxo `grill-me` incluído fic
 em `.agents/skills/`. Instala também todas as skills de
 [Ponytail](https://www.skills.sh/dietrichgebert/ponytail) e
 [Matt Pocock](https://www.skills.sh/mattpocock/skills) pelo skills CLI, direcionadas ao Codex.
+A skill `graphify` do plugin `memoria` também é instalada em `.agents/skills/graphify`.
+Para habilitar o motor AST local, instale a CLI oficial com `uv tool install --with anyio graphifyy`.
 O registro de portões fica em
 `.claude/trilho.json` e é compartilhado com Claude Code quando os dois estão instalados.
 `install --ambiente codex --padrao` usa os portões padrão; sem a opção, analisa o projeto. Rodar o
@@ -258,8 +268,10 @@ projeto roda o `add` (ou o `claude plugin install <nome>@fullchico --scope proje
 
 ## Registro de portões
 
-Fica em `.claude/trilho.json`, chave `portoes`. Cada portão tem um `momento` (`inicio` ou `fim`) e
-um modo de assinar (`comando`, `artefato` ou `agente`).
+Fica em `.claude/trilho.json`, chave `portoes`. Cada portão tem um `momento` (`inicio`, `meio` ou `fim`) e
+um modo de assinar (`comando`, `artefato` ou `agente`). Portões de meio são vinculados a um
+ticket pelo campo `Meio:` e usam `portao <nome> --ticket <caminho>`; nesta versão, aceitam
+`comando` ou `artefato`.
 
 ```json
 {

@@ -20,6 +20,7 @@ const usage = "uso: fullchico-harness install [pasta do projeto] [--ambiente cla
   "     fullchico-harness puro [pasta do projeto]\n" +
   "     fullchico-harness portoes [--analisar] [--gravar] [--padrao] [--definir <portão> \"<comando>\"] [--registrar <esboço.json>] [--projeto <pasta>]\n" +
   "     fullchico-harness entregar [pasta do projeto]   (valida portões e passaportes na entrega)\n" +
+  "     fullchico-harness modelos configurar [papel cli:modelo ...] | mostrar [--projeto <pasta>]\n" +
   "     fullchico-harness add <plugin> [<plugin>...] [--project <pasta>]   (tr, memoria)\n" +
   "     fullchico-harness custo [pasta do projeto] [--desde <commit|AAAA-MM-DD[THH:MM]>] [--json]   (o que a entrega custou)\n" +
   "     fullchico-harness --version\n" +
@@ -46,6 +47,9 @@ if (command === "install-codex") {
 } else if (command === "portoes") {
   // Propõe (--analisar, o padrão) ou grava (--gravar) o registro de portões do projeto em .claude/trilho.json.
   const run = spawnSync("python3", ["-I", path.join(root, "plugins/tr/scripts/portoes.py"), ...rest], { stdio: "inherit" });
+  process.exit(run.status === null ? 1 : run.status);
+} else if (command === "modelos") {
+  const run = spawnSync("python3", ["-I", path.join(root, "plugins/tr/scripts/modelos.py"), ...rest], { stdio: "inherit" });
   process.exit(run.status === null ? 1 : run.status);
 } else if (command === "entregar") {
   const project = path.resolve(rest[0] || ".");

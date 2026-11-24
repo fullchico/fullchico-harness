@@ -6,7 +6,7 @@ portões e estado. Este módulo só lê os carimbos do ledger.
 import os
 import re
 
-FIELD = re.compile(r"(?mi)^\s*(Status|Bloqueado por|Entrada|Portões|Arquivos|Entrega):\s*(.*?)\s*$")
+FIELD = re.compile(r"(?mi)^\s*(Status|Bloqueado por|Entrada|Meio|Portões|Arquivos|Entrega):\s*(.*?)\s*$")
 
 
 def tickets(root):
@@ -32,7 +32,7 @@ def tickets(root):
 def required_gates(root):
     """Portões locais pedidos pelos passaportes dos tickets."""
     return {gate for fields in tickets(root).values()
-            for field in ("entrada", "portões")
+            for field in ("entrada", "meio", "portões")
             for gate in (_names(fields.get(field)) or []) if gate.lower() != "nenhum"}
 
 
@@ -102,6 +102,18 @@ def audit(root, reg):
             gates = []
         if len(gates) == 1 and gates[0].lower() == "nenhum":
             gates = []
+        middle = _names(fields.get("meio"))
+        if middle is None:
+            middle = []
+        if len(middle) == 1 and middle[0].lower() == "nenhum":
+            middle = []
+        status = fields.get("status", "").lower()
+        for gate in middle:
+            item = reg["portoes"].get(gate)
+            if not item or item["momento"] != "meio":
+                problems.append(f"{path}: `{gate}` não é portão de meio do registro")
+            elif status == "done" and not registry_satisfied(root, gate, reg, ticket=path):
+                problems.append(f"{path}: falta carimbo de meio `{gate}` para esta versão do ticket")
         for gate in gates:
             item = reg["portoes"].get(gate)
             if not item or item["momento"] != "fim":
@@ -114,7 +126,6 @@ def audit(root, reg):
             if pattern.startswith("/") or ".." in pattern.split("/"):
                 problems.append(f"{path}: caminho inválido em `Arquivos:`: {pattern}")
         plan_ok[path] = len(problems) == first_problem
-        status = fields.get("status", "").lower()
         if status not in ("open", "done"):
             problems.append(f"{path}: `Status:` deve ser open ou done")
             plan_ok[path] = False
@@ -167,9 +178,9 @@ def audit(root, reg):
     return problems, ready
 
 
-def registry_satisfied(root, name, reg):
+def registry_satisfied(root, name, reg, ticket=None):
     import registry  # evita ciclo: registry.exigidos consulta tickets
-    return registry.satisfied(root, name, reg)
+    return registry.satisfied(root, name, reg, ticket=ticket)
 
 
 def dispatch_problem(root, reg, prompt):

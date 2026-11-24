@@ -48,9 +48,10 @@ def normalize(payload):
         data["agent_type"] = AGENTS[data["agent_type"]]
     if data.get("hook_event_name") == "PostToolUse":
         command = ti.get("command", "")
-        match = re.fullmatch(r"python3 -I \.codex/harness/tr/scripts/portao\.py ([\w.-]+)", command.strip())
+        match = re.fullmatch(r"python3 -I \.codex/harness/tr/scripts/portao\.py ([\w.-]+)(?: --ticket ([^\s]+))?", command.strip())
         if match:
-            data["tool_input"] = {"command": "portao " + match.group(1)}
+            data["tool_input"] = {"command": "portao " + match.group(1) +
+                                  (" --ticket " + match.group(2) if match.group(2) else "")}
         response = data.get("tool_response")
         if isinstance(response, dict):
             if response.get("exit_code", 0) not in (0, None):

@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import registry  # noqa: E402
 import tasks  # noqa: E402
 
-MOMENTO = {"inicio": "início", "fim": "fim"}
+MOMENTO = {"inicio": "início", "meio": "meio (por ticket)", "fim": "fim"}
 
 
 def listar(root, reg):
@@ -22,6 +22,9 @@ def listar(root, reg):
     exigidos = set(registry.exigidos(root, "fim", reg)) | set(registry.exigidos(root, "inicio", reg))
     task_gates = tasks.required_gates(root)
     for name, gate in reg["portoes"].items():
+        if gate["momento"] == "meio":
+            print(f"[ticket] {name} (meio, carimbo vinculado à versão do ticket)")
+            continue
         if name not in exigidos:
             if name in task_gates:
                 print(f"[task] {name} ({MOMENTO[gate['momento']]}, exigido nos passaportes dos tickets indicados abaixo)")
@@ -57,10 +60,16 @@ def run(command, root, *args):
     return subprocess.run(["bash", "-c", command, "_", *args], cwd=root).returncode
 
 
-def verificar(root, reg, name):
+def verificar(root, reg, name, ticket=None):
     gate = reg["portoes"].get(name)
     if gate is None:
         print(f"portao {name}: FALHOU (portão desconhecido; existem: {', '.join(reg['portoes'])})")
+        return 2
+    if gate["momento"] == "meio" and not ticket:
+        print(f"portao {name}: FALHOU (portão de meio exige --ticket <caminho>)")
+        return 2
+    if gate["momento"] == "meio" and ticket not in tasks.tickets(root):
+        print(f"portao {name}: FALHOU (ticket não encontrado no passaporte da demanda)")
         return 2
     if gate["assina"] == "agente":
         print(f"O portão `{name}` só é assinado pelo agente `{gate['agente']}`: dispare-o sobre o commit do topo.\n"
@@ -84,7 +93,7 @@ def verificar(root, reg, name):
             code, motivo = run(gate["valida"] + ' "$@"', root, *files), gate["valida"]
     print()
     if code == 0:
-        print(f"portao {name}: passou")
+        print(f"portao {name}{' ticket ' + ticket if ticket else ''}: passou")
         return 0
     print(f"portao {name}: FALHOU ({motivo})")
     return 1
@@ -112,7 +121,17 @@ def main(argv):
             return 1
         print("Entrega validada: portões de início, fim e passaportes concluídos.")
         return 0
-    return verificar(root, reg, argv[0]) if argv else listar(root, reg)
+    if not argv:
+        return listar(root, reg)
+    name = argv[0]
+    ticket = None
+    if "--ticket" in argv:
+        i = argv.index("--ticket")
+        if i + 1 >= len(argv) or i != 1:
+            print("uso: portao <nome> [--ticket <caminho>]")
+            return 2
+        ticket = argv[i + 1]
+    return verificar(root, reg, name, ticket)
 
 
 if __name__ == "__main__":

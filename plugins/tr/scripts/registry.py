@@ -15,7 +15,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ledger  # noqa: E402
 
-MOMENTOS = ("inicio", "fim")
+MOMENTOS = ("inicio", "meio", "fim")
 MODOS = ("comando", "artefato", "agente")
 DEFINIR = "@definir"  # comando ainda sem dono: o portão barra até o dono definir
 VERIFICADOR = "tr:qualidade-verificador"  # quem valida os portões de comando, um disparo por portão
@@ -90,10 +90,12 @@ def _validate(name, gate):
     if not isinstance(gate, dict):
         raise RegistryError(f"{where}: deve ser um objeto.")
     if gate.get("momento") not in MOMENTOS:
-        raise RegistryError(f"{where}: `momento` deve ser `inicio` ou `fim` (veio {gate.get('momento')!r}).")
+        raise RegistryError(f"{where}: `momento` deve ser `inicio`, `meio` ou `fim` (veio {gate.get('momento')!r}).")
     mode = gate.get("assina")
     if mode not in MODOS:
         raise RegistryError(f"{where}: `assina` deve ser `comando`, `artefato` ou `agente` (veio {mode!r}).")
+    if gate["momento"] == "meio" and mode == "agente":
+        raise RegistryError(f"{where}: portão de meio aceita `comando` ou `artefato`; agente próprio ainda não é suportado.")
     if not isinstance(gate.get(mode), str) or not gate[mode].strip():
         raise RegistryError(f"{where}: `assina: {mode}` exige o campo `{mode}` preenchido.")
     for opt in ("valida", "descricao"):
@@ -171,8 +173,19 @@ def _hash(*parts):
     return hashlib.sha1("\n".join(parts).encode()).hexdigest()
 
 
-def stamp_key(root, gate):
+def stamp_key(root, gate, ticket=None):
     """Chave do carimbo (40 hex). Fim: snapshot do código. Início: artefato ou definição do portão."""
+    if gate["momento"] == "meio":
+        if not ticket:
+            return None
+        try:
+            with open(os.path.join(root, ticket), encoding="utf-8") as stream:
+                content = stream.read()
+        except OSError:
+            return None
+        content = re.sub(r"(?mi)^\s*Status:\s*(?:open|done)\s*$", "Status: <state>", content)
+        version = hashlib.sha1(content.encode()).hexdigest()
+        return _hash(ticket, version, ledger.head(root))
     if gate["momento"] == "fim":
         return ledger.head(root)
     if gate["assina"] == "artefato":
@@ -195,23 +208,28 @@ def doc_only(path):
     return path.startswith("docs/") or path.endswith(".md")
 
 
-def stamped_commit(root, name, gate):
+def stamped_commit(root, name, gate, ticket=None):
     """O commit cujo carimbo vale para o topo, ou None.
 
     Início: a chave do plano. Fim: o topo; ou um commit anterior carimbado, se do carimbo até o topo
     só mudou documentação (um commit de relatório não refaz a rodada inteira de portões).
     """
-    key = stamp_key(root, gate)
+    key = stamp_key(root, gate, ticket)
     if not key:
         return None
-    if ledger.has(root, name, key):
+    stamp = scoped_stamp(name, ticket) if ticket else name
+    if ledger.has(root, stamp, key):
         return key
     return None
 
 
-def satisfied(root, name, reg=None):
+def scoped_stamp(name, ticket):
+    return f"{name}-{hashlib.sha1(ticket.encode()).hexdigest()[:12]}" if ticket else name
+
+
+def satisfied(root, name, reg=None, ticket=None):
     reg = reg or load(root)
-    return stamped_commit(root, name, reg["portoes"][name]) is not None
+    return stamped_commit(root, name, reg["portoes"][name], ticket) is not None
 
 
 _PORTOES = re.compile(r"(?mi)^[\s>*_-]*port(?:õ|o)es[*_]*:[*_]*\s*(.+?)\s*$")
@@ -245,6 +263,8 @@ def exigidos(root, momento, reg):
     """Os portões do momento que valem para esta demanda: no fim, os `sempre` (padrão) e os do passaporte."""
     names = [n for n, g in reg["portoes"].items() if g["momento"] == momento]
     import tasks  # tickets com passaporte próprio tornam portões opcionais locais à task
+    if momento == "meio":
+        return []  # meio é sempre escopado a ticket e conferido por tasks.audit
     if momento != "fim":
         return ([n for n in names if reg["portoes"][n].get("sempre", True)]
                 if tasks.tickets(root) else names)

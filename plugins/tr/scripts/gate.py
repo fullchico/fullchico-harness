@@ -116,7 +116,18 @@ def disparo(root, reg, ti):
             return deny(root, f"verificador sem portão: {nome}", quadro("validação barrada", [
                 ("validador", tipo), ("motivo", f"`{nome}` não é portão de comando ou artefato do registro"),
             ], [f"  → peça com a primeira linha `portao: <nome>`; existem: {', '.join(validadores[tipo])}"]))
-        novo["prompt"] = f"portao: {nome}\ncommit: {top}"
+        pedido_ticket = re.search(r"(?m)^\s*ticket:\s*([^\s]+)", ti.get("prompt") or "")
+        ticket = pedido_ticket.group(1) if pedido_ticket else None
+        gate = reg["portoes"][nome]
+        if gate["momento"] == "meio" and ticket not in tasks.tickets(root):
+            return deny(root, f"verificador sem ticket: {nome}", quadro("validação barrada", [
+                ("portão", nome), ("motivo", "portão de meio exige ticket válido na segunda linha"),
+            ], ["  → peça `portao: <nome>\\nticket: <caminho>`"]))
+        if gate["momento"] != "meio" and ticket:
+            return deny(root, f"ticket inesperado: {nome}", quadro("validação barrada", [
+                ("portão", nome), ("motivo", "só portão de meio recebe ticket"),
+            ]))
+        novo["prompt"] = f"portao: {nome}\n" + (f"ticket: {ticket}\n" if ticket else "") + f"commit: {top}"
     else:
         novo["prompt"] = f"snapshot: {top}\ncommit: {top}\nInspecione os arquivos atuais do projeto."
     novo.pop("model", None)  # vale o `model` da definição do validador
@@ -133,8 +144,10 @@ def portao_combinado(command):
     for words in parts:
         while words and (words[0] in WRAPPERS or re.fullmatch(r"\w+=.*", words[0])):
             words = words[1:]
-        if words and os.path.basename(words[0]) == "portao" and len(words) > 1 and (len(parts) > 1 or len(words) > 2):
-            return True
+        if words and os.path.basename(words[0]) == "portao" and len(words) > 1:
+            valid = len(words) == 2 or (len(words) == 4 and words[2] == "--ticket")
+            if len(parts) > 1 or not valid:
+                return True
     return False
 
 

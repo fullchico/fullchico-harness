@@ -40,15 +40,16 @@ def output_of(response):
 
 def from_command(payload, root, reg):
     command = ((payload.get("tool_input") or {}).get("command") or "").strip()
-    m = re.fullmatch(r"portao[ \t]+([\w.-]+)", command)
+    m = re.fullmatch(r"portao[ \t]+([\w.-]+)(?:[ \t]+--ticket[ \t]+([^\s]+))?", command)
     if not m:
         return 0
-    name = m.group(1)
+    name, ticket = m.group(1), m.group(2)
     gate = reg["portoes"].get(name)
     if not gate or gate["assina"] == "agente":
         return 0
     lines = [l for l in output_of(payload.get("tool_response")).splitlines() if l.strip()]
-    if not lines or lines[-1].strip() != f"portao {name}: passou":
+    expected = f"portao {name}{' ticket ' + ticket if ticket else ''}: passou"
+    if not lines or lines[-1].strip() != expected:
         return 0
     if payload.get("agent_type") != registry.VERIFICADOR:
         # quem escreveu o código vê o resultado, mas não assina: o carimbo vem de um subagente limpo
@@ -60,11 +61,16 @@ def from_command(payload, root, reg):
             ("portão", name), ("motivo", "passou, mas a árvore tem alteração sem commit"),
         ], [f"  → faça o commit e rode `portao {name}` de novo"],
             "o fiscal só assina com a árvore limpa"))
-    key = registry.stamp_key(root, gate)
+    if gate["momento"] == "meio" and (not ticket or ticket not in __import__("tasks").tickets(root)):
+        return 0
+    if gate["momento"] != "meio" and ticket:
+        return 0
+    key = registry.stamp_key(root, gate, ticket)
     if not key:
         return 0
-    ledger.sign(root, name, key, "trilho", version(), f"portao {name}", f"{name} passou ({gate['assina']})")
-    ledger.log(root, "trilho", "assinou", f"{name}: {key[:10]}")
+    stamp = registry.scoped_stamp(name, ticket) if ticket else name
+    ledger.sign(root, stamp, key, "trilho", version(), f"portao {name}", f"{name} passou ({gate['assina']})")
+    ledger.log(root, "trilho", "assinou", f"{stamp}: {key[:10]}")
     return saida.avisar(f"✓ trilho · {name} carimbado ({key[:10]})")
 
 

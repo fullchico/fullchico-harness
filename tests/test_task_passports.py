@@ -18,6 +18,7 @@ GATES = {
     "a11y": {"momento": "fim", "assina": "comando", "comando": "true", "sempre": False},
     "api": {"momento": "fim", "assina": "comando", "comando": "true", "sempre": False},
     "design": {"momento": "inicio", "assina": "artefato", "artefato": "docs/specs/*/design.md", "sempre": False},
+    "execucao": {"momento": "meio", "assina": "comando", "comando": "true", "sempre": False},
 }
 
 
@@ -71,6 +72,33 @@ class TestTaskPassports(unittest.TestCase):
             str(self.repo), reg, str(front.relative_to(self.repo))))
         with mock.patch.object(registry, "satisfied", return_value=True):
             self.assertIn(str(front.relative_to(self.repo)), tasks.audit(str(self.repo), reg)[1])
+
+    def test_middle_gate_is_ticket_scoped_and_result_versioned(self):
+        ticket = self.ticket("01", "nenhum")
+        ticket.write_text(ticket.read_text().replace("Portões: nenhum", "Meio: execucao\nPortões: nenhum"))
+        commit_all(self.repo, "plan with middle gate")
+        rel = str(ticket.relative_to(self.repo))
+        reg = registry.load(str(self.repo))
+        key = registry.stamp_key(str(self.repo), GATES["execucao"], rel)
+        self.assertTrue(key)
+        self.assertFalse(registry.satisfied(str(self.repo), "execucao", reg, ticket=rel))
+        ticket.write_text(ticket.read_text() + "Resultado: atualizado\n")
+        self.assertNotEqual(key, registry.stamp_key(str(self.repo), GATES["execucao"], rel))
+        problems, ready = tasks.audit(str(self.repo), reg)
+        self.assertFalse(any("falta carimbo de meio `execucao`" in item for item in problems))
+        self.assertIn(rel, ready)
+        before_done = registry.stamp_key(str(self.repo), GATES["execucao"], rel)
+        ticket.write_text(ticket.read_text().replace("Status: open", "Status: done"))
+        self.assertEqual(before_done, registry.stamp_key(str(self.repo), GATES["execucao"], rel))
+        scoped = registry.scoped_stamp("execucao", rel)
+        with mock.patch.object(ledger, "has", side_effect=lambda root, stamp, key: stamp == scoped and key == before_done):
+            self.assertTrue(registry.satisfied(str(self.repo), "execucao", reg, ticket=rel))
+            problems, ready = tasks.audit(str(self.repo), reg)
+        self.assertFalse(any("falta carimbo de meio `execucao`" in item for item in problems))
+        self.assertEqual(ready, [])
+        current_key = registry.stamp_key(str(self.repo), GATES["execucao"], rel)
+        (self.repo / "source.py").write_text("print('changed')\n")
+        self.assertNotEqual(current_key, registry.stamp_key(str(self.repo), GATES["execucao"], rel))
 
     def test_final_requires_each_ticket_stamp_on_current_snapshot(self):
         front = self.ticket("01", "a11y", paths="front.tsx")

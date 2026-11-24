@@ -37,6 +37,7 @@ class TestCodex(unittest.TestCase):
         self.assertNotIn("PreToolUse", data, "os hooks do trilho vêm do plugin Codex")
         self.assertEqual(data["SessionStart"][0]["hooks"][0]["command"], "echo hi")
         self.assertTrue((self.repo / ".agents/skills/tr-codex/SKILL.md").exists())
+        self.assertTrue((self.repo / ".agents/skills/graphify/SKILL.md").exists())
         self.assertFalse((self.repo / ".agents/skills/memoria-codex/SKILL.md").exists())
         for name in ("mapear", "dream", "aprender"):
             self.assertTrue((self.repo / f".codex/harness/tr/codex-skills/tr-memory-{name}/SKILL.md").exists())

@@ -128,7 +128,7 @@ def main(args):
     agents.mkdir(exist_ok=True)
     for name, description, instructions in (
         ("tr-qualidade-verificador", "Valida um portão de comando em contexto limpo.",
-         "Receba um pedido `portao: NOME` e `commit: HASH`. Rode somente `python3 -I .codex/harness/tr/scripts/portao.py NOME`. Não edite arquivos. Relate o resultado."),
+         "Receba `portao: NOME`, `commit: HASH` e, para portão de meio, `ticket: CAMINHO`. Rode somente `python3 -I .codex/harness/tr/scripts/portao.py NOME` com `--ticket CAMINHO` quando informado. Não edite arquivos. Relate o resultado."),
         ("tr-bugs-cacador", "Revisa defeitos concretos no estado atual do projeto.",
          "Revise os arquivos atuais e os tickets da demanda. Git é opcional. Não edite arquivos. Termine com VEREDITO: APPROVED ou REJECTED, COMMIT: <hash de 40 caracteres do snapshot>, RESUMO: <uma frase>. Reprove só com defeito concreto e arquivo:linha."),
         ("memoria-extrator", "Extrai candidatos a notas de um resumo de sessão.",
@@ -140,6 +140,7 @@ def main(args):
     skills.mkdir(parents=True, exist_ok=True)
     for name in ("tr-codex",):
         shutil.copytree(SOURCE / "tools/codex-skills" / name, skills / name, dirs_exist_ok=True)
+    shutil.copytree(SOURCE / "plugins/memoria/skills/graphify", skills / "graphify", dirs_exist_ok=True)
     legacy_skill = skills / "memoria-codex/SKILL.md"
     if legacy_skill.exists() and legacy_skill.read_text().startswith("---\nname: memoria-codex\n"):
         shutil.rmtree(legacy_skill.parent)

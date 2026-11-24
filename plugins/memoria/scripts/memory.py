@@ -39,7 +39,7 @@ COMMIT = re.compile(r"^[0-9a-f]{40,64}$")
 KINDS = ("glossary", "adr")
 TERM = re.compile(r"^(?:#{2,3}\s+(.+?)\s*#*\s*$|\*\*(.+?)\*\*)")
 ADR = re.compile(r"^\d{4}-.+\.md$")
-USAGE = "uso: memoria <units|check|record|show|slice|index|forget|anchor|anchors|note|notes> ...\n"
+USAGE = "uso: memoria <units|check|record|show|slice|index|forget|anchor|anchors|note|notes|graph> ...\n"
 
 
 # --- git e arquivos -------------------------------------------------------------------
@@ -547,6 +547,32 @@ def main(argv) -> int:
             note_forget(root, args[1])
         elif command == "notes":
             print(notes_index(root))
+        elif command == "graph" and args and args[0] == "rebuild":
+            import graphify
+            engine = graphify.update_engine(root)
+            graph = graphify.refresh(root)
+            status = ("Graphify atualizado" if engine["updated"] else
+                      "Graphify indisponível; índice local" if not engine["available"] else
+                      "Graphify falhou; índice local")
+            print(f"grafo: {len(graph['nodes'])} nós, {len(graph['edges'])} relações; {status} reconstruído")
+            if engine.get("error"):
+                print(f"grafo: {engine['error']}", file=sys.stderr)
+        elif command == "graph" and len(args) >= 2 and args[0] == "search":
+            import graphify
+            query = " ".join(args[1:])
+            engine_answer = graphify.query_engine(root, query)
+            if engine_answer:
+                print("Graphify (código):")
+                print(engine_answer)
+            results = graphify.search(root, query)
+            for item in results:
+                refs = " ".join(item["refs"])
+                detail = item["text"].splitlines()[0] if item["text"] else ""
+                print(f"{item['kind']}: {item['label']}" + (f" — {detail}" if detail else "")
+                      + (f" [refs: {refs}]" if refs else "")
+                      + (f" [commit: {item['commit'][:12]}]" if item["commit"] else ""))
+            if not results and not engine_answer:
+                print("grafo: nenhum resultado")
         else:
             sys.stderr.write(USAGE)
             return 2
