@@ -46,6 +46,9 @@ class TestCodex(unittest.TestCase):
         self.assertTrue((self.repo / ".codex/agents/tr-orquestrador.toml").exists())
         planner = (self.repo / ".codex/harness/tr/codex-skills/tr-processo-planejar/SKILL.md").read_text()
         self.assertIn("tr-orquestrador", planner)
+        discovery = self.repo / ".codex/harness/tr/codex-skills/tr-skills-descobrir/SKILL.md"
+        self.assertTrue(discovery.exists())
+        self.assertIn("$tr-grill-me", discovery.read_text())
         self.assertTrue((self.repo / ".claude/trilho.json").exists())
         market = json.loads((self.repo / ".agents/plugins/marketplace.json").read_text())
         self.assertEqual([p["name"] for p in market["plugins"]], ["tr", "memoria"])

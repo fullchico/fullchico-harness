@@ -28,6 +28,12 @@ de CI, testes, configuração de lint/typecheck, documentação de specs e ferra
 deploy. Para cada sugestão, anote a evidência concreta e confira se o comando realmente
 existe. Preserve os portões já definidos pelo dono.
 
+Use `/tr:skills-descobrir` para pesquisar uma skill somente quando a stack ou a demanda
+mostrar uma lacuna concreta. Traga à entrevista a candidata escolhida, sua origem, o que
+executa e se ela produz uma evidência para portão de entrada ou revisão final. Mostre a quais
+tickets o portão se aplica e quem o revisa. Instalar uma skill não cadastra
+um portão.
+
 ## 3. Entrevistar com o fluxo de Matt Pocock
 
 Chame `/tr:grill-me`, incluída neste plugin a partir do fluxo `grilling` de Matt Pocock.
@@ -95,6 +101,7 @@ verificação, explique o que falta sem reescrever o registro.
 ## Checklist
 
 - [ ] Resumi o doctor de cada ambiente disponível e analisei o projeto antes de perguntar.
+- [ ] Comparei skills instaladas com lacunas concretas; usei `/tr:skills-descobrir` quando coube.
 - [ ] Usei `/tr:grill-me` para decidir os portões de entrada e saída com o dono.
 - [ ] Cada portão proposto tem evidência, momento, modo de assinatura e verificador concreto.
 - [ ] Esboço fora do repositório; comandos `--definir`/`--registrar` entregues ao dono, nunca `Write`/`Edit`.

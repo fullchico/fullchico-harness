@@ -256,6 +256,7 @@ Toda skill própria é acionada pelo `tr`, inclusive as de memória, com invoker
 | `/tr:memory-dream` | `memoria:extrator` (haiku) | notas de sessões conferidas com o código |
 | `/tr:memory-aprender` | (a sessão que fecha a entrega) | retrospectiva e consolidação |
 | `/tr:grill-me` | (a sessão que entrevista) | decisões em rodadas para planejar e configurar trilhos e portões |
+| `/tr:skills-descobrir` | catálogo skills.sh + `grill-me` | compara skills para a demanda, instala a escolhida nos ambientes e propõe portão só com evidência verificável |
 
 Os plugins `bugs` e `qualidade` da 2.x foram absorvidos pelo `tr` na 3.0. Em Claude Code, cada
 plugin usa `--scope project`. Em Codex, o marketplace local `.agents/plugins/marketplace.json`
@@ -276,7 +277,7 @@ padrão é **ambos**, inclusive sem terminal interativo. Em automações, use
 
 O instalador monta os plugins `tr` e `memoria` em `.codex/harness/`, registra o marketplace local
 em `.agents/plugins/marketplace.json`, habilita ambos em `.codex/config.toml` e cria quatro agentes
-em `.codex/agents/`. As oito skills próprias e o fluxo `grill-me` incluído ficam em `tr`; o prompt auxiliar fica
+em `.codex/agents/`. As nove skills próprias e o fluxo `grill-me` incluído ficam em `tr`; o prompt auxiliar fica
 em `.agents/skills/`. Instala também todas as skills de
 [Ponytail](https://www.skills.sh/dietrichgebert/ponytail) e
 [Matt Pocock](https://www.skills.sh/mattpocock/skills) pelo skills CLI, direcionadas ao Codex.

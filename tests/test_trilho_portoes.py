@@ -398,7 +398,7 @@ class TestProtectionAndInit(Case):
         self.assertEqual(hooks["PostToolUse"][0]["matcher"], "Bash")
         self.assertNotIn("matcher", hooks["SubagentStop"][0])
         self.assertTrue(os.access(PLUGIN / "bin/portao", os.X_OK))
-        for skill in ("portoes", "configurar", "processo-planejar", "qualidade-verificar", "bugs-cacar", "grill-me"):
+        for skill in ("portoes", "configurar", "processo-planejar", "qualidade-verificar", "bugs-cacar", "grill-me", "skills-descobrir"):
             self.assertTrue((PLUGIN / f"skills/{skill}/SKILL.md").exists(), skill)
         self.assertIn("codex doctor --json", (PLUGIN / "skills/configurar/SKILL.md").read_text())
         self.assertIn("versão 1.3.1", (PLUGIN / "skills/grill-me/SKILL.md").read_text())
