@@ -205,9 +205,17 @@ function selectEnvironment(args) {
   if (!selected && process.stdin.isTTY && process.stdout.isTTY) {
     process.stdout.write("\nInstalar o harness em qual ambiente?\n  1. Claude Code\n  2. Codex\n  3. Ambos\nEscolha [3]: ");
     const buffer = Buffer.alloc(32);
+    const pause = new Int32Array(new SharedArrayBuffer(4));
     let line = "";
     while (!line.includes("\n") && line.length < 32) {
-      const count = fs.readSync(0, buffer, 0, buffer.length, null);
+      let count;
+      try {
+        count = fs.readSync(0, buffer, 0, buffer.length, null);
+      } catch (error) {
+        if (!["EAGAIN", "EWOULDBLOCK", "EINTR"].includes(error.code)) throw error;
+        Atomics.wait(pause, 0, 0, 25);
+        continue;
+      }
       if (!count) return { error: "nenhuma escolha recebida." };
       line += buffer.toString("utf8", 0, count);
     }
