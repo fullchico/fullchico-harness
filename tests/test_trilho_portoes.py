@@ -396,7 +396,7 @@ class TestProtectionAndInit(Case):
         self.assertNotIn("disable-model-invocation: true", (PLUGIN / "skills/grill-me/SKILL.md").read_text(),
                          "configurar e processo-planejar precisam chamar grill-me dentro do fluxo")
         self.assertTrue((PLUGIN / "THIRD_PARTY_NOTICES.md").exists())
-        for agent in ("bugs-cacador", "qualidade-verificador"):
+        for agent in ("bugs-cacador", "qualidade-verificador", "orquestrador"):
             text = (PLUGIN / f"agents/{agent}.md").read_text()
             self.assertIn(f"name: {agent}\n", text)
             self.assertRegex(text, r"\nmodel: (haiku|sonnet)\n")

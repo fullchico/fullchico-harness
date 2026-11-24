@@ -230,7 +230,7 @@ def main():
             ], rodape="use os comandos Git normais; não edite os arquivos internos"))
         if rel in (".codex/hooks.json", ".codex/config.toml", ".agents/plugins/marketplace.json") or (
                 rel or "").startswith(".codex/harness/") or rel in (
-                ".codex/agents/tr-qualidade-verificador.toml", ".codex/agents/tr-bugs-cacador.toml",
+                ".codex/agents/tr-orquestrador.toml", ".codex/agents/tr-qualidade-verificador.toml", ".codex/agents/tr-bugs-cacador.toml",
                 ".codex/agents/memoria-extrator.toml"):
             return deny(root, f"configuração Codex: {t}", quadro("harness protegido", [
                 ("arquivo", rel), ("motivo", "contém os hooks ou validadores que aplicam os portões"),

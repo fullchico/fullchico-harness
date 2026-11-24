@@ -140,8 +140,9 @@ esboço e os comandos; quem grava o registro protegido é o dono.
 
 Tickets com `Bloqueado por:` formam um grafo. A fronteira contém os tickets cujos bloqueadores
 já foram concluídos e carimbados; o hook impede o disparo antecipado de um executor. Tickets
-independentes podem avançar em contextos isolados. A skill `/tr:processo-planejar` coordena
-os subagentes, os fiscais e a integração.
+independentes podem avançar em contextos isolados. Após o planejamento aprovado, a sessão
+principal lança o subagente `tr:orquestrador` em segundo plano. Ele coordena executores,
+fiscais e integração; a sessão principal continua disponível para o dono.
 
 *Status: disponível no `tr` para tickets em `docs/specs/<demanda>/issues/`.*
 
@@ -150,7 +151,7 @@ os subagentes, os fiscais e a integração.
 Cada fiscal valida o estado atual do ticket. Se reprovar, o implementador corrige e o fiscal
 reexamina. Só o trabalho aprovado entra no passaporte e libera os dependentes.
 
-*Status: conduzido pela skill `/tr:processo-planejar`; a conferência final é aplicada pelo hook.*
+*Status: conduzido pelo subagente orquestrador; a conferência final é aplicada pelo hook.*
 
 ### 5. Guardrails
 
@@ -242,7 +243,7 @@ Toda skill própria é acionada pelo `tr`, inclusive as de memória, com invoker
 
 | Invoker | Validador | Valida só |
 |---|---|---|
-| `/tr:processo-planejar` | (a sessão que planeja) | abre a demanda: entrevista, spec, tickets, orquestra |
+| `/tr:processo-planejar` | sessão principal → `tr:orquestrador` | entrevista, spec e tickets; depois delega execução e validação |
 | `/tr:qualidade-verificar` | `tr:qualidade-verificador` (haiku), um por portão de comando | o comando daquele portão |
 | `/tr:bugs-cacar` | `tr:bugs-cacador` (sonnet) | defeitos no diff |
 | `/tr:memory-mapear` | subagentes de leitura | mapa do código |
@@ -268,7 +269,7 @@ padrão é **ambos**, inclusive sem terminal interativo. Em automações, use
 `--ambiente claude|codex|ambos` para fixar a escolha. `install-codex` permanece como atalho.
 
 O instalador monta os plugins `tr` e `memoria` em `.codex/harness/`, registra o marketplace local
-em `.agents/plugins/marketplace.json`, habilita ambos em `.codex/config.toml` e cria três agentes
+em `.agents/plugins/marketplace.json`, habilita ambos em `.codex/config.toml` e cria quatro agentes
 em `.codex/agents/`. As oito skills próprias e o fluxo `grill-me` incluído ficam em `tr`; o prompt auxiliar fica
 em `.agents/skills/`. Instala também todas as skills de
 [Ponytail](https://www.skills.sh/dietrichgebert/ponytail) e
