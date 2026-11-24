@@ -2,7 +2,7 @@
 """SessionStart: o projeto que se declara puro foi aberto no modo puro?
 
 Lê a linha de comando do processo que iniciou a sessão (o `claude`) e confere as opções que o
-lançador `cc` liga. Se faltam, avisa o dono e o agente: o global do usuário entrou na
+lançador do harness liga. Se faltam, avisa o dono e o agente: o global do usuário entrou na
 sessão, e o projeto não garante mais o que ela usa. Avisa, não impede. Nunca quebra a sessão.
 """
 import json
@@ -11,8 +11,8 @@ import subprocess
 import sys
 
 WARNING = ("Este projeto se declara puro (.claude/puro), mas a sessão foi aberta sem o lançador "
-           "`cc`: plugins, hooks, skills e instruções do escopo global do usuário entraram nela. "
-           "Feche e abra de novo com `cc`.")
+           "`claude --setting-sources project,local --strict-mcp-config`: plugins, hooks, skills e instruções do escopo global do usuário entraram nela. "
+           "Feche e abra de novo com essas opções; se usar .claude/mcp.json, acrescente `--mcp-config .claude/mcp.json`.")
 
 
 def parent_args() -> str:

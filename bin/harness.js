@@ -168,7 +168,7 @@ if (command === "install-codex") {
   }
   console.log("\nPróximos passos:\n" +
     "  1. Revise `.claude/settings.json` e `.claude/trilho.json`; o install inicia Git se necessário.\n" +
-    "  2. Ligue o modo puro: `fullchico-harness puro`, e abra o projeto com `cc` (claude clean).\n" +
+    "  2. Abra o projeto com `claude`. Modo puro opcional: `npx @fullchico/harness puro`; depois, abra com `claude --setting-sources project,local --strict-mcp-config`.\n" +
     "  3. Na sessão, peça `/tr:configurar` para a entrevista propor os portões; quem grava é você, no terminal.\n" +
     "  4. Confira com `portao` o que cada etapa pede; ao final, rode `fullchico-harness entregar`.\n" +
     "  5. Cada demanda começa com `/tr:processo-planejar` (entrevista, spec, tickets); os portões de fim\n" +

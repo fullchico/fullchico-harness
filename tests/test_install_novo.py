@@ -56,7 +56,7 @@ class TestInstall(unittest.TestCase):
         gates = json.loads((self.repo / ".claude/trilho.json").read_text())["portoes"]
         self.assertEqual(gates["qualidade"]["comando"], "pnpm lint && pnpm test", "veio do package.json do projeto")
         self.assertEqual(gates["processo"]["artefato"], "docs/specs/*/spec.md")
-        self.assertIn("`cc`", r.stdout)
+        self.assertIn("Abra o projeto com `claude`", r.stdout)
         self.assertTrue((self.repo / ".agents/plugins/marketplace.json").exists(), "sem TTY, o padrão também instala Codex")
 
     def test_ambos_installs_claude_and_codex_with_one_registry(self):
