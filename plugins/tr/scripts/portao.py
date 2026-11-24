@@ -35,7 +35,7 @@ def listar(root, reg):
         desc = f" — {gate['descricao']}" if gate.get("descricao") else ""
         print(f"[{'ok' if stamped else 'falta'}] {name} ({MOMENTO[gate['momento']]}, assina por {gate['assina']}){desc}")
         if not stamped:
-            print(f"        fazer: {registry.howto(name, gate)}")
+            print(f"        fazer: {registry.howto(name, gate, reg.get('modelos'))}")
         elif gate["momento"] == "fim" and stamped != top:
             print(f"        carimbo de {stamped[:10]}; depois dele só mudou documentação")
     fim = {n for n, g in reg["portoes"].items() if g["momento"] == "fim"}
@@ -72,8 +72,9 @@ def verificar(root, reg, name, ticket=None):
         print(f"portao {name}: FALHOU (ticket não encontrado no passaporte da demanda)")
         return 2
     if gate["assina"] == "agente":
-        print(f"O portão `{name}` só é assinado pelo agente `{gate['agente']}`: dispare-o sobre o commit do topo.\n"
-              "O carimbo nasce do veredito APPROVED dele, não de um comando.")
+        print(f"O portão `{name}` só é assinado pelo agente `{gate['agente']}`: "
+              f"{registry.howto(name, gate, reg.get('modelos'))}.\n"
+              "O harness só carimba depois do veredito APPROVED no estado atual.")
         return 2
     if gate["assina"] == "comando" and gate["comando"] == registry.DEFINIR:
         print(f"portao {name}: FALHOU ({registry.howto(name, gate)})")
@@ -113,7 +114,7 @@ def main(argv):
         faltam = registry.missing(root, "inicio", reg) + registry.missing(root, "fim", reg)
         passaportes, _ = tasks.audit(root, reg)
         for name in faltam:
-            print(f"[falta] portão `{name}`: {registry.howto(name, reg['portoes'][name])}")
+            print(f"[falta] portão `{name}`: {registry.howto(name, reg['portoes'][name], reg.get('modelos'))}")
         for problem in passaportes:
             print(f"[falta] {problem}")
         if faltam or passaportes:

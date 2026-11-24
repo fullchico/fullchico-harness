@@ -5,8 +5,12 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from tests.helpers import ROOT, make_repo
+sys.path.insert(0, str(ROOT / "plugins/tr/scripts"))
+import ledger
+import registry
 
 
 class ModelosCliTest(unittest.TestCase):
@@ -52,6 +56,79 @@ class ModelosCliTest(unittest.TestCase):
         self.assertEqual(blocked.returncode, 2)
         self.assertIn("Sem permissão", blocked.stderr)
         self.assertEqual(json.loads(path.read_text()), data)
+
+    def test_codex_gate_reviewer_uses_own_model_and_stamps_only_matching_snapshot(self):
+        repo = make_repo()
+        (repo / ".claude").mkdir()
+        (repo / ".claude/trilho.json").write_text(json.dumps({"portoes": {
+            "seguranca": {"momento": "fim", "assina": "agente", "agente": "seguranca-revisor"}}}))
+        agent = repo / ".codex/agents/seguranca-revisor.toml"
+        agent.parent.mkdir(parents=True)
+        agent.write_text('developer_instructions = "Procure falhas concretas de segurança."\n')
+        self.assertEqual(self.run_cli(repo, "configurar", "revisao", "claude:sonnet",
+                                      "portao:seguranca", "codex:sol").returncode, 0)
+        listed = subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/portao.py")],
+                                cwd=repo, capture_output=True, text=True)
+        self.assertIn("modelos validar-portao seguranca", listed.stdout)
+        snapshot = ledger.head(str(repo))
+        with tempfile.TemporaryDirectory() as bin_dir:
+            fake = pathlib.Path(bin_dir) / "codex"
+            fake.write_text("#!/bin/sh\n" +
+                            "while [ \"$#\" -gt 0 ]; do\n" +
+                            "  if [ \"$1\" = -o ]; then shift; output=$1; fi\n" +
+                            "  shift\n" +
+                            "done\n" +
+                            "cat >/dev/null\n" +
+                            f"printf 'VEREDITO: APPROVED\\nCOMMIT: {snapshot}\\nRESUMO: sem falhas\\n' > \"$output\"\n")
+            fake.chmod(0o755)
+            env = dict(os.environ, PATH=bin_dir + os.pathsep + os.environ.get("PATH", ""), HOME=bin_dir)
+            result = self.run_cli(repo, "validar-portao", "seguranca", "--pedido", "Ticket concluído", env=env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            summary = json.loads(result.stdout)
+            self.assertEqual(summary["modelo"], "codex:sol")
+            self.assertTrue(summary["carimbado"])
+            key = registry.stamp_key(str(repo), registry.load(str(repo))["portoes"]["seguranca"])
+            with mock.patch.dict(os.environ, HOME=bin_dir):
+                self.assertTrue(ledger.has(str(repo), "seguranca", key))
+            manifest = json.loads(pathlib.Path(summary["manifesto"]).read_text())
+            self.assertIn("Procure falhas concretas", pathlib.Path(summary["manifesto"]).with_name("pedido.txt").read_text())
+            self.assertEqual(manifest["tentativas"][0]["id_modelo"], "gpt-6.2-sol")
+
+    def test_gate_reviewer_rejects_wrong_snapshot(self):
+        repo = make_repo()
+        (repo / ".claude").mkdir()
+        (repo / ".claude/trilho.json").write_text(json.dumps({"portoes": {
+            "bugs": {"momento": "fim", "assina": "agente", "agente": "tr:bugs-cacador"}}}))
+        self.assertEqual(self.run_cli(repo, "configurar", "portao:bugs", "claude:opus").returncode, 0)
+        with tempfile.TemporaryDirectory() as bin_dir:
+            fake = pathlib.Path(bin_dir) / "claude"
+            fake.write_text("#!/bin/sh\n" +
+                            "printf '%s\\n' '{\"result\":\"VEREDITO: APPROVED\\\\nCOMMIT: 0000000000000000000000000000000000000000\\\\nRESUMO: sem falhas\"}'\n")
+            fake.chmod(0o755)
+            env = dict(os.environ, PATH=bin_dir + os.pathsep + os.environ.get("PATH", ""))
+            result = self.run_cli(repo, "validar-portao", "bugs", env=env)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertFalse(json.loads(result.stdout)["carimbado"])
+
+    def test_claude_gate_reviewer_uses_registered_agent(self):
+        repo = make_repo()
+        (repo / ".claude").mkdir()
+        (repo / ".claude/trilho.json").write_text(json.dumps({"portoes": {
+            "seguranca": {"momento": "fim", "assina": "agente", "agente": "seguranca-revisor"}}}))
+        self.assertEqual(self.run_cli(repo, "configurar", "portao:seguranca", "claude:sonnet").returncode, 0)
+        snapshot = ledger.head(str(repo))
+        with tempfile.TemporaryDirectory() as bin_dir:
+            fake = pathlib.Path(bin_dir) / "claude"
+            fake.write_text("#!/usr/bin/env python3\nimport json, sys\n" +
+                            f"assert '--agent' in sys.argv and sys.argv[sys.argv.index('--agent') + 1] == 'seguranca-revisor'\n" +
+                            "sys.stdin.read()\n" +
+                            f"print(json.dumps({{'result': 'VEREDITO: APPROVED\\nCOMMIT: {snapshot}\\nRESUMO: sem falhas'}}))\n")
+            fake.chmod(0o755)
+            env = dict(os.environ, PATH=bin_dir + os.pathsep + os.environ.get("PATH", ""), HOME=bin_dir,
+                       CLAUDECODE="1")
+            result = self.run_cli(repo, "validar-portao", "seguranca", env=env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(json.loads(result.stdout)["carimbado"])
 
     def test_invalid_registry_is_preserved(self):
         repo = make_repo()

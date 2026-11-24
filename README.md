@@ -32,12 +32,18 @@ execucao codex:luna revisao codex:sol apoio claude:sonnet`. `modelos mostrar` ex
 iniciais Opus/Sol, Sonnet/Luna, Haiku/Terra e Fable/Astra. A configuração registra a intenção;
 `modelos executar <papel> --pedido "<texto>" [--ticket <caminho>]` inicia a CLI escolhida,
 grava um manifesto fora do repositório e passa ao modelo de apoio se a primeira CLI retornar
-erro de limite. O loop completo entre os três papéis ainda é conduzido pelas skills do `tr`.
+erro de limite. O subagente orquestrador usa esse comando para cada ticket liberado pelo grafo
+e devolve as reprovações ao executor antes de avançar.
 No Claude Code, `revisao claude:<modelo>` também define o modelo padrão dos fiscais. Para um
-portão específico, use `portao:<nome> claude:<modelo>`, por exemplo
-`npx @fullchico/harness modelos configurar revisao claude:sonnet portao:design-revisao claude:opus`.
-Essa escolha sobrescreve o `model:` do agente ao dispará-lo. `modelos executar revisao` com Codex
-abre uma execução separada e ainda não carimba automaticamente um portão disparado pelo Claude.
+portão de agente específico, use `portao:<nome> claude:<modelo>` ou `portao:<nome> codex:<modelo>`, por exemplo
+`npx @fullchico/harness modelos configurar revisao claude:sonnet portao:seguranca codex:sol
+portao:design-revisao claude:opus`.
+Cada portão de agente pode usar Claude ou Codex e um modelo próprio. O orquestrador abre os
+executores com `modelos executar execucao --ticket <caminho> --pedido <handoff>` e os fiscais
+externos com `modelos validar-portao <nome> [--ticket <caminho>] [--pedido <resumo>]`.
+O harness exige veredito, hash do estado examinado e processo bem sucedido antes de carimbar.
+Se o modelo do portão for Codex, o hook impede que um Agent Claude assine no lugar dele.
+As execuções e seus manifestos ficam fora do repositório.
 
 ## Exemplo: dois trilhos, uma entrega
 
@@ -163,8 +169,8 @@ arquivos e rede. Com registro, o hook também:
 - escreve o pedido de cada validador (o que quem escreveu o código disse é descartado);
 - mantém o validador só leitura;
 - mantém a seleção existente por complexidade do ticket (haiku ou sonnet) nos subagentes Claude;
-  `fullchico-harness modelos configurar` registra os modelos por papel e permite escolher o
-  revisor Claude de cada portão antes de um fluxo misto;
+  `fullchico-harness modelos configurar` registra os modelos por papel e permite escolher Claude
+  ou Codex e o modelo próprio de cada portão de agente;
 - barra `portao <nome>` combinado com pipe ou `&&` (rodaria sem carimbar) e os scripts do harness
   antigo (`.harness/`).
 

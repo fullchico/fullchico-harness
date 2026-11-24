@@ -76,6 +76,13 @@ class TestCodex(unittest.TestCase):
         new = self.repo / ".codex/harness/tr/codex-skills/tr-memory-dream/SKILL.md"
         self.assertIn("name: tr-memory-dream", new.read_text())
 
+    def test_reinstall_updates_generated_orchestrator_instructions(self):
+        self.assertEqual(self.install().returncode, 0)
+        agent = self.repo / ".codex/agents/tr-orquestrador.toml"
+        agent.write_text('name = "tr-orquestrador"\ndeveloper_instructions = "Dispare implementadores em subagentes separados"\n')
+        self.assertEqual(self.install().returncode, 0)
+        self.assertIn("modelos validar-portao", agent.read_text())
+
     def test_existing_marketplace_config_and_old_hooks_are_migrated(self):
         market = self.repo / ".agents/plugins/marketplace.json"
         market.parent.mkdir(parents=True)

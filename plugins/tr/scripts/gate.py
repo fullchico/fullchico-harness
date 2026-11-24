@@ -38,7 +38,7 @@ def lista(reg, names):
     for n in names:
         gate = reg["portoes"][n]
         linhas.append(f"  ✗ {n} · {gate.get('descricao') or '(sem descrição)'}")
-        linhas += [f"    → {p}" for p in registry.passos(n, gate)]
+        linhas += [f"    → {p}" for p in registry.passos(n, gate, reg.get('modelos'))]
     return linhas
 
 
@@ -108,6 +108,16 @@ def disparo(root, reg, ti):
             return 0
         novo["model"] = modelo
         return permitir(novo)
+    config = reg.get("modelos") or {}
+    por_portao = config.get("portoes") or {}
+    cli_externos = [name for name in validadores[tipo]
+                    if reg["portoes"][name]["assina"] == "agente" and
+                    (por_portao.get(name) or config.get("revisao") or {}).get("cli") == "codex"]
+    if cli_externos:
+        return deny(root, f"revisor Codex externo: {tipo}", quadro("modelo do portão", [
+            ("portões", ", ".join(cli_externos)),
+            ("motivo", "este portão usa Codex CLI; o Agent do Claude não pode assinar no lugar dele"),
+        ], [f"  → rode `fullchico-harness modelos validar-portao {name}`" for name in cli_externos]))
     top = ledger.head(root) or ""
     if tipo == registry.VERIFICADOR:
         m = re.search(r"(?m)^\s*portao:\s*([\w.-]+)", ti.get("prompt") or "")

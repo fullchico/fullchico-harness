@@ -75,16 +75,21 @@ ou uma proposta de tela podem ser exigidos aí antes de qualquer código.
 
 ## 4. Portão de início
 
-Prepare a spec e os tickets. Dispare `/tr:qualidade-verificar` para o portão de início
-`processo`: um fiscal independente roda `portao processo` e carimba o plano. Passou, a escrita de
-código fica liberada. O mesmo vale para qualquer outro portão de início do registro.
+Prepare a spec e os tickets. Consulte `portao` e valide cada portão de início exigido pelo registro.
+Para portões de comando ou artefato, dispare `/tr:qualidade-verificar`. Para portões de agente,
+use o fiscal configurado; se o modelo for de outra CLI, rode
+`fullchico-harness modelos validar-portao <nome>`. Só os portões cadastrados pelo projeto são exigidos.
 
 ## 5. Execução pelo subagente orquestrador
 
-O orquestrador lê a spec e os tickets. Os tickets sem bloqueio e com `Entrada:` carimbada são a fronteira. Para cada um, ele dispara um subagente implementador com o caminho do
+O orquestrador lê a spec, os tickets e `fullchico-harness modelos mostrar`. Os tickets sem bloqueio e com `Entrada:` carimbada são a fronteira. Se `execucao` estiver configurada, para cada ticket liberado ele usa
+`fullchico-harness modelos executar execucao --ticket <caminho> --pedido <handoff>` para abrir a CLI e o modelo escolhidos. O handoff contém a spec, a decisão aprovada, o ticket e seus portões. O manifesto da execução fica fora do repositório e permite retomar após uma falha. Se `execucao` não estiver configurada, ele dispara um subagente implementador com o caminho do
 ticket no pedido (o hook lê a `Complexidade:` dele), a skill `tdd`, e um contexto isolado quando houver
 mais de um em paralelo. Para **cada portão do passaporte**,
-dispare o fiscal correspondente em contexto limpo. Quem implementou não valida.
+dispare o fiscal correspondente em contexto limpo. Para um portão de agente com modelo configurado,
+use `fullchico-harness modelos validar-portao <nome> --ticket <caminho> --pedido <resumo>`;
+o harness confere o veredito, o snapshot e emite o carimbo. Para comandos e artefatos, use o
+verificador do portão. Quem implementou não valida.
 Se reprovar, devolva os achados ao implementador; ele corrige e o fiscal reexamina.
 A aprovação carimba o estado atual do projeto.
 
@@ -102,7 +107,9 @@ push ou remoto se o projeto não os configurou como portão.
 
 Quando o executor declarar a implementação pronta, o orquestrador roda `portao`: ele confere os passaportes e mostra a
 fronteira ainda aberta. Ele dispara os verificadores de `/tr:qualidade-verificar` (um por portão global
-de comando) e `/tr:bugs-cacar`. Falhou ou reprovou: um implementador corrige e o fiscal
+de comando ou artefato) e, para cada portão de agente exigido, o fiscal cadastrado ou
+`fullchico-harness modelos validar-portao <nome>` conforme o modelo configurado.
+Falhou ou reprovou: um implementador corrige e o fiscal
 revalida o que mudou. Por fim, rode `fullchico-harness entregar` ou `portao entrega`.
 O orquestrador reporta o resultado à sessão principal; ela só declara a entrega concluída quando esse comando passar. No início da resposta final escreva
 `ENTREGA: concluída`; o hook Stop confere novamente os carimbos. Respostas intermediárias e perguntas

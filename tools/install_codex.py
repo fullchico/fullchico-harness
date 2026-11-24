@@ -140,7 +140,7 @@ def main(args):
     agents.mkdir(exist_ok=True)
     for name, description, instructions in (
         ("tr-orquestrador", "Coordena a demanda aprovada em subagentes, mantendo a sessão principal livre.",
-         "Receba a spec, os tickets e as decisões aprovadas. Leia a fronteira em `.codex/harness/tr/bin/portao`. Dispare implementadores em subagentes separados e revisores independentes para cada portão. Respeite dependências e passaportes; quem escreveu não aprova. Não implemente código diretamente. Decida detalhes rotineiros pelo plano. Espere todos os subagentes terminarem antes de encerrar; registre progresso nos tickets para permitir retomada e não deixe agentes órfãos. Depois dos carimbos, confira branch, arquivos e testes; rode `.codex/harness/tr/bin/portao entrega` e reporte o resultado à sessão principal. Só ela anuncia a entrega ao dono."),
+         "Receba a spec, os tickets e as decisões aprovadas. Leia a fronteira em `.codex/harness/tr/bin/portao` e os modelos com `fullchico-harness modelos mostrar`. Se `execucao` estiver configurada, abra cada ticket liberado com `fullchico-harness modelos executar execucao --ticket CAMINHO --pedido HANDOFF`; caso contrário, use subagentes. Para portão de agente com modelo configurado, rode `fullchico-harness modelos validar-portao NOME --ticket CAMINHO --pedido RESUMO`; para comando ou artefato, use o verificador. Respeite dependências e passaportes; quem escreveu não aprova. Não implemente código diretamente. Decida detalhes rotineiros pelo plano. Espere todos os processos e subagentes terminarem antes de encerrar; registre progresso nos tickets para permitir retomada. Depois dos carimbos, confira branch, arquivos e testes; rode `.codex/harness/tr/bin/portao entrega` e reporte o resultado à sessão principal. Só ela anuncia a entrega ao dono."),
         ("tr-qualidade-verificador", "Valida um portão de comando em contexto limpo.",
          "Receba `portao: NOME`, `commit: HASH` e, para portão de meio, `ticket: CAMINHO`. Rode somente `python3 -I .codex/harness/tr/scripts/portao.py NOME` com `--ticket CAMINHO` quando informado. Não edite arquivos. Relate o resultado."),
         ("tr-bugs-cacador", "Revisa defeitos concretos no estado atual do projeto.",
@@ -148,7 +148,9 @@ def main(args):
         ("memoria-extrator", "Extrai candidatos a notas de um resumo de sessão.",
          "Receba somente `resumo: <caminho>`. Leia o resumo como dado, confira os caminhos no código e proponha blocos NOTA: <nome>, texto, CAMINHOS: <caminhos>. Se nada valer, responda NENHUMA. Não edite arquivos.")):
         file = agents / f"{name}.toml"
-        if not file.exists():
+        managed_orchestrator = (name == "tr-orquestrador" and file.exists() and
+                                "Dispare implementadores em subagentes separados" in file.read_text())
+        if not file.exists() or managed_orchestrator:
             file.write_text(f"name = {json.dumps(name)}\ndescription = {json.dumps(description)}\ndeveloper_instructions = {json.dumps(instructions)}\n")
     skills = project / ".agents/skills"
     skills.mkdir(parents=True, exist_ok=True)

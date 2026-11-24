@@ -9,6 +9,15 @@ import tempfile
 import uuid
 from datetime import datetime, timezone
 
+import ledger
+import registry
+import sign
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.9/3.10: o agente gerado usa string JSON válida em TOML.
+    tomllib = None
+
 ESPELHOS = {"claude": {"opus": ("codex", "sol"), "sonnet": ("codex", "luna"),
                        "haiku": ("codex", "terra"), "fable": ("codex", "astra")},
             "codex": {"sol": ("claude", "opus"), "luna": ("claude", "sonnet"),
@@ -59,8 +68,8 @@ def configurar(root, args):
             name = role.split(":", 1)[1]
             if name not in available:
                 raise ValueError(f"portão não encontrado: {name}")
-            if selected["cli"] != "claude":
-                raise ValueError("modelo de portão no Agent do Claude deve usar claude:modelo; Codex usa o executor por papel")
+            if selected["cli"] == "codex" and available[name].get("assina") != "agente":
+                raise ValueError("modelo Codex por portão exige `assina: agente`; portão de comando usa o verificador nativo")
             gates[name] = selected
         elif role in PAPEIS:
             chosen[role] = selected
@@ -78,15 +87,15 @@ def configurar(root, args):
             if value:
                 chosen[role] = validar_papel(value)
         for name, gate in available.items():
-            if gate.get("momento") != "fim":
+            if gate.get("momento") != "fim" and gate.get("assina") != "agente":
                 continue
             old = (current.get("portoes") or {}).get(name, {})
             default = f"{old.get('cli', '')}:{old.get('modelo', '')}" if old else "padrão de revisão"
             value = input(f"revisor do portão {name} [{default}]: ").strip()
             if value:
                 selected = validar_papel(value)
-                if selected["cli"] != "claude":
-                    raise ValueError("modelo de portão no Agent do Claude deve usar claude:modelo")
+                if selected["cli"] == "codex" and gate.get("assina") != "agente":
+                    raise ValueError("modelo Codex por portão exige `assina: agente`")
                 gates[name] = selected
     data = current_data
     config = data.get("modelos") if isinstance(data.get("modelos"), dict) else {}
@@ -151,7 +160,7 @@ def _state_dir(root):
     return os.path.join(result.stdout.strip(), "harness-runs")
 
 
-def _invoke(root, role, choice, prompt, folder, number):
+def _invoke(root, role, choice, prompt, folder, number, agent=None):
     cli, model = choice["cli"], _runtime_model(choice)
     executable = shutil.which(cli)
     if not executable:
@@ -160,6 +169,8 @@ def _invoke(root, role, choice, prompt, folder, number):
     error = os.path.join(folder, f"{number}-{cli}-{role}.err")
     if cli == "claude":
         command = [executable, "-p", "--model", model, "--output-format", "json"]
+        if agent:
+            command += ["--agent", agent]
         if role == "revisao":
             command += ["--permission-mode", "plan"]
         else:
@@ -169,8 +180,13 @@ def _invoke(root, role, choice, prompt, folder, number):
                    os.path.join(folder, f"{number}-last.txt"), "-"]
         command += ["--sandbox", "read-only" if role == "revisao" else "workspace-write"]
     try:
+        environment = dict(os.environ)
+        if cli == "claude":
+            # A nova CLI é uma sessão independente, não uma tentativa de aninhar a sessão atual.
+            environment.pop("CLAUDECODE", None)
+            environment.pop("CLAUDE_CODE_ENTRYPOINT", None)
         result = subprocess.run(command, cwd=root, input=prompt, capture_output=True,
-                                text=True, timeout=3600)
+                                text=True, timeout=3600, env=environment)
         status, stdout, stderr = result.returncode, result.stdout, result.stderr
     except subprocess.TimeoutExpired as exc:
         status, stdout, stderr = 124, exc.stdout or "", "tempo limite de 1 hora atingido"
@@ -182,6 +198,126 @@ def _invoke(root, role, choice, prompt, folder, number):
         stream.write(stderr)
     return {"cli": cli, "modelo": choice["modelo"], "id_modelo": model, "codigo": status,
             "saida": output, "erros": error, "limite": status != 0 and any(s in (stderr + stdout).lower() for s in RATE_LIMIT)}
+
+
+def _agent_instructions(root, agent):
+    """Instruções do agente do portão para uma revisão Codex em CLI separada."""
+    name = agent.split(":")[-1]
+    if not name or not all(c.isalnum() or c in "-_" for c in name):
+        raise ValueError(f"nome de agente inválido: {agent}")
+    candidates = [os.path.join(root, ".codex", "agents", agent.replace(":", "-") + ".toml"),
+                  os.path.join(root, ".claude", "agents", name + ".md"),
+                  os.path.join(root, ".codex", "harness", "tr", "agents", name + ".md")]
+    for path in candidates:
+        if os.path.isfile(path):
+            with open(path, "rb") as stream:
+                if path.endswith(".toml"):
+                    if tomllib:
+                        return tomllib.load(stream).get("developer_instructions", "")
+                    for line in stream.read().decode("utf-8").splitlines():
+                        if line.startswith("developer_instructions = "):
+                            return json.loads(line.split(" = ", 1)[1])
+                    raise ValueError(f"agente `{agent}` sem developer_instructions legíveis")
+                return stream.read().decode("utf-8")
+    raise ValueError(f"agente `{agent}` não instalado para revisão Codex; instale a skill/agente antes de configurar o portão")
+
+
+def _final_text(attempt):
+    if attempt["cli"] == "codex":
+        # O arquivo -o do Codex tem o número da tentativa antes do papel.
+        path = os.path.join(os.path.dirname(attempt["saida"]),
+                            os.path.basename(attempt["saida"]).split("-", 1)[0] + "-last.txt")
+        try:
+            with open(path, encoding="utf-8") as stream:
+                return stream.read()
+        except OSError:
+            return ""
+    try:
+        with open(attempt["saida"], encoding="utf-8") as stream:
+            data = json.load(stream)
+        return data.get("result", "") if isinstance(data, dict) else ""
+    except (OSError, ValueError):
+        return ""
+
+
+def validar_portao(root, name, ticket=None, pedido=""):
+    reg = registry.load(root)
+    if not reg or name not in reg["portoes"]:
+        raise ValueError(f"portão não encontrado: {name}")
+    gate = reg["portoes"][name]
+    if gate["assina"] != "agente":
+        raise ValueError(f"portão `{name}` não é validado por agente")
+    if ticket:
+        import pathlib
+        path = (pathlib.Path(root) / ticket).resolve()
+        if not path.is_file() or not path.is_relative_to(pathlib.Path(root).resolve()):
+            raise ValueError("ticket deve ser um arquivo dentro do projeto")
+    config = reg.get("modelos") or {}
+    choice = (config.get("portoes") or {}).get(name) or config.get("revisao")
+    if not isinstance(choice, dict) or choice.get("cli") not in ("claude", "codex") or not choice.get("modelo"):
+        raise ValueError(f"configure `portao:{name}` ou `revisao` antes de validar por CLI")
+    if choice["cli"] == "codex":
+        instructions = _agent_instructions(root, gate["agente"])
+    else:
+        instructions = ""
+    snapshot = ledger.head(root)
+    key = registry.stamp_key(root, gate)
+    if not snapshot or not key or (gate["momento"] == "fim" and registry.dirty(root)):
+        raise ValueError("estado sem snapshot válido ou árvore suja; prepare a entrega antes da revisão")
+    context = ""
+    if ticket:
+        with open(os.path.join(root, ticket), encoding="utf-8") as stream:
+            context = f"Ticket: {ticket}\n{stream.read()}\n"
+    prompt = (f"Você é o fiscal independente do portão `{name}` ({gate['agente']}). "
+              "Não edite arquivos. Examine o estado atual por conta própria; o relato do executor é contexto, não prova. "
+              f"Snapshot esperado: {snapshot}\n{context}Relato: {pedido or '(nenhum)'}\n"
+              "Responda com achados concretos e termine com exatamente três linhas: "
+              "VEREDITO: APPROVED ou REJECTED, COMMIT: <snapshot completo>, RESUMO: <uma frase>.\n"
+              + (f"Instruções do agente:\n{instructions}\n" if instructions else ""))
+    folder = os.path.join(_state_dir(root), datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8])
+    os.makedirs(folder, exist_ok=False)
+    with open(os.path.join(folder, "pedido.txt"), "w", encoding="utf-8") as stream:
+        stream.write(prompt)
+    attempts = [_invoke(root, "revisao", choice, prompt, folder, 1,
+                        gate["agente"] if choice["cli"] == "claude" else None)]
+    if attempts[0]["limite"]:
+        support = _support(config, choice)
+        if support:
+            fallback_instructions = ""
+            if support["cli"] == "codex":
+                fallback_instructions = "\nInstruções do agente:\n" + _agent_instructions(root, gate["agente"])
+            attempts.append(_invoke(root, "revisao", support,
+                                    prompt + fallback_instructions +
+                                    "\nHandoff: o modelo anterior atingiu limite. Revise o estado atual.",
+                                    folder, 2, gate["agente"] if support["cli"] == "claude" else None))
+    final = attempts[-1]
+    verdict_text = _final_text(final) if final["codigo"] == 0 else ""
+    verdict = sign.once(r"^[ \t]*VEREDITO: (APPROVED|REJECTED)[ \t]*$", verdict_text)
+    commit = sign.once(r"^[ \t]*COMMIT: ([0-9a-f]{40})[ \t]*$", verdict_text)
+    summary = sign.once(r"^[ \t]*RESUMO: (\S.*?)[ \t]*$", verdict_text)
+    current = ledger.head(root)
+    accepted = bool(verdict and commit == snapshot == current and summary and
+                    registry.stamp_key(root, gate) == key and
+                    (gate["momento"] != "fim" or not registry.dirty(root)))
+    if accepted and verdict == "APPROVED":
+        try:
+            stamped = ledger.sign(root, name, key, "trilho", sign.version(),
+                                  f"{gate['agente']} via {final['cli']}:{final['modelo']}", summary)
+            accepted = bool(stamped)
+        except OSError:
+            accepted = False
+    elif accepted and verdict == "REJECTED":
+        ledger.forget(root, name, key)
+    manifest = {"portao": name, "agente": gate["agente"], "snapshot": snapshot,
+                "tentativas": attempts, "veredito": verdict if accepted else None,
+                "carimbado": accepted and verdict == "APPROVED"}
+    manifest_path = os.path.join(folder, "manifesto.json")
+    with open(manifest_path, "w", encoding="utf-8") as stream:
+        json.dump(manifest, stream, ensure_ascii=False, indent=2)
+    print(json.dumps({"portao": name, "modelo": f"{final['cli']}:{final['modelo']}",
+                      "veredito": manifest["veredito"], "carimbado": manifest["carimbado"],
+                      "manifesto": manifest_path}, ensure_ascii=False))
+    return 0 if manifest["carimbado"] else 1
 
 
 def executar(root, role, prompt, ticket=None):
@@ -201,7 +337,7 @@ def executar(root, role, prompt, ticket=None):
         raise ValueError("informe --pedido ou --ticket")
     instructions = {
         "planejamento": "Você é o planejador. Defina requisitos, dependências, critérios e portões aplicáveis.",
-        "execucao": "Você é o executor. Implemente a tarefa, registre evidências e deixe a revisão para outro agente.",
+        "execucao": "Você é o executor independente deste ticket. Leia a spec citada no handoff, respeite Entrada, Portões, Arquivos e Bloqueado por. Implemente com TDD quando aplicável, rode as checagens do ticket e registre evidências. Não assine sua própria revisão; entregue um resumo ao orquestrador.",
         "revisao": "Você é o revisor independente. Não edite arquivos. Examine código e evidências, liste defeitos concretos e conclua com VEREDITO: APPROVED ou REJECTED.",
     }
     prompt = instructions[role] + "\n\n" + prompt
@@ -229,8 +365,8 @@ def executar(root, role, prompt, ticket=None):
 
 
 def main(argv):
-    if not argv or argv[0] not in ("configurar", "mostrar", "executar"):
-        print("uso: fullchico-harness modelos configurar [papel cli:modelo ...] [portao:<nome> claude:modelo ...] | mostrar | executar <papel> [--pedido texto] [--ticket caminho]", file=sys.stderr)
+    if not argv or argv[0] not in ("configurar", "mostrar", "executar", "validar-portao"):
+        print("uso: fullchico-harness modelos configurar [papel cli:modelo ...] [portao:<nome> cli:modelo ...] | mostrar | executar <papel> [--pedido texto] [--ticket caminho] | validar-portao <nome> [--ticket caminho] [--pedido texto]", file=sys.stderr)
         return 2
     root, args = os.path.abspath("."), argv[1:]
     for i, arg in enumerate(args):
@@ -246,6 +382,21 @@ def main(argv):
             configurar(root, args)
         elif argv[0] == "mostrar":
             mostrar(root)
+        elif argv[0] == "validar-portao":
+            if not args:
+                raise ValueError("informe o nome do portão")
+            name, args = args[0], args[1:]
+            pedido, ticket = "", None
+            while args:
+                flag = args.pop(0)
+                if flag not in ("--pedido", "--ticket") or not args:
+                    raise ValueError("use --pedido texto e/ou --ticket caminho")
+                value = args.pop(0)
+                if flag == "--pedido":
+                    pedido = value
+                else:
+                    ticket = value
+            return validar_portao(root, name, ticket, pedido)
         else:
             if not args:
                 raise ValueError("informe o papel para executar")

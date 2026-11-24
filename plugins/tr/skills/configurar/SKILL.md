@@ -42,10 +42,12 @@ com recomendação por pergunta, até o dono confirmar o desenho. A entrevista d
 - qual CLI e modelo faz planejamento, execução e revisão, e se algum portão de fim precisa de
   revisor diferente do padrão. Mostre os modelos já configurados com
   `npx @fullchico/harness modelos mostrar`; inclua a escolha na entrevista. No Claude Code,
-  `modelos.revisao` com `claude:modelo` define o padrão dos fiscais, e
-  `portao:<nome> claude:modelo` sobrescreve um fiscal específico. Um revisor Codex por CLI
-  usa `modelos executar revisao` separadamente; ele ainda não assina automaticamente o
-  portão disparado como subagente Claude.
+  `modelos.revisao` define o padrão dos portões de agente; em portões de comando ou artefato,
+  um modelo Claude pode ajustar o verificador nativo. `portao:<nome> cli:modelo` sobrescreve
+  um fiscal específico. Portões de agente podem usar Claude ou Codex em sessão CLI separada:
+  `modelos validar-portao <nome>` confere o veredito e o snapshot antes de carimbar.
+  Para Codex, confirme que as instruções do agente estão instaladas em `.codex/agents/` ou
+  `.claude/agents/`; sem elas o comando recusa a revisão.
 
 Portões de entrada específicos de task usam `sempre: false` no registro e são nomeados na
 linha `Entrada:` do ticket. Os de saída específicos usam a linha `Portões:`. Exemplo:
@@ -68,7 +70,7 @@ explique como defini-lo depois.
    árvore, e carimbo de fim não assina com a árvore suja.
 2. **Comando de portão que já existe**: `fullchico-harness portoes --definir <nome> "<comando>"`.
    **Modelos**: entregue também os pares escolhidos para o dono gravar no terminal, por exemplo
-   `npx @fullchico/harness modelos configurar revisao claude:sonnet portao:design-revisao claude:opus`.
+   `npx @fullchico/harness modelos configurar revisao claude:sonnet portao:design-revisao codex:sol`.
 3. Escreva para o dono os comandos exatos, um por linha, para ele rodar no terminal, fora da sessão:
 
    ```bash

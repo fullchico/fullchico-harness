@@ -19,9 +19,8 @@ const usage = "uso: fullchico-harness install [pasta do projeto] [--ambiente cla
   "     fullchico-harness install-codex [pasta do projeto] [--padrao]   (portões e memória no Codex)\n" +
   "     fullchico-harness puro [pasta do projeto]\n" +
   "     fullchico-harness portoes [--analisar] [--gravar] [--padrao] [--definir <portão> \"<comando>\"] [--registrar <esboço.json>] [--projeto <pasta>]\n" +
-  "     fullchico-harness modelos configurar [papel cli:modelo ...] | mostrar | executar <papel> [--pedido <texto>] [--ticket <caminho>] [--projeto <pasta>]\n" +
+  "     fullchico-harness modelos configurar [papel cli:modelo ...] | mostrar | executar <papel> [--pedido <texto>] [--ticket <caminho>] | validar-portao <nome> [--ticket <caminho>] [--pedido <texto>] [--projeto <pasta>]\n" +
   "     fullchico-harness entregar [pasta do projeto]   (valida portões e passaportes na entrega)\n" +
-  "     fullchico-harness modelos configurar [papel cli:modelo ...] | mostrar [--projeto <pasta>]\n" +
   "     fullchico-harness add <plugin> [<plugin>...] [--project <pasta>]   (tr, memoria)\n" +
   "     fullchico-harness custo [pasta do projeto] [--desde <commit|AAAA-MM-DD[THH:MM]>] [--json]   (o que a entrega custou)\n" +
   "     fullchico-harness --version\n" +
@@ -375,8 +374,8 @@ function migrateLegacy(project) {
     "Se o AGENTS.md ou docs/agents/ ainda descrevem `.harness/push` e os revisores antigos, atualize: o agente segue o que lê.");
 }
 
-// Modelo por papel, na configuração local (não versionada): a sessão principal planeja e orquestra em
-// opus; subagente sem modelo definido roda em sonnet. O hook do tr garante o resto (haiku no ticket simples).
+// Modelo local de planejamento; o orquestrador usa a configuração por papel e por portão.
+// Subagente sem modelo definido roda em sonnet; o hook ainda escolhe pelo ticket quando não há CLI configurada.
 function writeLocalModels(project) {
   const file = path.join(project, ".claude", "settings.local.json");
   let data = {};

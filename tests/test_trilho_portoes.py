@@ -324,6 +324,15 @@ class TestEndGateByAgent(Case):
         out = self.pre("Agent", subagent_type="tr:bugs-cacador", prompt="Revise bugs")
         self.assertEqual(json.loads(out.stdout)["hookSpecificOutput"]["updatedInput"]["model"], "haiku")
 
+    def test_codex_model_gate_cannot_be_stamped_by_claude_agent(self):
+        path = self.repo / ".claude/trilho.json"
+        data = json.loads(path.read_text())
+        data["modelos"] = {"portoes": {"bugs": {"cli": "codex", "modelo": "sol"}}}
+        path.write_text(json.dumps(data))
+        out = self.pre("Agent", subagent_type="tr:bugs-cacador", prompt="Revise bugs")
+        self.assertEqual(out.returncode, 2)
+        self.assertIn("modelos validar-portao bugs", out.stderr)
+
     def test_the_wrong_agent_or_commit_does_not_sign(self):
         self.stop(self.block(), agent="outro:agente")
         self.handback(self.block(), agent="general-purpose")
