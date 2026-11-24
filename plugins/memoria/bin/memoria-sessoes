@@ -3,5 +3,7 @@
 # Uso: memoria-sessoes <sessions [--all]|digest <id> <arquivo>|usage [<id>...]|mark <id>...|propose <assunto> <arquivo>|proposals>
 set -uo pipefail
 dir=$(cd "$(dirname "$0")/.." && pwd -P)
-root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "memoria-sessoes: fora de um repositório git" >&2; exit 1; }
+root=$(pwd -P)
+while [[ "$root" != "/" && ! -f "$root/.claude/trilho.json" ]]; do root=$(dirname "$root"); done
+if [[ "$root" == "/" ]]; then root=$(git rev-parse --show-toplevel 2>/dev/null || pwd -P); fi
 exec python3 -I "$dir/scripts/learn.py" "$root" "$@"

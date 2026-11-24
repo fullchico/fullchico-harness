@@ -1,5 +1,5 @@
 ---
-name: dream
+name: memory-dream
 description: Consolida o que as sessões de trabalho ensinaram sobre o projeto em notas curtas, ancoradas no código. Use depois de uma entrega, ou quando houver sessões ainda não processadas.
 ---
 
@@ -24,11 +24,18 @@ Duas regras:
 ```bash
 memoria-sessoes sessions
 memoria check
+memoria graph rebuild
 ```
 
 O primeiro lista as sessões ainda não processadas, inclusive as de worktrees já removidos.
 Onde um comando pede `<id>`, vale o id inteiro ou um começo dele que só case com uma sessão. O segundo lista as notas envelhecidas.
 As transcrições ficam em `~/.claude/`, só para leitura: o plugin nunca grava lá.
+O grafo local liga funções e arquivos (Graphify, quando instalado) a resumos, glossário,
+ADRs e notas do harness. Ele fica no diretório Git comum e não é versionado.
+Quando a entrega teve tickets em `docs/specs/<demanda>/issues/`, leia também o grafo
+(`Bloqueado por:`), os passaportes (`Portões:` e `Entrega:`) e os vereditos dos fiscais.
+Use isso como contexto para reconhecer dependências e regras que valerão em outras entregas;
+não transforme estados passageiros de tickets em notas permanentes.
 
 ## 2. Resumir cada sessão
 
@@ -59,6 +66,10 @@ Você decide o que entra, entre o que foi proposto. Para cada candidato:
 
 - **Confira contra o código, abrindo os arquivos.** Leia os caminhos indicados. Busca por
   palavra não é conferência. Se o código não mostra o que o item afirma, descarte.
+- **Localize pelo grafo.** Rode `memoria graph search "<conceito ou caminho>"` para cada
+  candidato; confira as relações e os caminhos retornados no código atual. Uma relação
+  inferida pelo Graphify é pista, não prova. Se o glossário aponta para um caminho que
+  sumiu ou mudou, revise a âncora antes de gravar a nota.
 - **Descarte contorno de ambiente.** O que só existe porque uma ferramenta falhou no sandbox
   ou na máquina (um comando trocado, um patch, um `dev` adaptado) é dívida, não
   conhecimento: vira proposta na retrospectiva, não nota. Nota injetada em toda sessão

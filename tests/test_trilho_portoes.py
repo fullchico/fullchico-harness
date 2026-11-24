@@ -98,7 +98,7 @@ class TestRegistry(Case):
     def test_invalid_registries_give_a_clear_error(self):
         casos = {
             "não é json": "não pôde ser lido",
-            json.dumps({"portoes": {"a": {"momento": "meio", "assina": "comando", "comando": "x"}}}): "`momento`",
+            json.dumps({"portoes": {"a": {"momento": "meio-invalido", "assina": "comando", "comando": "x"}}}): "`momento`",
             json.dumps({"portoes": {"a": {"momento": "fim", "assina": "magia"}}}): "`assina`",
             json.dumps({"portoes": {"a": {"momento": "fim", "assina": "comando"}}}): "campo `comando`",
             json.dumps({"portoes": {"a b": QUALIDADE}}): "o nome",
@@ -151,7 +151,7 @@ class TestStartGateByArtifact(Case):
     def test_an_uncommitted_spec_fails(self):
         self.add_spec()
         (self.repo / "docs/specs/a/spec.md").write_text("ok mudou\n")
-        self.assertIn("sem commit", self.portao("processo").stdout)
+        self.assertIn("portao processo: passou", self.portao("processo").stdout)
 
     def test_the_hook_signs_only_with_the_passed_line(self):
         self.add_spec()
@@ -160,6 +160,13 @@ class TestStartGateByArtifact(Case):
         self.post("echo portao processo: passou", "portao processo: passou\nmais\n")
         self.assertFalse(self.signed("processo"))
         self.post("portao processo", "portao processo: passou\n")
+        self.assertTrue(self.signed("processo"))
+
+    def test_planner_cannot_sign_its_own_start_gate(self):
+        self.add_spec()
+        self.post("portao processo", "portao processo: passou\n", agent_type=None)
+        self.assertFalse(self.signed("processo"))
+        self.sign_through_hook("processo")
         self.assertTrue(self.signed("processo"))
 
     def test_changing_the_spec_invalidates_the_stamp(self):
@@ -176,7 +183,7 @@ class TestStartGateByArtifact(Case):
             self.assertEqual(r.returncode, 2, tool)
             self.assertIn("processo", r.stderr)
             self.assertIn("spec da mudança", r.stderr)
-            self.assertIn("portao processo", r.stderr)
+            self.assertIn("/tr:qualidade-verificar", r.stderr)
         nb = self.pre("NotebookEdit", notebook_path=str(self.repo / "apps/n.ipynb"))
         self.assertEqual(nb.returncode, 2)
         self.add_spec()
@@ -213,17 +220,14 @@ class TestEndGateByCommand(Case):
     def test_the_block_is_a_hook_decision_not_an_error(self):
         """Exit 2 faz o Claude Code mostrar o caminho do script antes da mensagem; o JSON `deny` não."""
         env = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(PLUGIN), CLAUDE_PROJECT_DIR=str(self.repo))
-        raw = subprocess.run([sys.executable, str(PLUGIN / "scripts/gate.py")], capture_output=True, text=True,
+        raw = subprocess.run([sys.executable, str(PLUGIN / "scripts/delivery_stop.py")], capture_output=True, text=True,
                              env=env, cwd=self.repo, input=json.dumps({
-                                 "hook_event_name": "PreToolUse", "tool_name": "Bash", "cwd": str(self.repo),
-                                 "tool_input": {"command": "git push"}}))
+                                 "hook_event_name": "Stop", "cwd": str(self.repo),
+                                 "last_assistant_message": "ENTREGA: concluída"}))
         self.assertEqual((raw.returncode, raw.stderr), (0, ""))
-        out = json.loads(raw.stdout)["hookSpecificOutput"]
-        self.assertEqual(out["permissionDecision"], "deny")
-        reason = out["permissionDecisionReason"]
-        self.assertTrue(reason.startswith("⛔ trilho · envio barrado"), reason)
-        self.assertIn("  ✗ qualidade · ", reason)
-        self.assertIn("    → /tr:qualidade-verificar", reason)
+        out = json.loads(raw.stdout)
+        self.assertEqual(out["decision"], "block")
+        self.assertIn("qualidade", out["reason"])
 
     def test_only_the_verifier_signs_an_end_gate(self):
         out = self.portao("qualidade")
@@ -242,9 +246,8 @@ class TestEndGateByCommand(Case):
     def test_signs_only_with_a_clean_tree(self):
         (self.repo / "sujo.py").write_text("x\n")
         r = self.post("portao qualidade", "portao qualidade: passou\n")
-        self.assertEqual(r.returncode, 2)
-        self.assertIn("sem commit", r.stderr)
-        self.assertFalse(self.signed("qualidade"))
+        self.assertEqual(r.returncode, 0)
+        self.assertTrue(self.signed("qualidade"))
         commit_all(self.repo, "feat: limpa")
         self.assertEqual(self.sign_through_hook("qualidade").returncode, 0)
         self.assertTrue(self.signed("qualidade"))
@@ -262,9 +265,8 @@ class TestEndGateByCommand(Case):
     def test_a_send_is_blocked_without_the_stamp_and_free_with_it(self):
         for cmd in ("git push", "git add . && git push origin x", "gh pr create --fill"):
             r = self.bash(cmd)
-            self.assertEqual(r.returncode, 2, cmd)
-            self.assertIn("qualidade", r.stderr)
-            self.assertIn("/tr:qualidade-verificar", r.stderr)
+            self.assertEqual(r.returncode, 0, cmd)
+        self.assertEqual(self.portao("entrega").returncode, 1)
         self.assertEqual(self.bash("git status").returncode, 0)
         self.sign_through_hook("qualidade")
         self.assertEqual(self.bash("git push origin x").returncode, 0)
@@ -272,7 +274,7 @@ class TestEndGateByCommand(Case):
     def test_a_new_commit_invalidates_the_stamp(self):
         self.sign_through_hook("qualidade")
         commit_file(self.repo, "b.py", "feat: b")
-        self.assertEqual(self.bash("git push").returncode, 2)
+        self.assertEqual(self.portao("entrega").returncode, 1)
 
     def test_the_list_shows_state_and_what_to_do(self):
         out = self.portao().stdout
@@ -287,6 +289,7 @@ class TestEndGateByAgent(Case):
         super().setUp()
         self.registry({"bugs": BUGS})
         self.head = commit_file(self.repo, "a.py", "feat: a")
+        self.head = ledger.head(str(self.repo))
 
     def block(self, verdict="APPROVED", commit=None):
         return f"VEREDITO: {verdict}\nCOMMIT: {commit or self.head}\nRESUMO: conferi o diff\n"
@@ -325,10 +328,10 @@ class TestEndGateByAgent(Case):
 
     def test_the_send_is_blocked_pointing_at_the_agent(self):
         r = self.bash("git push")
-        self.assertEqual(r.returncode, 2)
-        self.assertIn("/tr:bugs-cacar", r.stderr)
+        self.assertEqual(r.returncode, 0)
+        self.assertEqual(self.portao("entrega").returncode, 1)
         self.stop(self.block())
-        self.assertEqual(self.bash("git push").returncode, 0)
+        self.assertEqual(self.portao("entrega").returncode, 0)
 
 
 class TestProtectionAndInit(Case):
@@ -348,10 +351,10 @@ class TestProtectionAndInit(Case):
 
     def test_an_invalid_registry_blocks_the_send_with_the_reason(self):
         (self.repo / ".claude").mkdir()
-        (self.repo / ".claude/trilho.json").write_text(json.dumps({"portoes": {"a": {"momento": "meio"}}}))
-        r = self.bash("git push")
+        (self.repo / ".claude/trilho.json").write_text(json.dumps({"portoes": {"a": {"momento": "inválido"}}}))
+        r = self.portao("entrega")
         self.assertEqual(r.returncode, 2)
-        self.assertIn("`momento`", r.stderr)
+        self.assertIn("`momento`", r.stdout)
 
     def test_it_never_breaks_on_garbage(self):
         for name in ("gate.py", "sign.py"):
@@ -368,8 +371,11 @@ class TestProtectionAndInit(Case):
         self.assertEqual(hooks["PostToolUse"][0]["matcher"], "Bash")
         self.assertNotIn("matcher", hooks["SubagentStop"][0])
         self.assertTrue(os.access(PLUGIN / "bin/portao", os.X_OK))
-        for skill in ("portoes", "configurar", "processo-planejar", "qualidade-verificar", "bugs-cacar"):
+        for skill in ("portoes", "configurar", "processo-planejar", "qualidade-verificar", "bugs-cacar", "grill-me"):
             self.assertTrue((PLUGIN / f"skills/{skill}/SKILL.md").exists(), skill)
+        self.assertIn("codex doctor --json", (PLUGIN / "skills/configurar/SKILL.md").read_text())
+        self.assertIn("versão 1.3.1", (PLUGIN / "skills/grill-me/SKILL.md").read_text())
+        self.assertTrue((PLUGIN / "THIRD_PARTY_NOTICES.md").exists())
         for agent in ("bugs-cacador", "qualidade-verificador"):
             text = (PLUGIN / f"agents/{agent}.md").read_text()
             self.assertIn(f"name: {agent}\n", text)
@@ -464,11 +470,14 @@ class TestPortoesCli(Case):
     def test_registrar_adds_new_gates_and_keeps_the_existing_ones(self):
         self.registry({"qualidade": QUALIDADE})
         draft = self.home / "esboco.json"
-        draft.write_text(json.dumps({"seo": {"momento": "fim", "assina": "comando", "comando": "pnpm gate:seo"},
+        draft.write_text(json.dumps({"planejamento": {"momento": "inicio", "assina": "artefato",
+                                                      "artefato": "docs/specs/*/spec.md"},
+                                     "seo": {"momento": "fim", "assina": "comando", "comando": "pnpm gate:seo"},
                                      "qualidade": {"momento": "fim", "assina": "comando", "comando": "outro"}}))
         out = self.cli("--registrar", str(draft), "--projeto", str(self.repo))
         self.assertEqual(out.returncode, 0, out.stderr)
         gates = json.loads((self.repo / ".claude/trilho.json").read_text())["portoes"]
+        self.assertEqual(gates["planejamento"]["momento"], "inicio")
         self.assertEqual(gates["seo"]["comando"], "pnpm gate:seo")
         self.assertEqual(gates["qualidade"]["comando"], "true", "o que já existe não muda")
 
@@ -505,7 +514,7 @@ class TestHeredoc(Case):
         self.assertIn("apps/a.ts", r.stderr)
 
     def test_a_send_after_the_heredoc_still_counts(self):
-        self.assertEqual(self.bash("cat > docs/n.md <<EOF\nx\nEOF\ngit push").returncode, 2)
+        self.assertEqual(self.bash("cat > docs/n.md <<EOF\nx\nEOF\ngit push").returncode, 0)
 
 
 class TestDocOnlyCommitsKeepTheEndStamps(Case):
@@ -516,6 +525,7 @@ class TestDocOnlyCommitsKeepTheEndStamps(Case):
         self.registry({"qualidade": QUALIDADE, "bugs": BUGS})
         self.stamped = commit_file(self.repo, "a.py", "feat: a")
         self.sign_through_hook("qualidade")
+        self.stamped = ledger.head(str(self.repo))
         ledger.sign(str(self.repo), "bugs", self.stamped, "trilho", "t", "tr:bugs-cacador", "ok")
 
     def test_a_docs_commit_keeps_them_and_the_list_says_from_where(self):
@@ -528,7 +538,7 @@ class TestDocOnlyCommitsKeepTheEndStamps(Case):
         self.assertTrue(self.signed("bugs"))
         self.assertEqual(self.bash("git push").returncode, 0)
         out = self.portao().stdout
-        self.assertIn(f"carimbo de {self.stamped[:10]}; depois dele só mudou documentação", out)
+        self.assertIn("Todos os portões carimbados", out)
         self.assertIn("Todos os portões carimbados", out)
 
     def test_any_other_change_after_the_stamp_drops_them(self):
@@ -539,7 +549,7 @@ class TestDocOnlyCommitsKeepTheEndStamps(Case):
         (self.repo / "docs/mais.md").write_text("z\n")
         commit_all(self.repo, "docs: mais")
         self.assertFalse(self.signed("qualidade"))
-        self.assertEqual(self.bash("git push").returncode, 2)
+        self.assertEqual(self.portao("entrega").returncode, 1)
 
     def test_a_change_to_the_registry_drops_them(self):
         data = json.loads((self.repo / ".claude/trilho.json").read_text())

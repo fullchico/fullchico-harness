@@ -1,7 +1,7 @@
 {
   "name": "@fullchico/harness",
-  "version": "3.0.0",
-  "description": "Harness de plugins para Claude Code: portões com carimbo assinado por hook, validadores em subagente limpo e memória do projeto.",
+  "version": "3.1.0",
+  "description": "Harness por projeto para Claude Code e Codex: orquestração, guardrails, memória e validações.",
   "license": "MIT",
   "author": "FullChico",
   "repository": {
@@ -14,6 +14,7 @@
   },
   "keywords": [
     "claude-code",
+    "codex",
     "agents",
     "harness",
     "guardrails",
@@ -26,8 +27,12 @@
   },
   "files": [
     "bin/",
+    "tools/install_codex.py",
+    "tools/codex-skills/",
     "plugins/",
     ".claude-plugin/",
+    "!**/__pycache__/**",
+    "!**/*.pyc",
     "LICENSE",
     "README.md"
   ],

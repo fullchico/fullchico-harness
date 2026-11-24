@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """O aplicador único dos portões do projeto (`PreToolUse`).
 
-- Envio (`git push`, `gh pr create`) com portão de `fim` faltando: barra.
+- A entrega é conferida por `portao entrega` depois do trabalho concluído.
 - Escrita em código (ferramentas de edição, ou o terminal nas formas óbvias) com portão de `inicio`
-  faltando: barra, e diz qual etapa cumprir. No terminal é um aviso cedo; a barreira de verdade é a do envio.
+  faltando: barra, e diz qual etapa cumprir. A entrega só passa com os carimbos finais.
 - Edição do próprio registro (`.claude/trilho.json`, `.claude/settings.json`): barra. Só o dono muda.
 - Disparo de subagente (`Agent`): o validador de um portão recebe o pedido escrito aqui (o de quem
   escreveu o código é descartado) e o modelo da própria definição; os outros subagentes recebem o
@@ -20,6 +20,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ledger  # noqa: E402
 import registry  # noqa: E402
+import tasks  # noqa: E402
 import saida  # noqa: E402
 from saida import quadro  # noqa: E402
 
@@ -93,6 +94,11 @@ def disparo(root, reg, ti):
     if ":" not in tipo and f"tr:{tipo}" in validadores:
         tipo = novo["subagent_type"] = f"tr:{tipo}"  # o nome sem prefixo também é o validador
     if tipo not in validadores:
+        blocked = tasks.dispatch_problem(root, reg, ti.get("prompt"))
+        if blocked:
+            return deny(root, f"ticket fora da fronteira: {tipo}", quadro("execução barrada", [
+                ("motivo", blocked),
+            ], ["  → confira `portao` para ver a fronteira liberada"]))
         # ticket com `Complexidade:` decide; sem ticket, só opus é trocado (o resto, a definição do agente
         # ou o CLAUDE_CODE_SUBAGENT_MODEL do settings.local resolvem)
         modelo = registry.modelo_do_ticket(root, ti.get("prompt"))
@@ -103,25 +109,27 @@ def disparo(root, reg, ti):
         novo["model"] = modelo
         return permitir(novo)
     top = ledger.head(root) or ""
-    if registry.dirty(root):
-        return deny(root, f"validador com árvore suja: {tipo}", quadro("validação barrada", [
-            ("validador", tipo), ("motivo", "a árvore tem alteração sem commit"),
-        ], ["  → faça o commit: o carimbo de fim é do commit do topo"]))
     if tipo == registry.VERIFICADOR:
         m = re.search(r"(?m)^\s*portao:\s*([\w.-]+)", ti.get("prompt") or "")
         nome = m.group(1) if m else None
         if nome not in validadores[tipo]:
             return deny(root, f"verificador sem portão: {nome}", quadro("validação barrada", [
-                ("validador", tipo), ("motivo", f"`{nome}` não é portão de comando de fim do registro"),
+                ("validador", tipo), ("motivo", f"`{nome}` não é portão de comando ou artefato do registro"),
             ], [f"  → peça com a primeira linha `portao: <nome>`; existem: {', '.join(validadores[tipo])}"]))
-        novo["prompt"] = f"portao: {nome}\ncommit: {top}"
+        pedido_ticket = re.search(r"(?m)^\s*ticket:\s*([^\s]+)", ti.get("prompt") or "")
+        ticket = pedido_ticket.group(1) if pedido_ticket else None
+        gate = reg["portoes"][nome]
+        if gate["momento"] == "meio" and ticket not in tasks.tickets(root):
+            return deny(root, f"verificador sem ticket: {nome}", quadro("validação barrada", [
+                ("portão", nome), ("motivo", "portão de meio exige ticket válido na segunda linha"),
+            ], ["  → peça `portao: <nome>\\nticket: <caminho>`"]))
+        if gate["momento"] != "meio" and ticket:
+            return deny(root, f"ticket inesperado: {nome}", quadro("validação barrada", [
+                ("portão", nome), ("motivo", "só portão de meio recebe ticket"),
+            ]))
+        novo["prompt"] = f"portao: {nome}\n" + (f"ticket: {ticket}\n" if ticket else "") + f"commit: {top}"
     else:
-        mb = registry.merge_base(root)
-        if not mb:
-            return deny(root, f"validador sem base: {tipo}", quadro("validação barrada", [
-                ("validador", tipo), ("motivo", "sem base para o diff (nem origin/HEAD, origin/main, main ou master)"),
-            ], ["  → defina o remoto ou a branch padrão"]))
-        novo["prompt"] = f"diff: {mb}...{top}\ncommit: {top}"
+        novo["prompt"] = f"snapshot: {top}\ncommit: {top}\nInspecione os arquivos atuais do projeto."
     novo.pop("model", None)  # vale o `model` da definição do validador
     ledger.log(root, "trilho", "pedido", f"{tipo}: {novo['prompt'].splitlines()[0]}")
     return permitir(novo)
@@ -136,8 +144,10 @@ def portao_combinado(command):
     for words in parts:
         while words and (words[0] in WRAPPERS or re.fullmatch(r"\w+=.*", words[0])):
             words = words[1:]
-        if words and os.path.basename(words[0]) == "portao" and len(words) > 1 and (len(parts) > 1 or len(words) > 2):
-            return True
+        if words and os.path.basename(words[0]) == "portao" and len(words) > 1:
+            valid = len(words) == 2 or (len(words) == 4 and words[2] == "--ticket")
+            if len(parts) > 1 or not valid:
+                return True
     return False
 
 
@@ -191,18 +201,23 @@ def main():
     else:
         targets_pre = []
     for t in targets_pre:
-        if registry.relative(root, t) == ".claude/trilho.json":
+        rel = registry.relative(root, t)
+        if rel == ".claude/trilho.json":
             return deny(root, f"registro: {t}", quadro("registro protegido", [
                 ("arquivo", ".claude/trilho.json"),
                 ("motivo", "só o dono altera, por `fullchico-harness portoes` no terminal"),
             ], rodape="o plugin tr escreve ali; o agente não"))
+        if rel in (".codex/hooks.json", ".codex/config.toml", ".agents/plugins/marketplace.json") or (
+                rel or "").startswith(".codex/harness/") or rel in (
+                ".codex/agents/tr-qualidade-verificador.toml", ".codex/agents/tr-bugs-cacador.toml",
+                ".codex/agents/memoria-extrator.toml"):
+            return deny(root, f"configuração Codex: {t}", quadro("harness protegido", [
+                ("arquivo", rel), ("motivo", "contém os hooks ou validadores que aplicam os portões"),
+            ], rodape="o dono atualiza com `fullchico-harness install-codex` no terminal"))
 
     try:
         reg = registry.load(root)
     except registry.RegistryError as e:
-        if tool == "Bash" and isinstance(ti.get("command"), str) and ledger.is_send(ti["command"]):
-            return deny(root, "registro inválido", quadro("envio barrado", [
-                ("registro", ".claude/trilho.json"), ("motivo", f"registro de portões inválido: {e}")]))
         return 0
     if not reg:
         return 0
@@ -224,19 +239,12 @@ def main():
         if harness_antigo(command):
             return deny(root, f"harness antigo: {command[:100]}", quadro("harness antigo", [
                 ("comando", command.split()[0]), ("motivo", "os scripts de `.harness/` são do modelo antigo; os portões são do tr"),
-            ], lista(reg, registry.missing(root, "fim", reg)) or ["  → nada falta: o envio é `git push`"],
+            ], lista(reg, registry.missing(root, "fim", reg)) or ["  → valide a entrega com `portao entrega`"],
                 "estado: `portao`"))
         if portao_combinado(command):
             return deny(root, f"portao combinado: {command[:100]}", quadro("portao sozinho", [
                 ("comando", command[:80]), ("motivo", "com pipe, `&&` ou redirecionamento o portão roda mas não carimba"),
             ], ["  → rode `portao <nome>` sozinho na chamada; a saída já vem resumida"]))
-        if ledger.is_send(command):
-            faltam = registry.missing(root, "fim", reg)
-            if not faltam:
-                return 0
-            return deny(root, f"envio: {command[:100]}", quadro("envio barrado", [
-                ("commit", (ledger.head(root) or "?")[:10]), ("motivo", "faltam portões de fim"),
-            ], lista(reg, faltam), "o carimbo é do commit: commit novo pede os portões de novo · estado: `portao`"))
         targets = bash_targets(command)
     elif tool in EDICAO:
         path = ti.get("file_path") or ti.get("notebook_path")

@@ -1,7 +1,7 @@
 {
   "name": "tr",
   "version": "1.0.0",
-  "description": "Portões do projeto: registro, carimbos assinados por hook, validadores em subagente limpo (/tr:qualidade-verificar, /tr:bugs-cacar), passaporte por demanda, modelo por papel e o orquestrador /tr:processo-planejar.",
+  "description": "Entrada única do harness: diagnóstico, entrevista grill-me, portões, validadores e memória.",
   "author": {
     "name": "FullChico"
   },

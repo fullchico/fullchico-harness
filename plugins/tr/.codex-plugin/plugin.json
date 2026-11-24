@@ -1,0 +1,7 @@
+{
+  "name": "tr",
+  "version": "1.0.0",
+  "description": "Entrada única do harness: diagnóstico, entrevista grill-me, portões, validadores e memória.",
+  "skills": "./codex-skills/",
+  "hooks": "./codex-hooks/hooks.json"
+}

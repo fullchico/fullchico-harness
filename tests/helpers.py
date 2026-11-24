@@ -85,3 +85,12 @@ def fake_claude(folder):
     path.write_text(f'#!/bin/sh\necho "$*" >> "{folder}/calls"\n')
     path.chmod(path.stat().st_mode | stat.S_IEXEC)
     return folder
+
+
+def fake_npx(folder):
+    """O instalador Codex registra chamadas ao skills.sh sem acessar a rede nos testes."""
+    import stat
+    path = pathlib.Path(folder) / "npx"
+    path.write_text(f'#!/bin/sh\necho "$*" >> "{folder}/npx-calls"\n')
+    path.chmod(path.stat().st_mode | stat.S_IEXEC)
+    return folder
