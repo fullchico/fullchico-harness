@@ -19,6 +19,7 @@ const usage = "uso: fullchico-harness install [pasta do projeto] [--ambiente cla
   "     fullchico-harness install-codex [pasta do projeto] [--padrao]   (portões e memória no Codex)\n" +
   "     fullchico-harness puro [pasta do projeto]\n" +
   "     fullchico-harness portoes [--analisar] [--gravar] [--padrao] [--definir <portão> \"<comando>\"] [--registrar <esboço.json>] [--projeto <pasta>]\n" +
+  "     fullchico-harness modelos configurar [papel cli:modelo ...] | mostrar | executar <papel> [--pedido <texto>] [--ticket <caminho>] [--projeto <pasta>]\n" +
   "     fullchico-harness entregar [pasta do projeto]   (valida portões e passaportes na entrega)\n" +
   "     fullchico-harness modelos configurar [papel cli:modelo ...] | mostrar [--projeto <pasta>]\n" +
   "     fullchico-harness add <plugin> [<plugin>...] [--project <pasta>]   (tr, memoria)\n" +

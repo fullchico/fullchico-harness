@@ -3,8 +3,11 @@
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
+import uuid
+from datetime import datetime, timezone
 
 ESPELHOS = {"claude": {"opus": ("codex", "sol"), "sonnet": ("codex", "luna"),
                        "haiku": ("codex", "terra"), "fable": ("codex", "astra")},
@@ -12,6 +15,9 @@ ESPELHOS = {"claude": {"opus": ("codex", "sol"), "sonnet": ("codex", "luna"),
                       "terra": ("claude", "haiku"), "astra": ("claude", "fable")}}
 PAPEIS = ("planejamento", "execucao", "revisao", "apoio")
 PATH = os.path.join(".claude", "trilho.json")
+CODEX_IDS = {"sol": "gpt-6.2-sol", "luna": "gpt-6-luna",
+             "terra": "gpt-6.1-terra", "astra": "gpt-6.2-astra"}
+RATE_LIMIT = ("rate limit", "rate_limit", "usage limit", "quota exceeded", "429", "limite de uso")
 
 
 def ler(root):
@@ -95,9 +101,99 @@ def mostrar(root):
         print(f"{role}: {cli}:{model}{mirror_text}; {available}")
 
 
+def _runtime_model(choice):
+    model = choice["modelo"]
+    return CODEX_IDS.get(model.lower(), model) if choice["cli"] == "codex" else model
+
+
+def _support(config, primary):
+    explicit = config.get("apoio")
+    if isinstance(explicit, dict) and explicit != primary:
+        return explicit
+    mirror = ESPELHOS.get(primary["cli"], {}).get(primary["modelo"].lower())
+    return {"cli": mirror[0], "modelo": mirror[1]} if mirror else None
+
+
+def _state_dir(root):
+    result = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                            cwd=root, capture_output=True, text=True)
+    if result.returncode:
+        raise ValueError("execução exige um projeto Git; rode `fullchico-harness install` primeiro")
+    return os.path.join(result.stdout.strip(), "harness-runs")
+
+
+def _invoke(root, role, choice, prompt, folder, number):
+    cli, model = choice["cli"], _runtime_model(choice)
+    executable = shutil.which(cli)
+    if not executable:
+        raise ValueError(f"CLI `{cli}` não encontrada no PATH")
+    output = os.path.join(folder, f"{number}-{cli}-{role}.out")
+    error = os.path.join(folder, f"{number}-{cli}-{role}.err")
+    if cli == "claude":
+        command = [executable, "-p", "--model", model, "--output-format", "json"]
+        if role == "revisao":
+            command += ["--permission-mode", "plan"]
+    else:
+        command = [executable, "exec", "--model", model, "--json", "-o",
+                   os.path.join(folder, f"{number}-last.txt"), "-"]
+        command += ["--sandbox", "read-only" if role == "revisao" else "workspace-write"]
+    try:
+        result = subprocess.run(command, cwd=root, input=prompt, capture_output=True,
+                                text=True, timeout=3600)
+        status, stdout, stderr = result.returncode, result.stdout, result.stderr
+    except subprocess.TimeoutExpired as exc:
+        status, stdout, stderr = 124, exc.stdout or "", "tempo limite de 1 hora atingido"
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode(errors="replace")
+    with open(output, "w", encoding="utf-8") as stream:
+        stream.write(stdout)
+    with open(error, "w", encoding="utf-8") as stream:
+        stream.write(stderr)
+    return {"cli": cli, "modelo": choice["modelo"], "id_modelo": model, "codigo": status,
+            "saida": output, "erros": error, "limite": status != 0 and any(s in (stderr + stdout).lower() for s in RATE_LIMIT)}
+
+
+def executar(root, role, prompt, ticket=None):
+    if role not in PAPEIS[:3]:
+        raise ValueError("papel deve ser planejamento, execucao ou revisao")
+    config = ler(root).get("modelos") or {}
+    choice = config.get(role) if isinstance(config, dict) else None
+    if not isinstance(choice, dict) or choice.get("cli") not in ("claude", "codex") or not choice.get("modelo"):
+        raise ValueError(f"configure o papel `{role}` antes de executar")
+    if ticket:
+        import pathlib
+        file = (pathlib.Path(root) / ticket).resolve()
+        if not file.is_file() or not file.is_relative_to(pathlib.Path(root).resolve()):
+            raise ValueError("ticket deve ser um arquivo dentro do projeto")
+        prompt = f"Papel: {role}. Ticket: {ticket}\n\n{file.read_text()}\n\nPedido: {prompt}"
+    elif not prompt:
+        raise ValueError("informe --pedido ou --ticket")
+    state = _state_dir(root)
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
+    folder = os.path.join(state, run_id)
+    os.makedirs(folder, exist_ok=False)
+    with open(os.path.join(folder, "pedido.txt"), "w", encoding="utf-8") as stream:
+        stream.write(prompt)
+    attempts = [_invoke(root, role, choice, prompt, folder, 1)]
+    if attempts[0]["limite"]:
+        support = _support(config, choice)
+        if support:
+            followup = (prompt + "\n\nHandoff: o modelo anterior atingiu limite. Examine o estado atual do "
+                        "projeto e a saída em " + attempts[0]["saida"] +
+                        ". Continue o trabalho sem repetir alterações já feitas.")
+            attempts.append(_invoke(root, role, support, followup, folder, 2))
+    manifest = {"id": run_id, "papel": role, "ticket": ticket, "tentativas": attempts}
+    with open(os.path.join(folder, "manifesto.json"), "w", encoding="utf-8") as stream:
+        json.dump(manifest, stream, ensure_ascii=False, indent=2)
+    print(json.dumps({"id": run_id, "papel": role, "modelos": [a["id_modelo"] for a in attempts],
+                      "codigo": attempts[-1]["codigo"], "manifesto": os.path.join(folder, "manifesto.json")},
+                     ensure_ascii=False))
+    return 0 if attempts[-1]["codigo"] == 0 else 1
+
+
 def main(argv):
-    if not argv or argv[0] not in ("configurar", "mostrar"):
-        print("uso: fullchico-harness modelos configurar [papel cli:modelo ...] | mostrar", file=sys.stderr)
+    if not argv or argv[0] not in ("configurar", "mostrar", "executar"):
+        print("uso: fullchico-harness modelos configurar [papel cli:modelo ...] | mostrar | executar <papel> [--pedido texto] [--ticket caminho]", file=sys.stderr)
         return 2
     root, args = os.path.abspath("."), argv[1:]
     for i, arg in enumerate(args):
@@ -109,7 +205,25 @@ def main(argv):
         print(f"projeto não encontrado: {root}", file=sys.stderr)
         return 2
     try:
-        configurar(root, args) if argv[0] == "configurar" else mostrar(root)
+        if argv[0] == "configurar":
+            configurar(root, args)
+        elif argv[0] == "mostrar":
+            mostrar(root)
+        else:
+            if not args:
+                raise ValueError("informe o papel para executar")
+            role, args = args[0], args[1:]
+            prompt, ticket = "", None
+            while args:
+                flag = args.pop(0)
+                if flag not in ("--pedido", "--ticket") or not args:
+                    raise ValueError("use --pedido texto e/ou --ticket caminho")
+                value = args.pop(0)
+                if flag == "--pedido":
+                    prompt = value
+                else:
+                    ticket = value
+            return executar(root, role, prompt, ticket)
         return 0
     except ValueError as error:
         print(error, file=sys.stderr)

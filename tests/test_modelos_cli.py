@@ -1,16 +1,18 @@
 import json
+import os
 import pathlib
 import subprocess
 import sys
+import tempfile
 import unittest
 
 from tests.helpers import ROOT, make_repo
 
 
 class ModelosCliTest(unittest.TestCase):
-    def run_cli(self, repo, *args):
+    def run_cli(self, repo, *args, env=None):
         return subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/modelos.py"), *args],
-                              cwd=repo, capture_output=True, text=True)
+                              cwd=repo, capture_output=True, text=True, env=env)
 
     def test_configure_and_show_keeps_other_registry_data_and_displays_mirror(self):
         repo = make_repo()
@@ -41,6 +43,27 @@ class ModelosCliTest(unittest.TestCase):
         result = self.run_cli(repo, "configurar", "execucao", "codex:luna")
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(path.read_text(), "{invalid")
+
+    def test_execute_records_real_cli_and_falls_back_on_limit(self):
+        repo = make_repo()
+        self.assertEqual(self.run_cli(repo, "configurar", "planejamento", "claude:opus").returncode, 0)
+        with tempfile.TemporaryDirectory() as bin_dir:
+            for name, script in {
+                "claude": "#!/bin/sh\necho 'rate limit reached' >&2\nexit 1\n",
+                "codex": "#!/bin/sh\necho '{\"type\":\"turn.completed\"}'\n",
+            }.items():
+                path = pathlib.Path(bin_dir) / name
+                path.write_text(script)
+                path.chmod(0o755)
+            env = dict(os.environ, PATH=bin_dir + os.pathsep + os.environ.get("PATH", ""))
+            result = self.run_cli(repo, "executar", "planejamento", "--pedido", "Planeje a soma", env=env)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        summary = json.loads(result.stdout)
+        self.assertEqual(summary["modelos"], ["opus", "gpt-6.2-sol"])
+        manifest = json.loads(pathlib.Path(summary["manifesto"]).read_text())
+        self.assertEqual([item["cli"] for item in manifest["tentativas"]], ["claude", "codex"])
+        self.assertIn("harness-runs", summary["manifesto"])
+        self.assertFalse((repo / "harness-runs").exists())
 
 
 if __name__ == "__main__":

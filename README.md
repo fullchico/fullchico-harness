@@ -27,7 +27,9 @@ Para registrar modelos por papel, rode `fullchico-harness modelos configurar` no
 (interativo) ou informe pares, por exemplo `modelos configurar planejamento claude:opus
 execucao codex:luna revisao codex:sol apoio claude:sonnet`. `modelos mostrar` exibe os espelhos
 iniciais Opus/Sol, Sonnet/Luna, Haiku/Terra e Fable/Astra. A configuração registra a intenção;
-o disparo misto entre CLIs e a troca automática por limite ainda não são executados por esse comando.
+`modelos executar <papel> --pedido "<texto>" [--ticket <caminho>]` inicia a CLI escolhida,
+grava um manifesto fora do repositório e passa ao modelo de apoio se a primeira CLI retornar
+erro de limite. O loop completo entre os três papéis ainda é conduzido pelas skills do `tr`.
 
 ## Sumário
 

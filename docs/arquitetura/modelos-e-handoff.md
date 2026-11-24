@@ -56,7 +56,10 @@ Quando a CLI oferece sinal confiável de limite iminente, o harness pode prepara
 
 - Configuração por projeto e comando interativo ou não interativo: implementados.
 - Portões de meio por ticket e validação na entrega: implementados.
-- Resolver aliases para IDs disponíveis em cada CLI e mostrar um plano antes de executar.
-- Coordenar processos Claude/Codex e persistir manifesto, estado do grafo e handoffs.
+- `modelos executar` inicia um papel em Claude ou Codex, resolve os aliases Codex conhecidos,
+  salva um manifesto fora do repositório e tenta o apoio quando a CLI retorna erro de limite.
+- Validar acesso aos IDs de modelos antes da execução e mostrar um plano congelado.
+- Encadear planejamento, execução e revisão num loop automático com estado do grafo e
+  handoffs entre tarefas; hoje `modelos executar` inicia um papel por vez.
 - Registrar provedor e modelo real nas evidências de revisão; rejeitar carimbo que não corresponda ao manifesto.
 - Testar troca por limite, retomada sem duplicar alterações e revisão independente.
