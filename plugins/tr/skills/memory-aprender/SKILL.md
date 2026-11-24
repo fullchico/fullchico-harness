@@ -1,5 +1,5 @@
 ---
-name: aprender
+name: memory-aprender
 description: Fecha o ciclo depois do merge de uma entrega. Atualiza o mapa, mede o consumo por papel, faz a retrospectiva da entrega e consolida as notas das sessões.
 disable-model-invocation: true
 ---
@@ -11,7 +11,7 @@ subagentes de cada passo terminarem antes de seguir para o próximo.
 
 ## 1. Atualizar
 
-Traga a branch padrão atualizada. Depois use a skill `mapear`: ela refaz só o que a
+Traga a branch padrão atualizada. Depois use a skill `/tr:memory-mapear`: ela refaz só o que a
 entrega mudou no mapa, e relata termos do glossário e decisões de arquitetura a rever.
 
 ## 2. Retrospectiva
@@ -58,7 +58,7 @@ Não tire conclusão de um número só. Uma entrega é uma amostra.
 
 ## 4. Consolidar
 
-Use a skill `dream`. Ela transforma o que as sessões ensinaram sobre o projeto em notas
+Use a skill `/tr:memory-dream`. Ela transforma o que as sessões ensinaram sobre o projeto em notas
 ancoradas no código, e marca as sessões como processadas.
 
 ## Relatar

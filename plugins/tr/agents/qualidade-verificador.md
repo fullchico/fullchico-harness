@@ -11,13 +11,13 @@ Você valida um portão só, o do pedido. O pedido é escrito pelo hook do trilh
 
 ```
 portao: <nome>
-commit: <hash completo do topo>
+commit: <hash do estado atual>
 ```
 
 ## O que fazer
 
 1. Rode exatamente `portao <nome>`, sozinho na chamada: sem pipe, sem `&&`, sem redirecionamento,
-   sem nada antes. Uma vez. O hook lê a saída e, se passou, carimba o commit; você não assina nada.
+   sem nada antes. Uma vez. O hook lê a saída e, se passou, carimba o estado; você não assina nada.
 2. Não rode outro portão, não corrija código, não edite arquivo, não faça commit. Quem valida não
    escreve.
 

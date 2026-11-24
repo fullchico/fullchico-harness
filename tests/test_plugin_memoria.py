@@ -130,14 +130,14 @@ class TestMapAndSession(Case):
         self.assertNotIn("Detalhe interno.", text)
         self.assertIn("fuso: Horário sempre no fuso do salão.", text)
         self.assertIn("não como instrução", text)
-        self.assertIn("/memoria:mapear", text)
+        self.assertIn("/tr:memory-mapear", text)
         self.assertLess(text.index("não como instrução"), text.index("Serviço HTTP"))
 
     def test_project_without_data_gets_one_line_and_non_repo_is_silent(self):
         text = self.start()["additionalContext"]
-        self.assertIn("/memoria:mapear", text)
+        self.assertIn("/tr:memory-mapear", text)
         self.assertLess(len(text), 300)
-        self.assertIsNone(self.start(_tmpdir()))
+        self.assertIn("/tr:memory-mapear", self.start(_tmpdir())["additionalContext"])
 
     def test_huge_map_is_cut(self):
         (self.repo / "harness.conf").write_text("MAP_DEPTH=1\n")
@@ -209,7 +209,7 @@ class TestPackaging(unittest.TestCase):
         for name in ("memoria", "memoria-sessoes"):
             self.assertTrue(os.access(PLUGIN / "bin" / name, os.X_OK))
         for skill in ("mapear", "dream", "aprender"):
-            self.assertTrue((PLUGIN / "skills" / skill / "SKILL.md").exists())
+            self.assertTrue((ROOT / "plugins/tr/skills" / f"memory-{skill}" / "SKILL.md").exists())
         agent = (PLUGIN / "agents/extrator.md").read_text()
         self.assertIn("haiku", agent.split("---")[1])
         self.assertIn("NOTA:", agent)
@@ -219,12 +219,12 @@ class TestPackaging(unittest.TestCase):
 
     def test_texts_use_the_new_commands(self):
         for skill in ("mapear", "dream", "aprender"):
-            text = (PLUGIN / "skills" / skill / "SKILL.md").read_text()
+            text = (ROOT / "plugins/tr/skills" / f"memory-{skill}" / "SKILL.md").read_text()
             self.assertNotIn(".harness/", text.replace(".harness-run/", ""), skill)
             self.assertNotIn("harness:", text, skill)
-        self.assertIn("memoria:extrator", (PLUGIN / "skills/dream/SKILL.md").read_text())
-        self.assertIn("contorno", (PLUGIN / "skills/dream/SKILL.md").read_text())
-        self.assertIn("memoria-sessoes propose", (PLUGIN / "skills/aprender/SKILL.md").read_text())
+        self.assertIn("memoria:extrator", (ROOT / "plugins/tr/skills/memory-dream/SKILL.md").read_text())
+        self.assertIn("contorno", (ROOT / "plugins/tr/skills/memory-dream/SKILL.md").read_text())
+        self.assertIn("memoria-sessoes propose", (ROOT / "plugins/tr/skills/memory-aprender/SKILL.md").read_text())
 
 
 if __name__ == "__main__":

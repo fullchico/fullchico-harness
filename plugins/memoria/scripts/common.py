@@ -16,11 +16,20 @@ def _git(cwd, *args):
 
 
 def repo_root(cwd):
-    return _git(cwd, "rev-parse", "--show-toplevel")
+    folder = os.path.realpath(cwd)
+    while True:
+        if os.path.isfile(os.path.join(folder, ".claude", "trilho.json")):
+            return folder
+        parent = os.path.dirname(folder)
+        if parent == folder:
+            break
+        folder = parent
+    return _git(cwd, "rev-parse", "--show-toplevel") or os.path.realpath(cwd)
 
 
 def head_sha(cwd):
-    return _git(cwd, "rev-parse", "HEAD")
+    from ledger import head
+    return _git(cwd, "rev-parse", "HEAD") or head(cwd)
 
 
 def home() -> str:
@@ -34,7 +43,7 @@ def memory_dir(cwd):
     (ao contrário de ~/.claude). É o mesmo lugar em que o plugin antigo do harness gravava.
     """
     common_dir = _git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir")
-    return os.path.join(common_dir, "harness-memory") if common_dir else None
+    return os.path.join(common_dir, "harness-memory") if common_dir else os.path.join(os.path.realpath(cwd), ".harness-run", "memory")
 
 
 def read_conf(path: str) -> dict:

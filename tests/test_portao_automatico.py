@@ -134,12 +134,14 @@ class TestDefinir(Base):
         self.assertIn('fullchico-harness portoes --definir qualidade "<comando>"', r.stdout)
         self.assertNotIn("qualidade: passou", r.stdout)
 
-    def test_send_gate_lists_it_as_missing(self):
+    def test_delivery_gate_lists_it_as_missing(self):
         r = self.run_script("gate.py", {"hook_event_name": "PreToolUse", "tool_name": "Bash", "cwd": str(self.repo),
                                         "tool_input": {"command": "git push"}})
-        self.assertEqual(r.returncode, 2)
-        self.assertIn("qualidade", r.stderr)
-        self.assertIn("--definir qualidade", r.stderr)
+        self.assertEqual(r.returncode, 0)
+        delivery = subprocess.run([str(TRILHO / "bin/portao"), "entrega"], cwd=self.repo,
+                                  capture_output=True, text=True, env=self.env)
+        self.assertEqual(delivery.returncode, 1)
+        self.assertIn("--definir qualidade", delivery.stdout)
 
     def test_definir_swaps_only_that_command(self):
         before = self.trilho()

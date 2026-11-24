@@ -10,18 +10,23 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import registry  # noqa: E402
+import tasks  # noqa: E402
 
 MOMENTO = {"inicio": "início", "fim": "fim"}
 
 
 def listar(root, reg):
-    print("Portões deste projeto (os de início, antes de escrever código; os de fim, antes de enviar):\n")
+    print("Portões deste projeto (os de início, antes de escrever código; os de fim, na entrega):\n")
     top = registry.ledger.head(root)
     pedido = registry.passaporte(root, reg)
     exigidos = set(registry.exigidos(root, "fim", reg)) | set(registry.exigidos(root, "inicio", reg))
+    task_gates = tasks.required_gates(root)
     for name, gate in reg["portoes"].items():
         if name not in exigidos:
-            print(f"[fora] {name} (fim, fora do passaporte desta demanda)")
+            if name in task_gates:
+                print(f"[task] {name} ({MOMENTO[gate['momento']]}, exigido nos passaportes dos tickets indicados abaixo)")
+            else:
+                print(f"[fora] {name} ({MOMENTO[gate['momento']]}, fora do passaporte desta demanda)")
             continue
         stamped = registry.stamped_commit(root, name, gate)
         desc = f" — {gate['descricao']}" if gate.get("descricao") else ""
@@ -33,8 +38,17 @@ def listar(root, reg):
     fim = {n for n, g in reg["portoes"].items() if g["momento"] == "fim"}
     for name in sorted((pedido or set()) - fim):
         print(f"aviso: o passaporte pede `{name}`, que não é portão de fim do registro; ignorado")
-    if not registry.missing(root, "inicio", reg) and not registry.missing(root, "fim", reg):
-        print("\nTodos os portões carimbados: o envio (`git push`, `gh pr create`) está liberado pelo trilho.")
+    passaportes, fronteira = tasks.audit(root, reg)
+    if tasks.tickets(root):
+        print("\nPassaportes dos tickets:")
+        for item in passaportes:
+            print(f"[falta] {item}")
+        if not passaportes:
+            print("[ok] todos os tickets concluídos e carimbados")
+        if fronteira:
+            print("Fronteira liberada: " + ", ".join(fronteira))
+    if not registry.missing(root, "inicio", reg) and not registry.missing(root, "fim", reg) and not passaportes:
+        print("\nTodos os portões carimbados: a entrega está validada pelo trilho.")
     return 0
 
 
@@ -60,8 +74,7 @@ def verificar(root, reg, name):
     else:
         files = registry.artifact_files(root, gate)
         if not files:
-            print(f"portao {name}: FALHOU (nenhum arquivo `{gate['artefato']}` adicionado ou alterado nesta branch, "
-                  f"em commit, em relação a {registry.base(root) or 'base'})")
+            print(f"portao {name}: FALHOU (nenhum arquivo `{gate['artefato']}` encontrado no projeto)")
             return 1
         if registry.dirty(root, files):
             print(f"portao {name}: FALHOU (o artefato tem alteração sem commit: {' '.join(files)})")
@@ -86,6 +99,18 @@ def main(argv):
         return 2
     if not reg:
         print("Este projeto não tem portões (.claude/trilho.json, chave `portoes`).")
+        return 1 if argv and argv[0] == "entrega" else 0
+    if argv and argv[0] == "entrega":
+        faltam = registry.missing(root, "inicio", reg) + registry.missing(root, "fim", reg)
+        passaportes, _ = tasks.audit(root, reg)
+        for name in faltam:
+            print(f"[falta] portão `{name}`: {registry.howto(name, reg['portoes'][name])}")
+        for problem in passaportes:
+            print(f"[falta] {problem}")
+        if faltam or passaportes:
+            print("Entrega pendente: corrija e execute `portao entrega` novamente.")
+            return 1
+        print("Entrega validada: portões de início, fim e passaportes concluídos.")
         return 0
     return verificar(root, reg, argv[0]) if argv else listar(root, reg)
 

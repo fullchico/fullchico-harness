@@ -50,16 +50,16 @@ def from_command(payload, root, reg):
     lines = [l for l in output_of(payload.get("tool_response")).splitlines() if l.strip()]
     if not lines or lines[-1].strip() != f"portao {name}: passou":
         return 0
-    if gate["momento"] == "fim" and payload.get("agent_type") != registry.VERIFICADOR:
+    if payload.get("agent_type") != registry.VERIFICADOR:
         # quem escreveu o código vê o resultado, mas não assina: o carimbo vem de um subagente limpo
         ledger.log(root, "trilho", "não assinou", f"{name}: rodado fora do {registry.VERIFICADOR}")
         return saida.avisar(f"trilho · {name} passou aqui, mas o carimbo vem de {registry.INVOKERS[registry.VERIFICADOR]}")
-    if gate["momento"] == "fim" and registry.dirty(root):
+    if registry.dirty(root):
         ledger.log(root, "trilho", "não assinou", f"{name}: árvore suja")
         return saida.recusar(saida.quadro("carimbo recusado", [
             ("portão", name), ("motivo", "passou, mas a árvore tem alteração sem commit"),
         ], [f"  → faça o commit e rode `portao {name}` de novo"],
-            "o carimbo de um portão de fim é do commit do topo"))
+            "o fiscal só assina com a árvore limpa"))
     key = registry.stamp_key(root, gate)
     if not key:
         return 0

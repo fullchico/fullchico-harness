@@ -5,11 +5,14 @@ e os plugins que o tr absorveu.
 """
 import json
 import os
+import pty
+import select
+import time
 import shutil
 import subprocess
 import unittest
 
-from tests.helpers import ROOT, _tmpdir, commit_all, fake_claude, make_repo
+from tests.helpers import ROOT, _tmpdir, commit_all, fake_claude, fake_npx, make_repo
 
 
 class TestInstall(unittest.TestCase):
@@ -22,6 +25,7 @@ class TestInstall(unittest.TestCase):
         commit_all(self.repo, "chore: scaffold")
         self.bin = _tmpdir()
         fake_claude(self.bin)
+        fake_npx(self.bin)
 
     def install(self, *args):
         env = dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}")
@@ -53,6 +57,57 @@ class TestInstall(unittest.TestCase):
         self.assertEqual(gates["qualidade"]["comando"], "pnpm lint && pnpm test", "veio do package.json do projeto")
         self.assertEqual(gates["processo"]["artefato"], "docs/specs/*/spec.md")
         self.assertIn("`cc`", r.stdout)
+        self.assertTrue((self.repo / ".agents/plugins/marketplace.json").exists(), "sem TTY, o padrão também instala Codex")
+
+    def test_ambos_installs_claude_and_codex_with_one_registry(self):
+        r = self.install("--ambiente", "ambos", "--padrao")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("plugin install tr@fullchico --scope project", self.calls())
+        self.assertTrue((self.repo / ".agents/plugins/marketplace.json").exists())
+        self.assertTrue((self.repo / ".claude/trilho.json").exists())
+        self.assertEqual(json.loads((self.repo / ".claude/trilho.json").read_text())["portoes"]["bugs"]["agente"],
+                         "tr:bugs-cacador")
+
+    def test_codex_selection_does_not_call_claude(self):
+        r = self.install("--ambiente", "codex", "--padrao")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse((self.bin / "calls").exists())
+        self.assertTrue((self.repo / ".agents/plugins/marketplace.json").exists())
+        calls = (self.bin / "npx-calls").read_text()
+        self.assertIn("skills add DietrichGebert/ponytail", calls)
+        self.assertIn("skills add mattpocock/skills", calls)
+
+    def test_invalid_environment_stops_before_changes(self):
+        r = self.install("--ambiente", "outro")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("--ambiente deve ser", r.stderr)
+        self.assertFalse((self.bin / "calls").exists())
+        self.assertFalse((self.repo / ".codex").exists())
+
+    def test_interactive_menu_selects_codex(self):
+        master, slave = pty.openpty()
+        env = dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}")
+        try:
+            proc = subprocess.Popen([shutil.which("node"), str(ROOT / "bin/harness.js"), "install",
+                                     str(self.repo), "--padrao"], stdin=slave, stdout=slave,
+                                    stderr=subprocess.PIPE, env=env)
+            os.close(slave)
+            os.write(master, b"2\n")
+            deadline = time.monotonic() + 15
+            while proc.poll() is None and time.monotonic() < deadline:
+                if select.select([master], [], [], 0.1)[0]:
+                    try:
+                        os.read(master, 4096)
+                    except OSError:
+                        break
+            if proc.poll() is None:
+                proc.kill()
+            _, stderr = proc.communicate(timeout=5)
+            self.assertEqual(proc.returncode, 0, stderr.decode())
+        finally:
+            os.close(master)
+        self.assertTrue((self.repo / ".agents/plugins/marketplace.json").exists())
+        self.assertFalse((self.bin / "calls").exists())
 
     def test_running_it_twice_does_not_duplicate_the_rtk_hook(self):
         self.install()
@@ -194,7 +249,17 @@ class TestInstall(unittest.TestCase):
         r = subprocess.run([shutil.which("node"), str(ROOT / "bin/harness.js"), "install", "/caminho/que/nao/existe"],
                            capture_output=True, text=True)
         self.assertEqual(r.returncode, 2)
-        self.assertIn("não é um repositório git", r.stderr)
+        self.assertIn("não é uma pasta do projeto", r.stderr)
+
+    def test_install_initializes_local_git_without_remote(self):
+        project = _tmpdir()
+        env = dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}")
+        run = subprocess.run([shutil.which("node"), str(ROOT / "bin/harness.js"), "install", str(project),
+                              "--ambiente", "claude", "--padrao"], capture_output=True, text=True, env=env)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertTrue((project / ".git").is_dir())
+        remotes = subprocess.run(["git", "-C", str(project), "remote"], capture_output=True, text=True)
+        self.assertEqual(remotes.stdout.strip(), "")
 
 
 if __name__ == "__main__":
