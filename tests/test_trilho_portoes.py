@@ -395,6 +395,22 @@ class TestPortoesCli(Case):
     def cli(self, *args):
         return subprocess.run(["node", str(ROOT / "bin/harness.js"), "portoes", *args], capture_output=True, text=True)
 
+    def test_claude_shell_cannot_change_registry_without_sandbox(self):
+        path = self.repo / ".claude/trilho.json"
+        path.parent.mkdir()
+        path.write_text(json.dumps({"portoes": {"qualidade": QUALIDADE}}))
+        before = path.read_text()
+        draft = self.home / "draft.json"
+        draft.write_text(json.dumps({"spec": {"momento": "inicio", "assina": "artefato", "artefato": "docs/spec.md"}}))
+        env = dict(os.environ, CLAUDECODE="1")
+        for args in (("--padrao", "--gravar"), ("--registrar", str(draft)),
+                     ("--definir", "qualidade", "true")):
+            out = subprocess.run(["node", str(ROOT / "bin/harness.js"), "portoes", *args,
+                                  "--projeto", str(self.repo)], capture_output=True, text=True, env=env)
+            self.assertEqual(out.returncode, 1, out.stderr)
+            self.assertIn("Sem permissão", out.stderr)
+            self.assertEqual(path.read_text(), before)
+
     def project(self):
         r = self.repo
         (r / "docs/specs").mkdir(parents=True)
