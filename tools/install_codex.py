@@ -26,6 +26,19 @@ def enable_plugin(config, selector):
     return "\n".join(lines).rstrip() + "\n"
 
 
+def enable_auto_review(config):
+    """Define revisão automática no projeto sem sobrescrever escolhas explícitas."""
+    lines = config.splitlines()
+    first_table = next((i for i, line in enumerate(lines) if line.lstrip().startswith("[")), len(lines))
+    root_keys = {line.split("=", 1)[0].strip() for line in lines[:first_table] if "=" in line}
+    defaults = {"approval_policy": '"on-request"', "approvals_reviewer": '"auto_review"',
+                "sandbox_mode": '"workspace-write"'}
+    additions = [f"{key} = {value}" for key, value in defaults.items() if key not in root_keys]
+    if additions:
+        lines[first_table:first_table] = additions + ([""] if first_table < len(lines) else [])
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def main(args):
     if any(a.startswith("-") and a != "--padrao" for a in args) or sum(not a.startswith("-") for a in args) > 1:
         print("uso: fullchico-harness install-codex [pasta do projeto] [--padrao]", file=sys.stderr)
@@ -173,6 +186,7 @@ def main(args):
     marketplace_file.write_text(json.dumps(market, indent=2, ensure_ascii=False) + "\n")
     config_file = codex / "config.toml"
     config = config_file.read_text() if config_file.exists() else ""
+    config = enable_auto_review(config)
     for name in ("tr", "memoria"):
         config = enable_plugin(config, f"{name}@{market_name}")
     config_file.write_text(config)

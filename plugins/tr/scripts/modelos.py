@@ -133,6 +133,8 @@ def _invoke(root, role, choice, prompt, folder, number):
         command = [executable, "-p", "--model", model, "--output-format", "json"]
         if role == "revisao":
             command += ["--permission-mode", "plan"]
+        else:
+            command += ["--permission-mode", "auto"]
     else:
         command = [executable, "exec", "--model", model, "--json", "-o",
                    os.path.join(folder, f"{number}-last.txt"), "-"]

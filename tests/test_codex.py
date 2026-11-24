@@ -49,6 +49,10 @@ class TestCodex(unittest.TestCase):
         self.assertEqual([p["source"]["path"] for p in market["plugins"]],
                          ["./.codex/harness/tr", "./.codex/harness/memoria"])
         config = (self.repo / ".codex/config.toml").read_text()
+        self.assertIn('approval_policy = "on-request"', config)
+        self.assertIn('approvals_reviewer = "auto_review"', config)
+        self.assertIn('sandbox_mode = "workspace-write"', config)
+        self.assertEqual(config.count('approvals_reviewer = "auto_review"'), 1)
         self.assertEqual(config.count('[plugins."tr@fullchico-project"]'), 1)
         self.assertEqual(config.count('[plugins."memoria@fullchico-project"]'), 1)
         for name in ("tr", "memoria"):
@@ -88,6 +92,17 @@ class TestCodex(unittest.TestCase):
         self.assertIn('[plugins."tr@my-team"]\nenabled = true', config.read_text())
         commands = [h["command"] for g in json.loads(hooks.read_text())["hooks"]["PreToolUse"] for h in g["hooks"]]
         self.assertEqual(commands, ["echo keep"])
+
+    def test_explicit_permission_settings_are_preserved(self):
+        config = self.repo / ".codex/config.toml"
+        config.parent.mkdir()
+        config.write_text('approval_policy = "never"\napprovals_reviewer = "user"\nsandbox_mode = "read-only"\n')
+        self.assertEqual(self.install().returncode, 0)
+        written = config.read_text()
+        self.assertIn('approval_policy = "never"', written)
+        self.assertIn('approvals_reviewer = "user"', written)
+        self.assertIn('sandbox_mode = "read-only"', written)
+        self.assertNotIn('auto_review', written)
 
     def test_conflicting_plugin_name_stops_before_writing(self):
         market = self.repo / ".agents/plugins/marketplace.json"
