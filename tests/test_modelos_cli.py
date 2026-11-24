@@ -35,6 +35,24 @@ class ModelosCliTest(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertFalse((repo / ".claude/trilho.json").exists())
 
+    def test_gate_reviewer_model_is_configured_separately(self):
+        repo = make_repo()
+        (repo / ".claude").mkdir()
+        path = repo / ".claude/trilho.json"
+        path.write_text(json.dumps({"portoes": {"design-revisao": {"momento": "fim", "assina": "agente",
+                                                               "agente": "design-revisor"}}}))
+        result = self.run_cli(repo, "configurar", "revisao", "claude:sonnet",
+                              "portao:design-revisao", "claude:opus")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        data = json.loads(path.read_text())
+        self.assertEqual(data["modelos"]["portoes"]["design-revisao"], {"cli": "claude", "modelo": "opus"})
+        self.assertIn("portao:design-revisao: claude:opus", self.run_cli(repo, "mostrar").stdout)
+        blocked = self.run_cli(repo, "configurar", "revisao", "claude:haiku",
+                               env=dict(os.environ, CLAUDECODE="1"))
+        self.assertEqual(blocked.returncode, 2)
+        self.assertIn("Sem permissão", blocked.stderr)
+        self.assertEqual(json.loads(path.read_text()), data)
+
     def test_invalid_registry_is_preserved(self):
         repo = make_repo()
         (repo / ".claude").mkdir()

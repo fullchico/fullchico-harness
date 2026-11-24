@@ -310,6 +310,20 @@ class TestEndGateByAgent(Case):
             self.assertTrue(self.signed("bugs"), send.__name__)
             ledger.forget(str(self.repo), "bugs", self.head)
 
+    def test_review_model_uses_gate_override_before_role_default(self):
+        path = self.repo / ".claude/trilho.json"
+        data = json.loads(path.read_text())
+        data["modelos"] = {"revisao": {"cli": "claude", "modelo": "haiku"},
+                           "portoes": {"bugs": {"cli": "claude", "modelo": "sonnet"}}}
+        path.write_text(json.dumps(data))
+        out = self.pre("Agent", subagent_type="tr:bugs-cacador", prompt="Revise bugs")
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertEqual(json.loads(out.stdout)["hookSpecificOutput"]["updatedInput"]["model"], "sonnet")
+        del data["modelos"]["portoes"]
+        path.write_text(json.dumps(data))
+        out = self.pre("Agent", subagent_type="tr:bugs-cacador", prompt="Revise bugs")
+        self.assertEqual(json.loads(out.stdout)["hookSpecificOutput"]["updatedInput"]["model"], "haiku")
+
     def test_the_wrong_agent_or_commit_does_not_sign(self):
         self.stop(self.block(), agent="outro:agente")
         self.handback(self.block(), agent="general-purpose")

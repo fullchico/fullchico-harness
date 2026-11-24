@@ -70,7 +70,10 @@ def load(root):
         raise RegistryError("`base_ref` deve ser uma referência Git válida em texto.")
     for name, gate in portoes.items():
         _validate(name, gate)
-    return {"codigo": codigo, "portoes": portoes, "base_ref": base_ref}
+    modelos = data.get("modelos") or {}
+    if not isinstance(modelos, dict):
+        raise RegistryError("`modelos` em .claude/trilho.json deve ser um objeto.")
+    return {"codigo": codigo, "portoes": portoes, "base_ref": base_ref, "modelos": modelos}
 
 
 def has_gates(root):

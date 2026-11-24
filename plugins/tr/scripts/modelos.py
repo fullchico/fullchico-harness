@@ -44,29 +44,56 @@ def validar_papel(value):
 
 
 def configurar(root, args):
+    if os.environ.get("CLAUDECODE") == "1":
+        raise ValueError("Sem permissão para alterar .claude/trilho.json nesta sessão do Claude Code. Rode no terminal do dono.")
     if args and len(args) % 2:
         raise ValueError("informe pares papel cli:modelo")
     chosen = {}
+    gates = {}
+    current_data = ler(root)
+    available = current_data.get("portoes") or {}
     for i in range(0, len(args), 2):
         role, value = args[i], args[i + 1]
-        if role not in PAPEIS:
-            raise ValueError(f"papel inválido: {role}; use {', '.join(PAPEIS)}")
-        chosen[role] = validar_papel(value)
+        selected = validar_papel(value)
+        if role.startswith("portao:"):
+            name = role.split(":", 1)[1]
+            if name not in available:
+                raise ValueError(f"portão não encontrado: {name}")
+            if selected["cli"] != "claude":
+                raise ValueError("modelo de portão no Agent do Claude deve usar claude:modelo; Codex usa o executor por papel")
+            gates[name] = selected
+        elif role in PAPEIS:
+            chosen[role] = selected
+        else:
+            raise ValueError(f"papel inválido: {role}; use {', '.join(PAPEIS)} ou portao:<nome>")
     if not args:
         if not sys.stdin.isatty():
             raise ValueError("modo não interativo exige pares papel cli:modelo")
         print("Configure cada papel como cli:modelo (Enter mantém o atual).")
-        current = (ler(root).get("modelos") or {})
+        current = (current_data.get("modelos") or {})
         for role in PAPEIS:
             old = current.get(role, {})
             default = f"{old.get('cli', '')}:{old.get('modelo', '')}" if old else ""
             value = input(f"{role} [{default}]: ").strip()
             if value:
                 chosen[role] = validar_papel(value)
-    data = ler(root)
+        for name, gate in available.items():
+            if gate.get("momento") != "fim":
+                continue
+            old = (current.get("portoes") or {}).get(name, {})
+            default = f"{old.get('cli', '')}:{old.get('modelo', '')}" if old else "padrão de revisão"
+            value = input(f"revisor do portão {name} [{default}]: ").strip()
+            if value:
+                selected = validar_papel(value)
+                if selected["cli"] != "claude":
+                    raise ValueError("modelo de portão no Agent do Claude deve usar claude:modelo")
+                gates[name] = selected
+    data = current_data
     config = data.get("modelos") if isinstance(data.get("modelos"), dict) else {}
     for role, entry in chosen.items():
         config[role] = entry
+    if gates:
+        config.setdefault("portoes", {}).update(gates)
     data["modelos"] = config
     folder = os.path.join(root, ".claude")
     os.makedirs(folder, exist_ok=True)
@@ -99,6 +126,8 @@ def mostrar(root):
         mirror_text = f"; espelho {mirror[0]}:{mirror[1]}" if mirror else "; sem espelho inicial conhecido"
         available = "disponível" if shutil.which(cli) else "CLI indisponível no PATH"
         print(f"{role}: {cli}:{model}{mirror_text}; {available}")
+    for name, value in sorted((config.get("portoes") or {}).items()):
+        print(f"portao:{name}: {value['cli']}:{value['modelo']}")
 
 
 def _runtime_model(choice):
@@ -201,7 +230,7 @@ def executar(root, role, prompt, ticket=None):
 
 def main(argv):
     if not argv or argv[0] not in ("configurar", "mostrar", "executar"):
-        print("uso: fullchico-harness modelos configurar [papel cli:modelo ...] | mostrar | executar <papel> [--pedido texto] [--ticket caminho]", file=sys.stderr)
+        print("uso: fullchico-harness modelos configurar [papel cli:modelo ...] [portao:<nome> claude:modelo ...] | mostrar | executar <papel> [--pedido texto] [--ticket caminho]", file=sys.stderr)
         return 2
     root, args = os.path.abspath("."), argv[1:]
     for i, arg in enumerate(args):

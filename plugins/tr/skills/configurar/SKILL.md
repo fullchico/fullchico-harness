@@ -39,6 +39,13 @@ com recomendação por pergunta, até o dono confirmar o desenho. A entrevista d
 - quais portões de **saída** validam a entrega: testes, lint, typecheck, build, e2e, revisão,
   segurança, acessibilidade, deploy ou outros checks realmente usados no projeto;
 - quais são sempre obrigatórios e quais dependem do tipo de entrega.
+- qual CLI e modelo faz planejamento, execução e revisão, e se algum portão de fim precisa de
+  revisor diferente do padrão. Mostre os modelos já configurados com
+  `npx @fullchico/harness modelos mostrar`; inclua a escolha na entrevista. No Claude Code,
+  `modelos.revisao` com `claude:modelo` define o padrão dos fiscais, e
+  `portao:<nome> claude:modelo` sobrescreve um fiscal específico. Um revisor Codex por CLI
+  usa `modelos executar revisao` separadamente; ele ainda não assina automaticamente o
+  portão disparado como subagente Claude.
 
 Portões de entrada específicos de task usam `sempre: false` no registro e são nomeados na
 linha `Entrada:` do ticket. Os de saída específicos usam a linha `Portões:`. Exemplo:
@@ -60,6 +67,8 @@ explique como defini-lo depois.
    **fora do repositório** (a pasta temporária da sessão). Arquivo novo dentro do repositório suja a
    árvore, e carimbo de fim não assina com a árvore suja.
 2. **Comando de portão que já existe**: `fullchico-harness portoes --definir <nome> "<comando>"`.
+   **Modelos**: entregue também os pares escolhidos para o dono gravar no terminal, por exemplo
+   `npx @fullchico/harness modelos configurar revisao claude:sonnet portao:design-revisao claude:opus`.
 3. Escreva para o dono os comandos exatos, um por linha, para ele rodar no terminal, fora da sessão:
 
    ```bash

@@ -130,7 +130,20 @@ def disparo(root, reg, ti):
         novo["prompt"] = f"portao: {nome}\n" + (f"ticket: {ticket}\n" if ticket else "") + f"commit: {top}"
     else:
         novo["prompt"] = f"snapshot: {top}\ncommit: {top}\nInspecione os arquivos atuais do projeto."
-    novo.pop("model", None)  # vale o `model` da definição do validador
+    # Um modelo Claude específico do portão vence o padrão de revisão; sem escolha, vale o
+    # `model` da definição do agente. O CLI externo de Codex usa `modelos executar`, não o Agent.
+    config = reg.get("modelos") or {}
+    por_portao = config.get("portoes") or {}
+    escolha = por_portao.get(nome) if tipo == registry.VERIFICADOR else None
+    if not escolha:
+        escolhas = [por_portao.get(n) for n in validadores[tipo]]
+        if len(escolhas) == 1 or (all(escolhas) and all(item == escolhas[0] for item in escolhas)):
+            escolha = escolhas[0]
+    escolha = escolha or config.get("revisao")
+    if isinstance(escolha, dict) and escolha.get("cli") == "claude" and escolha.get("modelo"):
+        novo["model"] = escolha["modelo"]
+    else:
+        novo.pop("model", None)  # vale o `model` da definição do validador
     ledger.log(root, "trilho", "pedido", f"{tipo}: {novo['prompt'].splitlines()[0]}")
     return permitir(novo)
 
