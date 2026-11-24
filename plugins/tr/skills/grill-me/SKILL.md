@@ -1,7 +1,6 @@
 ---
 name: grill-me
 description: Entrevista o dono para decidir a configuração do harness, os trilhos e os portões com base no diagnóstico dos ambientes e nas evidências do projeto.
-disable-model-invocation: true
 ---
 
 # Entrevistar para configurar o projeto

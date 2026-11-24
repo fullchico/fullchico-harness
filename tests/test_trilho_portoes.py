@@ -375,6 +375,8 @@ class TestProtectionAndInit(Case):
             self.assertTrue((PLUGIN / f"skills/{skill}/SKILL.md").exists(), skill)
         self.assertIn("codex doctor --json", (PLUGIN / "skills/configurar/SKILL.md").read_text())
         self.assertIn("versão 1.3.1", (PLUGIN / "skills/grill-me/SKILL.md").read_text())
+        self.assertNotIn("disable-model-invocation: true", (PLUGIN / "skills/grill-me/SKILL.md").read_text(),
+                         "configurar e processo-planejar precisam chamar grill-me dentro do fluxo")
         self.assertTrue((PLUGIN / "THIRD_PARTY_NOTICES.md").exists())
         for agent in ("bugs-cacador", "qualidade-verificador"):
             text = (PLUGIN / f"agents/{agent}.md").read_text()
