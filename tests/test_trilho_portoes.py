@@ -356,13 +356,16 @@ class TestProtectionAndInit(Case):
             for tool in ("Write", "Edit"):
                 r = self.write(path, tool)
                 self.assertEqual(r.returncode, 2, path)
-                self.assertIn("fullchico-harness portoes", r.stderr)
+                self.assertIn("fullchico-harness portoes" if path.endswith("trilho.json") else "configuração protegida",
+                              r.stderr)
         self.assertEqual(self.bash("echo {} > .claude/trilho.json").returncode, 2)
         self.assertEqual(self.write(".claude/outra.json").returncode, 0)
 
-    def test_without_a_registry_nothing_is_enforced(self):
-        for r in (self.write("apps/a.ts"), self.write(".claude/settings.json"), self.bash("git push")):
+    def test_without_a_registry_core_guardrails_still_apply(self):
+        for r in (self.write("apps/a.ts"), self.bash("git push")):
             self.assertEqual((r.returncode, r.stderr), (0, ""))
+        for path in (".claude/trilho.json", ".claude/settings.json", ".claude/settings.local.json", ".git/info/exclude"):
+            self.assertEqual(self.write(path).returncode, 2, path)
 
     def test_an_invalid_registry_blocks_the_send_with_the_reason(self):
         (self.repo / ".claude").mkdir()

@@ -220,6 +220,14 @@ def main():
                 ("arquivo", ".claude/trilho.json"),
                 ("motivo", "só o dono altera, por `fullchico-harness portoes` no terminal"),
             ], rodape="o plugin tr escreve ali; o agente não"))
+        if rel in (".claude/settings.json", ".claude/settings.local.json"):
+            return deny(root, f"configuração: {t}", quadro("configuração protegida", [
+                ("arquivo", rel), ("motivo", "define plugins e hooks do projeto; só o dono altera"),
+            ], rodape="use o terminal do dono para configurar o harness"))
+        if (rel or "").startswith(".git/"):
+            return deny(root, f"git interno: {t}", quadro("estado do git protegido", [
+                ("arquivo", rel), ("motivo", "alterar `.git/` muda o que os portões enxergam"),
+            ], rodape="use os comandos Git normais; não edite os arquivos internos"))
         if rel in (".codex/hooks.json", ".codex/config.toml", ".agents/plugins/marketplace.json") or (
                 rel or "").startswith(".codex/harness/") or rel in (
                 ".codex/agents/tr-qualidade-verificador.toml", ".codex/agents/tr-bugs-cacador.toml",
@@ -265,17 +273,6 @@ def main():
     else:
         return 0
 
-    for t in targets:
-        if (registry.relative(root, t) or "").startswith(".git/"):
-            # `.git/info/exclude` esconde arquivo sem commit da checagem de árvore limpa: o carimbo mentiria
-            return deny(root, f"git interno: {t}", quadro("estado do git protegido", [
-                ("arquivo", registry.relative(root, t)), ("motivo", "escrever em `.git/` muda o que a árvore limpa enxerga"),
-            ], ["  → arquivo gerado vai no `.gitignore` (em commit); o resto, commit ou apague"]))
-        if registry.relative(root, t) in (".claude/settings.json", ".claude/settings.local.json"):
-            return deny(root, f"registro: {t}", quadro("registro protegido", [
-                ("arquivo", registry.relative(root, t)),
-                ("motivo", "só o dono altera: ele liga os plugins que barram você"),
-            ], rodape="o dono muda no terminal (`fullchico-harness install`, `fullchico-harness portoes`) ou à mão"))
     for t in targets:
         if registry.is_code(root, t, reg):
             faltam = registry.missing(root, "inicio", reg)

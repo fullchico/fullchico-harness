@@ -112,7 +112,7 @@ class TestValidatorRails(Case):
     def test_the_local_settings_are_protected(self):
         """O `.local` tem precedência: escrevê-lo desligaria o tr."""
         self.assertDenied(self.hook("Write", file_path=str(self.repo / ".claude/settings.local.json"),
-                                    content='{"enabledPlugins": {"tr@fullchico": false}}'), "registro protegido")
+                                content='{"enabledPlugins": {"tr@fullchico": false}}'), "configuração protegida")
 
     def test_portao_combined_is_denied(self):
         for command in ("portao qualidade | tail -3", "portao qualidade && echo ok", "portao qualidade > out.txt",

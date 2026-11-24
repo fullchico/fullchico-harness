@@ -1,6 +1,6 @@
 {
   "name": "@fullchico/harness",
-  "version": "3.1.7",
+  "version": "3.1.8",
   "description": "Harness por projeto para Claude Code e Codex: orquestração, guardrails, memória e validações.",
   "license": "MIT",
   "author": "FullChico",

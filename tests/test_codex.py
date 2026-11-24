@@ -51,7 +51,7 @@ class TestCodex(unittest.TestCase):
         config = (self.repo / ".codex/config.toml").read_text()
         self.assertIn('approval_policy = "on-request"', config)
         self.assertIn('approvals_reviewer = "auto_review"', config)
-        self.assertIn('sandbox_mode = "workspace-write"', config)
+        self.assertNotIn("sandbox_mode =", config, "o harness não escolhe o sandbox do Codex")
         self.assertEqual(config.count('approvals_reviewer = "auto_review"'), 1)
         self.assertEqual(config.count('[plugins."tr@fullchico-project"]'), 1)
         self.assertEqual(config.count('[plugins."memoria@fullchico-project"]'), 1)
