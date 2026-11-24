@@ -81,7 +81,7 @@ class TestWatcher(unittest.TestCase):
         r = self.check("claude --model haiku")
         self.assertEqual(r.returncode, 0, "avisa, não impede a sessão")
         out = json.loads(r.stdout)
-        self.assertIn("`cc`", out["systemMessage"])
+        self.assertIn("`claude --setting-sources project,local --strict-mcp-config`", out["systemMessage"])
         self.assertIn("global", out["hookSpecificOutput"]["additionalContext"])
         self.assertEqual(out["hookSpecificOutput"]["hookEventName"], "SessionStart")
 
@@ -142,7 +142,7 @@ class TestMakePure(unittest.TestCase):
         self.assertIn("Stop", local["hooks"])
         self.assertIn("SubagentStop", local["hooks"], "o mesmo comando do Orca em vários eventos: copia em todos")
         self.assertNotIn("enabledPlugins", local)
-        self.assertIn("`cc`", r.stdout)
+        self.assertIn("`claude --setting-sources project,local --strict-mcp-config`", r.stdout)
 
     def test_keeps_what_the_local_file_already_has_and_is_idempotent(self):
         (self.repo / ".claude").mkdir()

@@ -106,7 +106,8 @@ Fica em `.claude/` e `.codex/`, na pasta do projeto; o registro compartilhado é
 
 **Modo puro.** O projeto roda só com o que declara em `.claude/` mais o escopo local
 (`.claude/settings.local.json` e ferramentas pessoais locais, como rtk). O global do
-usuário não entra. Ative com `npx @fullchico/harness puro` e abra a sessão com `cc`
+usuário não entra. Ative com `npx @fullchico/harness puro` e abra a sessão com
+`claude --setting-sources project,local --strict-mcp-config`.
 no lugar de `claude`.
 
 *Status: disponível.*
@@ -290,12 +291,14 @@ o extrator registra candidatos por hook, e `memoria-sessoes` lê transcrições 
 
 ```bash
 npx @fullchico/harness@latest install
-npx @fullchico/harness puro                 # liga o modo puro
-cc                                          # abre a sessão no modo do projeto
+claude                                      # abre a sessão normalmente
+npx @fullchico/harness puro                 # opcional: liga o modo puro
+claude --setting-sources project,local --strict-mcp-config # abre a sessão no modo puro
 ```
 
 No terminal interativo, escolha **1** para este fluxo do Claude Code; também pode usar
-`install --ambiente claude` para escolher sem menu. `cc` (de "claude clean") passa a ser o lançador.
+`install --ambiente claude` para escolher sem menu. Se o projeto usa `.claude/mcp.json`, acrescente
+`--mcp-config .claude/mcp.json` ao comando do modo puro.
 O `install` traz `tr` (incluindo `grill-me`), `memoria`, `ponytail`
 (código mínimo) e `mattpocock-skills` (processo e revisão: `grilling`, `domain-modeling`, `tdd`,
 `clean-code-guard`...), e liga o hook do `rtk`. O `install` analisa o que o projeto já usa (specs,
@@ -332,8 +335,8 @@ Lê as transcrições do Claude Code e o livro de carimbos, sem gravar nada: tok
 sessão principal contra subagentes, tempo ativo contra paradas, e bloqueios e carimbos dos portões.
 O US$ é estimativa pelo preço de API e serve para comparar entregas e versões da lib.
 
-> **Atenção:** `cc` sobrepõe o `/usr/bin/cc` do sistema (compilador de C). Quem precisa do
-> compilador chama `/usr/bin/cc` direto ou cria um alias.
+O comando curto `cc` existe para instalações globais antigas, mas no terminal geralmente é o
+compilador de C. Use `claude` ou o comando completo do modo puro acima.
 
 ### Cada clone precisa do `install`
 

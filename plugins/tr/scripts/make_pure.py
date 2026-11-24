@@ -64,7 +64,8 @@ def main(root: str) -> int:
           "Nada novo a trazer do global.")
     for line in copied:
         print(f"  {line}")
-    print("Abra a sessão com `cc` (no lugar de `claude`): só o projeto e o escopo local entram nela.")
+    print("Abra a sessão com `claude --setting-sources project,local --strict-mcp-config`.")
+    print("Se usar .claude/mcp.json, acrescente `--mcp-config .claude/mcp.json`.")
     return 0
 
 
