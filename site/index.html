@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FullChico Harness: cada tarefa chega com as validações certas</title>
 <meta name="description" content="Plugin de orquestração por projeto para Claude Code e Codex: trilhos, guardrails, memória e validações independentes até a entrega.">
-<link rel="icon" type="image/svg+xml" href="trem.svg">
+<link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Atkinson+Hyperlegible+Next:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -58,24 +58,22 @@ code, pre { font-family: var(--mono); font-size: 0.9em; }
 
 .top { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding: 1.4rem 1.25rem; flex-wrap: wrap; }
 .top .name { font-family: var(--display); font-weight: 800; font-size: 1.15rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.6rem; }
-.top .name svg { width: 2.1rem; height: 2.1rem; fill: currentColor; }
-.top .name svg .glass { fill: var(--paper); }
-.top .name svg .lamp { fill: var(--lamp-caution); }
+.top .name img { width: 2.5rem; height: 2.5rem; object-fit: contain; }
 .top nav { display: flex; flex-wrap: wrap; gap: 0.3rem 1.3rem; font-size: 0.95rem; }
 
 .hero { padding-top: 3.5rem; padding-bottom: 2.5rem; }
 .hero .lede { font-size: 1.3rem; margin-top: 1.5rem; max-width: 46ch; color: var(--steel); }
-
-/* O pátio: a locomotiva de lado, soltando fumaça, sobre o trilho que é o fluxo da entrega. */
-.yard { margin-top: 3rem; }
-.loco { display: block; width: clamp(9rem, 22vw, 13.5rem); height: auto; margin-left: -0.3rem; margin-bottom: -0.45rem; position: relative; z-index: 1; color: var(--ink); overflow: visible; }
-@media (prefers-reduced-motion: no-preference) {
-  .puffs circle { animation: puff 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-  .puffs circle:nth-child(2) { animation-delay: 0.5s; }
-  .puffs circle:nth-child(3) { animation-delay: 1s; }
-  @keyframes puff { 0%, 100% { transform: translate(0, 0) scale(1); opacity: 1; } 50% { transform: translate(5px, -7px) scale(1.12); opacity: 0.55; } }
+@media (min-width: 68rem) {
+  .hero { position: relative; }
+  .hero .lede { max-width: 39ch; }
+  .hero .yard { margin-top: 4rem; }
+  .hero .loco { position: absolute; top: 8rem; right: 3rem; width: 22rem; margin: 0; }
 }
-.line { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(7, 1fr); position: relative; }
+
+/* O mascote atravessa o trilho; a ordem abaixo é o passaporte da demanda. */
+.yard { margin-top: 2.5rem; }
+.loco { display: block; width: clamp(9rem, 22vw, 13rem); height: auto; margin: 0 0 -0.35rem 1rem; position: relative; z-index: 1; }
+.line { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(5, 1fr); position: relative; }
 .line::before {
   content: ""; position: absolute; left: 0; right: 0; top: 0; height: 0.8rem;
   background:
@@ -93,6 +91,7 @@ code, pre { font-family: var(--mono); font-size: 0.9em; }
 .line span { color: var(--steel); }
 @media (max-width: 52rem) {
   .line { grid-template-columns: 1fr; gap: 1.1rem; padding-top: 1.6rem; }
+  .line::before { left: 0.72rem; right: auto; top: 1.6rem; bottom: 0; width: 0; height: auto; background: none; border-left: 3px solid var(--ink); }
   .line li { padding: 0 0 0 2.6rem; min-height: 1.8rem; }
   .line li::before { top: 0; }
   .line li::after { display: none; }
@@ -150,7 +149,13 @@ section > .wrap > p.intro { margin-top: 1.1rem; font-size: 1.15rem; color: var(-
 .art:focus-visible { outline: 3px solid var(--lamp-caution); outline-offset: 3px; }
 @media (max-width: 44rem) { .art img { min-width: 36rem; } }
 .art img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.art figcaption img { filter: none !important; }
 .art figcaption { max-width: 62ch; margin: 0.8rem auto 0; color: var(--steel); font-size: 0.95rem; }
+.roles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.8rem; margin: 1rem 0 0; padding: 0; list-style: none; }
+.roles li { display: flex; gap: 0.6rem; align-items: center; font-size: 0.9rem; }
+.roles img { width: 2rem; height: 2rem; object-fit: contain; flex: none; }
+.roles strong { display: block; font-size: 0.95rem; }
+@media (max-width: 44rem) { .roles { grid-template-columns: repeat(2, 1fr); } }
 .ill { fill: var(--paper); stroke: var(--ink); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; display: block; overflow: visible; }
 .ill .go { fill: var(--lamp-go); } .ill .caution { fill: var(--lamp-caution); } .ill .stop { fill: var(--lamp-stop); }
 .ill .none { fill: none; } .ill .solid { fill: var(--ink); }
@@ -197,22 +202,12 @@ section.wash .verdict { background: var(--ground); }
 
 footer { padding: 2.5rem 0 4rem; border-top: 2px solid var(--ballast); color: var(--steel); font-size: 0.95rem; }
 footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
-.flow { width: 100%; height: auto; min-width: 0; }
-.flow .t { fill: var(--ink); stroke: none; font: 700 22px var(--body); text-anchor: middle; }
-.flow .t.s { font-weight: 400; font-size: 19px; fill: var(--steel); }
-@media (max-width: 44rem) { .art .flow { min-width: 40rem; } }
+@media (prefers-color-scheme: dark) { .art img, .loco, .top .name img { filter: invert(1); } }
 </style>
 </head>
 <body>
 <header class="wrap top">
-  <a class="name" href="#">
-    <svg viewBox="0 0 64 64" aria-hidden="true">
-      <path d="M24 6h16a9 9 0 0 1 9 9v22a3 3 0 0 1-3 3H18a3 3 0 0 1-3-3V15a9 9 0 0 1 9-9z"/>
-      <rect class="glass" x="21" y="12" width="22" height="11" rx="3"/>
-      <circle class="lamp" cx="32" cy="31" r="4"/>
-      <rect x="12" y="40" width="40" height="4.5" rx="2.25"/>
-      <g fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M23 47 13 61M41 47l10 14"/><path d="M18.5 52h27M14.5 58h35" stroke-width="2.4"/></g>
-    </svg>FullChico Harness</a>
+  <a class="name" href="#"><img src="favicon.png" alt="" width="40" height="40">FullChico Harness</a>
   <nav aria-label="Seções">
     <a href="#conceitos">Conceitos</a>
     <a href="#fluxo">Fluxo</a>
@@ -232,26 +227,13 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
     <p class="lede">Um harness por projeto para Claude Code e Codex. Você define o destino e os portões; o plugin organiza o trabalho, mantém os agentes nos trilhos e confere a entrega.</p>
 
     <div class="yard">
-    <svg class="loco" viewBox="0 0 200 136" aria-hidden="true">
-      <g fill="var(--paper)" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-        <g class="puffs"><circle cx="150" cy="30" r="9"/><circle cx="166" cy="15" r="6.5"/><circle cx="181" cy="5" r="4.5"/></g>
-        <rect x="126" y="46" width="18" height="26" rx="3"/><rect x="120" y="40" width="30" height="10" rx="5"/>
-        <path d="M88 70a11 11 0 0 1 22 0z"/>
-        <rect x="62" y="68" width="106" height="42" rx="21"/>
-        <rect x="22" y="44" width="54" height="66" rx="9"/><rect x="14" y="36" width="70" height="12" rx="6"/>
-        <rect x="34" y="56" width="26" height="22" rx="5"/>
-        <path d="M166 110l26 16h-34z"/>
-        <circle cx="46" cy="116" r="17"/><circle cx="100" cy="119" r="14"/><circle cx="140" cy="119" r="14"/>
-        <path d="M100 119h40" /><circle cx="46" cy="116" r="3" fill="currentColor"/><circle cx="100" cy="119" r="2.5" fill="currentColor"/><circle cx="140" cy="119" r="2.5" fill="currentColor"/>
-        <circle cx="172" cy="80" r="5.5" fill="var(--lamp-caution)"/>
-      </g>
-    </svg>
-    <ol class="line" style="grid-template-columns:repeat(5,1fr)" aria-label="O caminho de uma entrega">
-      <li class="gate"><b>Planejamento</b><span>portão de começo</span></li>
-      <li><b>Código</b><span>meio livre</span></li>
-      <li><b>Orquestração</b><span>cards em paralelo</span></li>
-      <li class="gate"><b>Qualidade e bugs</b><span>portões de fim</span></li>
-      <li><b>Envio</b><span>com o passaporte carimbado</span></li>
+    <img class="loco" src="mascote.png" width="1254" height="1254" alt="" aria-hidden="true">
+    <ol class="line" aria-label="O caminho de uma entrega">
+      <li class="gate"><b>Entrada</b><span>requisitos e plano</span></li>
+      <li><b>Vagões</b><span>tarefas em paralelo</span></li>
+      <li><b>Trilhos</b><span>guardrails e memória</span></li>
+      <li class="gate"><b>Conferência</b><span>revisor independente</span></li>
+      <li class="gate"><b>Destino</b><span>passaporte completo</span></li>
     </ol>
     </div>
 
@@ -287,40 +269,18 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
 
   <section id="fluxo" class="wash">
     <div class="wrap">
-      <h2>Começo, meio livre, fim</h2>
+      <h2>Entrada, percurso e conferência</h2>
       <p class="intro">O portão de entrada confirma os requisitos. Cada tarefa percorre seu trilho, com validações próprias no meio quando necessárias. No destino, fiscais independentes conferem os carimbos exigidos para aquela entrega.</p>
       <figure class="art" tabindex="0">
-<svg class="ill flow" viewBox="0 0 1200 520" role="img" aria-label="Um exemplo de entrega: planejamento na entrada, execução com guardrails no percurso e conferência dos portões de qualidade e bugs no fim. O projeto pode acrescentar portões por ticket no meio.">
-<defs><g id="canc"><rect x="-7" y="-112" width="14" height="100" rx="5"/><rect x="0" y="-66" width="72" height="12" rx="6" transform="rotate(-55 0 -60)"/><circle class="solid" cx="0" cy="-60" r="4"/><rect x="-18" y="-14" width="36" height="10" rx="5"/></g></defs>
-<path class="none" d="M20 320H1180"/>
-<path class="none" d="M22 328H1180" stroke-width="12" stroke-linecap="butt" stroke-dasharray="4 20"/>
-<use href="#canc" x="130" y="320"/><circle class="go" cx="130" cy="196" r="14"/>
-<use href="#canc" x="840" y="320"/><circle class="go" cx="840" cy="196" r="14"/>
-<use href="#canc" x="940" y="320"/><circle class="go" cx="940" cy="196" r="14"/>
-<use href="#canc" x="1040" y="320"/><circle class="caution" cx="1040" cy="196" r="14"/>
-<g class="loco-flow">
-<circle cx="440" cy="168" r="9"/><circle cx="460" cy="146" r="6.5"/><circle cx="478" cy="130" r="4.5"/>
-<rect x="400" y="190" width="22" height="34" rx="3"/><rect x="392" y="182" width="38" height="12" rx="6"/>
-<rect x="340" y="222" width="190" height="64" rx="32"/>
-<rect x="260" y="190" width="90" height="96" rx="10"/><rect x="250" y="180" width="110" height="14" rx="7"/>
-<rect x="280" y="206" width="40" height="30" rx="6"/>
-<path d="M528 286l34 22h-44z"/>
-<circle cx="296" cy="304" r="20"/><circle cx="400" cy="308" r="16"/><circle cx="466" cy="308" r="16"/>
-<circle class="caution" cx="500" cy="244" r="7"/>
-</g>
-<text class="t" x="130" y="364">Planejamento</text><text class="t s" x="130" y="388">portão de começo</text>
-<text class="t" x="450" y="364">meio livre</text><text class="t s" x="450" y="388">orquestração, guardrails</text>
-<text class="t" x="840" y="364">Qualidade</text><text class="t" x="940" y="364">Bugs</text><text class="t" x="1040" y="364">Segurança</text>
-<text class="t s" x="940" y="388">portões de fim</text><text class="t s" x="1040" y="412">a vir</text>
-<rect x="60" y="440" width="1080" height="66" rx="12"/>
-<text class="t" x="590" y="480">passaporte da entrega</text>
-<g class="none"><path d="M130 430v10M840 430v10M940 430v10M1040 430v10"/></g>
-<circle class="go" cx="130" cy="473" r="18"/><path class="none" d="M121 473l6 6 12-13"/>
-<circle class="go" cx="840" cy="473" r="18"/><path class="none" d="M831 473l6 6 12-13"/>
-<circle class="go" cx="940" cy="473" r="18"/><path class="none" d="M931 473l6 6 12-13"/>
-<circle class="caution" cx="1040" cy="473" r="18"/>
-</svg>
+        <img src="img/passaporte-cartoon.png" width="1837" height="856" loading="lazy" alt="Entrevista, vagão com tarefas, fiscal examinando o passaporte e entrega validada; uma seta devolve a tarefa para correção.">
+        <figcaption>O fiscal confere a evidência. Se faltar um carimbo, devolve a tarefa ao executor.</figcaption>
       </figure>
+      <ol class="roles" aria-label="Quem conduz cada etapa no exemplo">
+        <li><img src="img/claude-mascot.svg" alt="" width="32" height="32"><span><strong>Claude</strong>entrevista</span></li>
+        <li><img src="img/claude-mascot.svg" alt="" width="32" height="32"><span><strong>Claude</strong>executa o vagão</span></li>
+        <li><img src="img/codex-mascot.svg" alt="" width="32" height="32"><span><strong>Codex</strong>revisa</span></li>
+        <li><span aria-hidden="true">✓</span><span><strong>Entrega</strong>passaporte conferido</span></li>
+      </ol>
       <p class="note" style="margin-top:1rem">Sem o carimbo de entrada, a escrita é barrada. Sem os carimbos exigidos no percurso e no fim, a entrega não é validada.</p>
     </div>
   </section>
@@ -329,10 +289,9 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
     <div class="wrap">
       <h2>Uma locomotiva para cada trabalho independente</h2>
       <p class="intro">Claude e Codex podem conduzir tarefas em trilhos paralelos. Os vagões são tarefas e habilidades: uma tela leva acessibilidade; uma API leva testes de contrato. Cada passaporte exige apenas os carimbos que fazem sentido para aquela carga.</p>
-      <figure class="art"><img src="img/locomotivas.svg" width="1080" height="430" loading="lazy" alt="Desenho de duas locomotivas: Claude leva tela e acessibilidade; Codex leva API e testes. Os trilhos chegam à conferência de carimbos."><figcaption>Os modelos de planejamento, execução, revisão e apoio podem ser escolhidos antes de rodar cada papel. O fluxo entre os três papéis ainda é conduzido pelas skills do tr.</figcaption></figure>
+      <figure class="art"><img src="img/locomotivas-cartoon.png" width="1835" height="857" loading="lazy" alt="Duas locomotivas puxam vagões com tarefas em trilhos paralelos rumo ao fiscal, que segura o passaporte carimbado."><figcaption><img src="img/claude-mascot.svg" alt="" width="28" height="28" style="display:inline;vertical-align:middle;width:1.75rem;margin-right:.3rem"> Claude pode puxar a tela. <img src="img/codex-mascot.svg" alt="" width="28" height="28" style="display:inline;vertical-align:middle;width:1.75rem;margin:0 .3rem 0 .6rem"> Codex pode puxar a API. Você escolhe os modelos de cada papel; as skills do tr conduzem o fluxo.</figcaption></figure>
       <h3 class="sub">Conferência antes de declarar a entrega</h3>
       <p>O executor produz o trabalho; outro agente examina a evidência. Se faltar um carimbo ou a revisão reprovar, a tarefa volta para correção e passa de novo pelo portão.</p>
-      <figure class="art"><img src="img/passaporte.svg" width="1080" height="340" loading="lazy" alt="Desenho do passaporte: entrevista e plano na entrada, tarefas no percurso, fiscal independente e entrega validada. Uma seta devolve falhas ao executor."></figure>
       <div class="cmd" style="margin-top:2rem"><code id="c2">fullchico-harness modelos configurar</code><button type="button" data-copy="c2">Copiar</button></div>
       <p class="note" style="margin-top:0.8rem">Escolha quem planeja, quem executa, quem revisa e o modelo de apoio para erro de limite. A configuração vale para o projeto.</p>
     </div>

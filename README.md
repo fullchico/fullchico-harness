@@ -1,4 +1,4 @@
-<img src="site/trem.svg" alt="" width="72" align="right">
+<img src="site/mascote.png" alt="" width="72" align="right">
 
 # FullChico Harness
 

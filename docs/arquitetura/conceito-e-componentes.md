@@ -21,9 +21,13 @@ As tarefas independentes podem seguir em paralelo. Uma tela pode exigir acessibi
 testes de contrato. O passaporte de uma não carrega automaticamente os carimbos da outra. O
 registro `.claude/trilho.json` define os portões de `inicio`, `meio` e `fim`.
 
-![Claude e Codex em trilhos independentes](../../site/img/locomotivas.svg)
+Na ilustração de exemplo, o mascote do Claude conduz a entrevista e o vagão de execução; o
+mascote do Codex identifica a revisão independente. A configuração real permite escolher os
+modelos para cada papel antes de executar.
 
-![Entrada, percurso, fiscal e destino](../../site/img/passaporte.svg)
+![Claude e Codex em trilhos independentes](../../site/img/locomotivas-cartoon.png)
+
+![Entrada, percurso, fiscal e destino](../../site/img/passaporte-cartoon.png)
 
 ## Core
 
