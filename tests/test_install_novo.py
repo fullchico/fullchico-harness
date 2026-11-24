@@ -109,6 +109,42 @@ class TestInstall(unittest.TestCase):
         self.assertTrue((self.repo / ".agents/plugins/marketplace.json").exists())
         self.assertFalse((self.bin / "calls").exists())
 
+    def test_interactive_menu_waits_for_input_on_nonblocking_tty(self):
+        master, slave = pty.openpty()
+        os.set_blocking(slave, False)
+        env = dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}")
+        try:
+            proc = subprocess.Popen([shutil.which("node"), str(ROOT / "bin/harness.js"), "install",
+                                     str(self.repo), "--padrao"], stdin=slave, stdout=slave,
+                                    stderr=subprocess.PIPE, env=env)
+            os.close(slave)
+            output = b""
+            deadline = time.monotonic() + 5
+            while b"Escolha [3]:" not in output and proc.poll() is None and time.monotonic() < deadline:
+                if select.select([master], [], [], 0.1)[0]:
+                    try:
+                        output += os.read(master, 4096)
+                    except OSError:
+                        break
+            self.assertIn(b"Escolha [3]:", output)
+            time.sleep(0.2)
+            self.assertIsNone(proc.poll(), "o menu deve esperar a resposta mesmo com EAGAIN")
+            os.write(master, b"2\n")
+            deadline = time.monotonic() + 15
+            while proc.poll() is None and time.monotonic() < deadline:
+                if select.select([master], [], [], 0.1)[0]:
+                    try:
+                        os.read(master, 4096)
+                    except OSError:
+                        break
+            if proc.poll() is None:
+                proc.kill()
+            _, stderr = proc.communicate(timeout=5)
+            self.assertEqual(proc.returncode, 0, stderr.decode())
+        finally:
+            os.close(master)
+        self.assertTrue((self.repo / ".agents/plugins/marketplace.json").exists())
+
     def test_running_it_twice_does_not_duplicate_the_rtk_hook(self):
         self.install()
         self.install()
