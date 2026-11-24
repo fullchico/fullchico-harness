@@ -126,7 +126,7 @@ def is_code(root, path, reg=None):
     codigo = (reg or {}).get("codigo")
     if codigo is not None:
         return any(rel == p.strip("/") or rel.startswith(p.strip("/") + "/") for p in codigo)
-    if rel.split("/")[0] in IGNORADOS or rel.endswith(".md"):
+    if rel == ".gitignore" or rel.split("/")[0] in IGNORADOS or rel.endswith(".md"):
         return False
     r = subprocess.run(["git", "check-ignore", "-q", "--", rel], cwd=root, capture_output=True)
     return r.returncode != 0

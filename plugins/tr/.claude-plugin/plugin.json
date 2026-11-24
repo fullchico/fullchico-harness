@@ -1,6 +1,6 @@
 {
   "name": "tr",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Entrada única do harness: diagnóstico, entrevista grill-me, portões, validadores e memória.",
   "author": {
     "name": "FullChico"

@@ -121,7 +121,8 @@ class TestRegistry(Case):
         reg = self.load(json.dumps({"portoes": {"q": QUALIDADE}}))
         (self.repo / ".gitignore").write_text("dist/\n")
         r = str(self.repo)
-        for path, esperado in (("src/a.ts", True), ("a.py", True), ("docs/x.ts", False), (".claude/x.json", False),
+        for path, esperado in (("src/a.ts", True), ("a.py", True), (".gitignore", False),
+                               ("docs/x.ts", False), (".claude/x.json", False),
                                ("NOTAS.md", False), ("src/leia.md", False), ("dist/a.js", False)):
             self.assertEqual(registry.is_code(r, path, reg), esperado, path)
 
