@@ -53,6 +53,9 @@ class TestInstall(unittest.TestCase):
         self.assertIn("plugin install mattpocock-skills@claude-plugins-official --scope project", self.calls())
         # rtk não é plugin: é um programa da máquina; entra como hook do projeto, que só roda se ele existir
         settings = json.loads((self.repo / ".claude/settings.json").read_text())
+        self.assertTrue(settings["sandbox"]["enabled"])
+        self.assertIn(".claude/trilho.json", settings["sandbox"]["filesystem"]["denyWrite"])
+        self.assertIn(".claude/settings.json", settings["sandbox"]["filesystem"]["denyWrite"])
         hooks = [h["command"] for g in settings["hooks"]["PreToolUse"] for h in g["hooks"]]
         self.assertTrue(any("rtk hook claude" in c and "command -v rtk" in c for c in hooks), hooks)
         gates = json.loads((self.repo / ".claude/trilho.json").read_text())["portoes"]

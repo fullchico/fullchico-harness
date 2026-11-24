@@ -68,8 +68,9 @@ if (command === "install-codex") {
     console.error(usage);
     process.exit(2);
   }
-  const added = addPlugins(names, project);
+  ensureSandbox(project);
   pinMarketplace(project);
+  const added = addPlugins(names, project);
   process.exit(added);
 } else if (command === "--version"|| command === "-v") {
   console.log(version);
@@ -129,6 +130,7 @@ if (command === "install-codex") {
   }
   // A lib cuida do caminho e da aprendizagem; começo e fim são das ferramentas do projeto, ligadas pelos
   // portões. O ponytail (código mínimo) e o mattpocock-skills (processo: grilling, tdd, revisão) vêm junto.
+  ensureSandbox(project);
   pinMarketplace(project);
   let status = addPlugins(["tr", "memoria"], project, [
     ["ponytail", "DietrichGebert/ponytail", "ponytail"],
@@ -409,6 +411,20 @@ function pinMarketplace(project) {
   const ref = `v${version}`;
   if (current && current.source && current.source.ref === ref) return;
   data.extraKnownMarketplaces.fullchico = { source: { source: "github", repo: "FullChico/fullchico-harness", ref } };
+  writeSettings(project, data);
+}
+
+function ensureSandbox(project) {
+  const data = readSettings(project);
+  if (data.sandbox && data.sandbox.enabled === false) return;
+  data.sandbox = data.sandbox || {};
+  data.sandbox.enabled = true;
+  data.sandbox.filesystem = data.sandbox.filesystem || {};
+  const deny = data.sandbox.filesystem.denyWrite || [];
+  for (const file of [".claude/trilho.json", ".claude/settings.json"]) {
+    if (!deny.includes(file)) deny.push(file);
+  }
+  data.sandbox.filesystem.denyWrite = deny;
   writeSettings(project, data);
 }
 

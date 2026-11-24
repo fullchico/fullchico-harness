@@ -111,6 +111,10 @@ def conferir_gravacao(project):
     """Antes de gravar: o registro e o settings (quando há sandbox a proteger) precisam aceitar escrita.
 
     Assim nada fica pela metade (registro gravado e settings sem a proteção)."""
+    if os.environ.get("CLAUDECODE") == "1":
+        raise SemPermissao(
+            "Sem permissão para gravar .claude/trilho.json nesta sessão do Claude Code.\n"
+            "O registro de portões é do dono. Rode este comando no seu terminal, fora da sessão. Nada foi gravado.")
     alvos = [os.path.join(project, ".claude", "trilho.json")]
     sp = os.path.join(project, ".claude", "settings.json")
     if isinstance(read_json(sp).get("sandbox"), dict):
