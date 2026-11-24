@@ -149,8 +149,10 @@ reexamina. Só o trabalho aprovado entra no passaporte e libera os dependentes.
 
 ### 5. Guardrails
 
-O sandbox do Claude Code; a proteção do `.claude/trilho.json` (só o plugin `tr` escreve) e,
-com registro, a do `.claude/settings.json` e do `.claude/settings.local.json` (e de `.git/`). Com registro, o hook também:
+Os hooks protegem `.claude/trilho.json`, `.claude/settings.json`,
+`.claude/settings.local.json` e `.git/`. O CLI de portões recusa gravações quando é chamado pelo
+shell do Claude. O sandbox nativo do Claude Code é opcional; se ativado, acrescenta isolamento de
+arquivos e rede. Com registro, o hook também:
 
 - escreve o pedido de cada validador (o que quem escreveu o código disse é descartado);
 - mantém o validador só leitura;
@@ -309,9 +311,9 @@ tirado do `package.json`). Um registro que já existe não é reescrito por um `
 marketplace fica preso a esta versão da lib, e o `install` grava o modelo por papel em
 `.claude/settings.local.json` (`"model": "opus"`, `CLAUDE_CODE_SUBAGENT_MODEL=sonnet`), sem tocar no resto.
 
-Instalar e gravar portões são passos **do dono, no terminal**: dentro de uma sessão com sandbox,
-`.claude/settings.json` e `.claude/trilho.json` são protegidos do agente, e os dois comandos param
-antes de gravar qualquer coisa. Depois de instalar, revise esses dois arquivos. Se a pasta ainda não
+Instalar e gravar portões são passos **do dono, no terminal**: o CLI recusa gravar o registro
+quando é chamado pelo shell do Claude. O instalador não liga o sandbox nativo automaticamente;
+se você já o usa, preserva a configuração. Depois de instalar, revise esses dois arquivos. Se a pasta ainda não
 tinha Git, o instalador já executou `git init`.
 
 Projeto com o harness antigo (`harness@fullchico`, `.harness/`) ou com os plugins `bugs`/`qualidade` da
@@ -425,14 +427,16 @@ desta demanda), o momento, o modo de assinar e, se falta, o invoker que o valida
 `fullchico-harness entregar` ou `portao entrega`; o hook Stop confere de novo quando a resposta final
 começa com `ENTREGA: concluída`.
 
-**O registro é protegido.** Só o dono altera: o agente não edita `.claude/trilho.json` nem
-`.claude/settings.json`, e `portoes --gravar` o põe no `denyWrite` do sandbox.
+**O registro é protegido na sessão.** O hook barra edições diretas e o CLI recusa alterações
+quando chamado pelo shell do Claude. Se o sandbox nativo estiver ligado, `portoes --gravar`
+também põe `.claude/trilho.json` no `denyWrite`.
 
 ## Limites honestos
 
 - Os hooks só valem dentro da sessão da plataforma em que foram instalados. A validação final explícita
   funciona também no terminal; `git push` não é o gatilho da entrega.
-- Projeto sem sandbox permite, em tese, forjar o arquivo do carimbo.
+- Sem o sandbox nativo, comandos arbitrários podem contornar hooks e alterar arquivos ou carimbos;
+  os portões funcionam como guardrails de fluxo, não como isolamento do sistema.
 - O carimbo prova que a etapa aconteceu, não que o revisor foi bom.
 
 ## Licença
