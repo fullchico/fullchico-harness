@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FullChico Harness: o harness força a etapa, não a ferramenta</title>
-<meta name="description" content="Harness por projeto para Claude Code e Codex: plugins, prompts, memória e portões com carimbos assinados por hook.">
+<title>FullChico Harness: cada tarefa chega com as validações certas</title>
+<meta name="description" content="Plugin de orquestração por projeto para Claude Code e Codex: trilhos, guardrails, memória e validações independentes até a entrega.">
 <link rel="icon" type="image/svg+xml" href="trem.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -150,6 +150,7 @@ section > .wrap > p.intro { margin-top: 1.1rem; font-size: 1.15rem; color: var(-
 .art:focus-visible { outline: 3px solid var(--lamp-caution); outline-offset: 3px; }
 @media (max-width: 44rem) { .art img { min-width: 36rem; } }
 .art img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.art figcaption { max-width: 62ch; margin: 0.8rem auto 0; color: var(--steel); font-size: 0.95rem; }
 .ill { fill: var(--paper); stroke: var(--ink); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; display: block; overflow: visible; }
 .ill .go { fill: var(--lamp-go); } .ill .caution { fill: var(--lamp-caution); } .ill .stop { fill: var(--lamp-stop); }
 .ill .none { fill: none; } .ill .solid { fill: var(--ink); }
@@ -215,7 +216,9 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
   <nav aria-label="Seções">
     <a href="#conceitos">Conceitos</a>
     <a href="#fluxo">Fluxo</a>
+    <a href="#trilhos">Trilhos</a>
     <a href="#plugins">Plugins</a>
+    <a href="#core">Core e ferramentas</a>
     <a href="#instalar">Instalar</a>
     <a href="#registro">Registro</a>
     <a href="#limites">Limites</a>
@@ -225,8 +228,8 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
 
 <main>
   <div class="wrap hero">
-    <h1>Entregas que não pulam etapa.</h1>
-    <p class="lede">Harness por projeto para Claude Code e Codex. Plugins e prompts conduzem o trabalho; planejamento e entrega passam pelos portões do projeto. O instalador inicia Git; push e PR são opcionais.</p>
+    <h1>Cada tarefa chega ao destino com seus carimbos.</h1>
+    <p class="lede">Um harness por projeto para Claude Code e Codex. Você define o destino e os portões; o plugin organiza o trabalho, mantém os agentes nos trilhos e confere a entrega.</p>
 
     <div class="yard">
     <svg class="loco" viewBox="0 0 200 136" aria-hidden="true">
@@ -254,14 +257,14 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
 
     <div class="install">
       <div class="cmd"><code id="c1">npx @fullchico/harness@latest install</code><button type="button" data-copy="c1">Copiar</button></div>
-      <p class="note">Rode na pasta do projeto; a configuração global não muda. Depois, cada demanda começa por <code>/tr:processo-planejar</code>.</p>
+      <p class="note">Rode na pasta do projeto. O instalador oferece Claude, Codex ou ambos; ambos é o padrão. Depois, comece por <code>/tr:processo-planejar</code>.</p>
     </div>
   </div>
 
   <section id="divisao">
     <div class="wrap">
       <h2>A divisão</h2>
-      <p class="intro"><strong>A lib garante o caminho (orquestração) e a aprendizagem (memória). Começo e fim ficam com as ferramentas do seu projeto.</strong></p>
+      <p class="intro"><strong>O core organiza o percurso e confere a prova. As ferramentas do projeto executam os testes e análises definidos em cada portão.</strong></p>
     </div>
   </section>
 
@@ -275,7 +278,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
         <li><h3>Paralelismo com grafo</h3><p>Tickets independentes entram na fronteira juntos; o hook só libera os que não têm bloqueadores pendentes.</p><p class="note"><strong>Status:</strong> grafo e trava disponíveis no <code>tr</code>.</p></li>
         <li><h3>Loops</h3><p>Se o fiscal reprovar, o executor corrige e pede nova validação antes da integração.</p><p class="note"><strong>Status:</strong> conduzido pela skill do processo; automação dedicada a vir.</p></li>
         <li><h3>Guardrails</h3><p>Travas fixas por hook em Claude Code e Codex: protegem o registro compartilhado, as configurações dos plugins e os portões de escrita e entrega. Custam zero e não se customizam.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
-        <li><h3>Portões</h3><p>Só nas pontas: no começo exigem os requisitos para trabalhar; no fim validam a entrega. O meio segue o grafo de tickets. Você os customiza em <code>.claude/trilho.json</code>.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
+        <li><h3>Portões</h3><p>Na entrada exigem os requisitos; no fim validam a entrega. Portões de meio podem exigir evidência de um ticket específico. Você os configura em <code>.claude/trilho.json</code>.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
         <li><h3>Validações</h3><p>O que dá o carimbo: um <strong>comando</strong> que passa, o <strong>veredito de um agente</strong> ou um <strong>artefato</strong> validado. O carimbo vale para o estado atual; alteração de código pede nova validação.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
         <li><h3>Memória organizada</h3><p>Mapa do código e notas ancoradas, por projeto, carregados no começo de cada sessão (plugin <code>memoria</code>).</p><p class="note"><strong>Status:</strong> disponível.</p></li>
       </ul>
@@ -285,9 +288,9 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
   <section id="fluxo" class="wash">
     <div class="wrap">
       <h2>Começo, meio livre, fim</h2>
-      <p class="intro">Os portões ficam só nas pontas: planejamento no começo; qualidade, bugs e segurança (a vir) no fim. Cada um deixa um carimbo no passaporte da entrega.</p>
+      <p class="intro">O portão de entrada confirma os requisitos. Cada tarefa percorre seu trilho, com validações próprias no meio quando necessárias. No destino, fiscais independentes conferem os carimbos exigidos para aquela entrega.</p>
       <figure class="art" tabindex="0">
-<svg class="ill flow" viewBox="0 0 1200 520" role="img" aria-label="O fluxo de uma entrega. No começo, o portão de planejamento. No meio, livre, o trem anda com a orquestração e os guardrails. No fim, os portões de qualidade, bugs e segurança. Abaixo, o passaporte recebe um carimbo de cada portão.">
+<svg class="ill flow" viewBox="0 0 1200 520" role="img" aria-label="Um exemplo de entrega: planejamento na entrada, execução com guardrails no percurso e conferência dos portões de qualidade e bugs no fim. O projeto pode acrescentar portões por ticket no meio.">
 <defs><g id="canc"><rect x="-7" y="-112" width="14" height="100" rx="5"/><rect x="0" y="-66" width="72" height="12" rx="6" transform="rotate(-55 0 -60)"/><circle class="solid" cx="0" cy="-60" r="4"/><rect x="-18" y="-14" width="36" height="10" rx="5"/></g></defs>
 <path class="none" d="M20 320H1180"/>
 <path class="none" d="M22 328H1180" stroke-width="12" stroke-linecap="butt" stroke-dasharray="4 20"/>
@@ -318,7 +321,20 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
 <circle class="caution" cx="1040" cy="473" r="18"/>
 </svg>
       </figure>
-      <p class="note" style="margin-top:1rem">Sem o carimbo de começo, a escrita de código é barrada. Sem os de fim, a entrega não é validada.</p>
+      <p class="note" style="margin-top:1rem">Sem o carimbo de entrada, a escrita é barrada. Sem os carimbos exigidos no percurso e no fim, a entrega não é validada.</p>
+    </div>
+  </section>
+
+  <section id="trilhos">
+    <div class="wrap">
+      <h2>Uma locomotiva para cada trabalho independente</h2>
+      <p class="intro">Claude e Codex podem conduzir tarefas em trilhos paralelos. Os vagões são tarefas e habilidades: uma tela leva acessibilidade; uma API leva testes de contrato. Cada passaporte exige apenas os carimbos que fazem sentido para aquela carga.</p>
+      <figure class="art"><img src="img/locomotivas.svg" width="1080" height="430" loading="lazy" alt="Desenho de duas locomotivas: Claude leva tela e acessibilidade; Codex leva API e testes. Os trilhos chegam à conferência de carimbos."><figcaption>Os modelos de planejamento, execução, revisão e apoio podem ser escolhidos antes de rodar cada papel. O fluxo entre os três papéis ainda é conduzido pelas skills do tr.</figcaption></figure>
+      <h3 class="sub">Conferência antes de declarar a entrega</h3>
+      <p>O executor produz o trabalho; outro agente examina a evidência. Se faltar um carimbo ou a revisão reprovar, a tarefa volta para correção e passa de novo pelo portão.</p>
+      <figure class="art"><img src="img/passaporte.svg" width="1080" height="340" loading="lazy" alt="Desenho do passaporte: entrevista e plano na entrada, tarefas no percurso, fiscal independente e entrega validada. Uma seta devolve falhas ao executor."></figure>
+      <div class="cmd" style="margin-top:2rem"><code id="c2">fullchico-harness modelos configurar</code><button type="button" data-copy="c2">Copiar</button></div>
+      <p class="note" style="margin-top:0.8rem">Escolha quem planeja, quem executa, quem revisa e o modelo de apoio para erro de limite. A configuração vale para o projeto.</p>
     </div>
   </section>
 
@@ -327,11 +343,22 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <h2>Plugins</h2>
       <p class="intro">Cada um é independente e se liga só no projeto, em Claude Code ou Codex.</p>
       <dl class="facts">
-        <div><dt><code>tr</code></dt><dd><strong>Disponível.</strong> Os portões: registro, <code>portao</code>, validadores em subagente limpo (<code>/tr:qualidade-verificar</code>, <code>/tr:bugs-cacar</code>), passaporte por demanda, modelo por papel, o orquestrador <code>/tr:processo-planejar</code> e o modo puro.</dd></div>
-        <div><dt><code>memoria</code></dt><dd><strong>Disponível.</strong> Mapa do código e notas ancoradas, carregados a cada sessão.</dd></div>
+        <div><dt><code>tr</code></dt><dd><strong>Disponível.</strong> Registro, portões de entrada, meio e fim, validadores em subagente limpo (<code>/tr:qualidade-verificar</code>, <code>/tr:bugs-cacar</code>), passaporte por demanda, modelos por papel, <code>/tr:processo-planejar</code> e modo puro.</dd></div>
+        <div><dt><code>memoria</code></dt><dd><strong>Disponível.</strong> Mapa do código, notas ancoradas e busca por grafo local, compartilhados entre Claude e Codex sem versionar o índice gerado.</dd></div>
         <div><dt><code>orquestracao</code></dt><dd><strong>A vir.</strong> Automação dedicada de worktrees; o grafo e a conferência dos passaportes já ficam no <code>tr</code>.</dd></div>
         <div><dt><code>seguranca</code></dt><dd><strong>A vir.</strong> Portão de segurança no fim.</dd></div>
       </dl>
+    </div>
+  </section>
+
+  <section id="core" class="wash">
+    <div class="wrap">
+      <h2>O que é core. O que entra como ferramenta.</h2>
+      <p class="intro">O harness conecta módulos comprovados por processo. O projeto escolhe comandos, habilidades e portões sem prender a entrega a um único modelo ou stack.</p>
+      <div class="two">
+        <div><h3>Core do FullChico</h3><ul><li><strong>Orquestração:</strong> entrevista, plano, tickets, dependências e modelos por papel.</li><li><strong>Guardrails:</strong> hooks que protegem o registro e impedem pular etapas.</li><li><strong>Memória:</strong> mapa, notas conferidas com o código e índice local.</li><li><strong>Validação:</strong> portões de entrada, meio e fim; passaporte e carimbos ligados ao estado do trabalho.</li></ul></div>
+        <div><h3>Ferramentas integradas</h3><ul><li><strong>Matt Pocock:</strong> skills de entrevista, modelagem e práticas de implementação; o fluxo grill-me acompanha o plugin.</li><li><strong>Ponytail:</strong> orientação para mudanças pequenas e revisão.</li><li><strong>Graphify:</strong> motor AST opcional da memória; a skill acompanha o pacote.</li><li><strong>rtk:</strong> compressão opcional da saída de comandos.</li><li><strong>Git:</strong> base local para ancorar estado e memória; remoto e PR só se o projeto exigir.</li></ul></div>
+      </div>
     </div>
   </section>
 
@@ -356,7 +383,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
   <section id="registro">
     <div class="wrap">
       <h2>Registro de portões</h2>
-      <p class="intro">Fica em <code>.claude/trilho.json</code>, chave <code>portoes</code>. Cada portão tem um momento (<code>inicio</code> ou <code>fim</code>) e um modo de assinar (<code>comando</code>, <code>artefato</code> ou <code>agente</code>).</p>
+      <p class="intro">Fica em <code>.claude/trilho.json</code>, chave <code>portoes</code>. Cada portão tem um momento (<code>inicio</code>, <code>meio</code> ou <code>fim</code>) e um modo de assinar (<code>comando</code>, <code>artefato</code> ou <code>agente</code>). No meio, o portão aponta para um ticket e aceita comando ou artefato.</p>
 <pre class="verdict" style="max-width:46rem">{
   "codigo": ["apps", "packages"],
   "portoes": {

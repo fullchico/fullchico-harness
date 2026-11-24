@@ -7,14 +7,17 @@
 
 [Página do projeto](https://fullchico.github.io/fullchico-harness/) · [Pacote no npm](https://www.npmjs.com/package/@fullchico/harness)
 
+[Conceito ilustrado e componentes](docs/arquitetura/conceito-e-componentes.md)
+
 ```bash
 npx @fullchico/harness@latest install
 ```
 
-**Harness por projeto para Claude Code e Codex: prompts, portões e memória.** Cada projeto monta
-o próprio harness com plugins ligados só nele, sem poluir a configuração global. Planejamento,
-qualidade e entrega são **portões**: cada um deixa um **carimbo** assinado por hook. O início libera a
-escrita; a entrega é validada quando o modelo termina o trabalho. O instalador inicia Git se necessário;
+**Um harness por projeto para Claude Code e Codex.** O plugin organiza a demanda, distribui
+tarefas independentes, mantém guardrails ativos, consulta a memória do código e confere os
+portões antes de declarar a entrega. Cada tarefa carrega um passaporte: requisitos de entrada,
+validações específicas no percurso e carimbos de conclusão. Se faltar evidência, o executor
+corrige e o fiscal independente revisa novamente. O instalador inicia Git se necessário;
 push e PR não são requisitos da entrega. A lib é distribuída como pacote Node por conveniência
 (`npx` em uma linha); integra os recursos de projeto de Claude Code e Codex, não é biblioteca de aplicação.
 
@@ -36,6 +39,7 @@ erro de limite. O loop completo entre os três papéis ainda é conduzido pelas 
 - [A divisão](#a-divisão)
 - [Os oito conceitos](#os-oito-conceitos)
 - [Plugins](#plugins)
+- [Core e ferramentas integradas](#core-e-ferramentas-integradas)
 - [Instalar](#instalar)
 - [Registro de portões](#registro-de-portões)
 - [Limites honestos](#limites-honestos)
@@ -115,8 +119,9 @@ Custam zero e não se customizam.
 
 ### 6. Portões
 
-Só no começo (requisitos antes da escrita) ou no fim (validação da entrega). O meio é
-orquestrado pelo grafo de tickets. Customizáveis pelo registro `.claude/trilho.json`, protegido.
+Na entrada, exigem requisitos antes da escrita; no fim, validam a entrega. O meio segue o grafo
+de tickets e pode ter portões próprios por tarefa, como acessibilidade para uma tela ou testes de
+contrato para uma API. São customizáveis no registro protegido `.claude/trilho.json`.
 
 *Status: disponível.*
 
@@ -157,6 +162,27 @@ resumos, notas, glossário e ADRs. Os dados gerados ficam fora dos arquivos vers
 | `tr` | os portões: registro, `portao`, aplicador único, validadores, passaporte, modelo por papel, modo puro | disponível |
 | `memoria` | mapa, grafo local e notas ancoradas, compartilhados entre Claude e Codex | disponível |
 | `orquestracao` | automação dedicada de worktrees e execução em segundo plano | a vir; o grafo, a fronteira e a conferência já estão no `tr` |
+
+## Core e ferramentas integradas
+
+O **core do FullChico** reúne o `tr` e o `memoria`: entrevista e planejamento, tickets com
+dependências, seleção de modelos para planejar/executar/revisar, hooks de proteção, memória local,
+portões e passaportes. Claude e Codex podem conduzir trabalhos independentes em trilhos paralelos;
+o loop completo entre os três papéis ainda depende das skills do `tr`. O verificador não é o agente
+que produziu a evidência.
+
+As **ferramentas integradas** têm papéis separados:
+
+| Ferramenta | Papel | Instalação |
+|---|---|---|
+| [Matt Pocock skills](https://www.skills.sh/mattpocock/skills) | entrevista, modelagem e práticas de implementação; `grill-me` é adaptada e incluída no `tr` | skills CLI na instalação |
+| [Ponytail](https://www.skills.sh/dietrichgebert/ponytail) | mudanças pequenas e revisão | skills CLI na instalação |
+| [Graphify](https://github.com/Graphify-Labs/graphify) | grafo AST opcional para busca na memória; skill incluída no pacote | CLI `graphifyy` opcional |
+| [rtk](https://github.com/rtk-ai/rtk) | compacta a saída dos comandos quando já existe no ambiente | opcional |
+| Git | ancora o estado do código, os carimbos e o índice local | requisito; `install` executa `git init` se faltar |
+
+Remoto, push, PR e ferramentas como lint, teste, acessibilidade ou análise de segurança são
+decisões do projeto, registradas como portões quando fizerem parte da entrega.
 
 Toda skill própria é acionada pelo `tr`, inclusive as de memória, com invoker `/tr:<nome>`:
 

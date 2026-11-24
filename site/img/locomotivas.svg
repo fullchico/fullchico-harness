@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 430" role="img" aria-labelledby="title desc">
+  <title id="title">Duas locomotivas em trilhos independentes</title>
+  <desc id="desc">Claude conduz uma tarefa de interface e Codex conduz uma tarefa de API. Cada trem carrega seus próprios vagões e carimbos antes de chegar à conferência.</desc>
+  <style>
+    text{font:20px system-ui,sans-serif;fill:#1d1b16}.small{font-size:16px}.ink{fill:#fff;stroke:#1d1b16;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.track{stroke:#1d1b16;stroke-width:3;stroke-linecap:round}.tie{stroke-dasharray:4 17;stroke-width:8}.claude{fill:#f5b73b}.codex{fill:#91d8af}.paper{fill:#fff}.face{fill:none;stroke:#1d1b16;stroke-width:2.5;stroke-linecap:round}.cheek{fill:#e5604d;stroke:none}
+  </style>
+  <rect width="1080" height="430" rx="18" fill="#f7f6f3"/>
+  <path class="track" d="M35 168h1008M35 178h1008M35 365h1008M35 375h1008"/>
+  <path class="track tie" d="M35 185h1008M35 382h1008"/>
+  <g class="ink"><circle cx="192" cy="18" r="11"/><circle cx="212" cy="17" r="8"/><circle cx="229" cy="24" r="5"/><circle cx="193" cy="216" r="11"/><circle cx="212" cy="214" r="8"/><circle cx="230" cy="220" r="5"/></g>
+  <g class="ink"><rect x="60" y="65" width="210" height="80" rx="15"/><rect x="82" y="42" width="80" height="27" rx="8"/><rect x="176" y="43" width="50" height="23" rx="4"/><circle cx="110" cy="155" r="17"/><circle cx="220" cy="155" r="17"/><path d="m270 105 20 24-20 8"/><rect x="117" y="83" width="78" height="44" rx="10" class="claude"/><rect x="317" y="80" width="180" height="65" rx="12"/><circle cx="348" cy="155" r="15"/><circle cx="466" cy="155" r="15"/><rect x="520" y="80" width="180" height="65" rx="12"/><circle cx="550" cy="155" r="15"/><circle cx="670" cy="155" r="15"/>
+  <rect x="60" y="262" width="210" height="80" rx="15"/><rect x="82" y="239" width="80" height="27" rx="8"/><rect x="176" y="240" width="50" height="23" rx="4"/><circle cx="110" cy="352" r="17"/><circle cx="220" cy="352" r="17"/><path d="m270 302 20 24-20 8"/><rect x="117" y="280" width="78" height="44" rx="10" class="codex"/><rect x="317" y="277" width="180" height="65" rx="12"/><circle cx="348" cy="352" r="15"/><circle cx="466" cy="352" r="15"/><rect x="520" y="277" width="180" height="65" rx="12"/><circle cx="550" cy="352" r="15"/><circle cx="670" cy="352" r="15"/>
+  <rect x="790" y="62" width="225" height="285" rx="16"/><path d="M790 128h225M790 230h225"/><circle cx="840" cy="175" r="19" class="claude"/><circle cx="840" cy="278" r="19" class="codex"/></g>
+  <g class="ink"><path class="claude" d="M119 102q-4-18 12-22 10-13 20-2 16-3 19 15 11 11 1 22-9 12-27 7-21 8-27-8z"/><path class="codex" d="m142 278 19 10 1 22-20 12-21-12v-22z"/></g>
+  <g class="face"><circle cx="135" cy="99" r="1.8"/><circle cx="155" cy="99" r="1.8"/><path d="M137 109q8 9 16 0"/><circle cx="134" cy="296" r="1.8"/><circle cx="151" cy="296" r="1.8"/><path d="M134 307q8 7 17 0"/></g>
+  <circle class="cheek" cx="124" cy="105" r="3"/><circle class="cheek" cx="164" cy="105" r="3"/>
+  <text x="203" y="108" class="small" font-weight="700">Claude</text><text x="203" y="305" class="small" font-weight="700">Codex</text>
+  <g class="face"><path d="M295 115h15m0 0-7-6m7 6-7 6M295 312h15m0 0-7-6m7 6-7 6"/><circle cx="110" cy="155" r="5"/><circle cx="220" cy="155" r="5"/><circle cx="110" cy="352" r="5"/><circle cx="220" cy="352" r="5"/></g>
+  <text x="337" y="120">Tela</text><text x="538" y="120">A11y</text><text x="337" y="317">API</text><text x="538" y="317">Testes</text>
+  <text x="813" y="100" font-weight="700">Conferência</text><text x="829" y="182">✓</text><text x="874" y="180" class="small">carimbos da tela</text><text x="829" y="285">✓</text><text x="874" y="283" class="small">carimbos da API</text>
+</svg>
