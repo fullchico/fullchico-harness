@@ -41,6 +41,8 @@ class TestInstall(unittest.TestCase):
         # A lib cuida do caminho e da aprendizagem: o núcleo é tr e memoria. Começo e fim são do projeto.
         for name in ("tr", "memoria"):
             self.assertIn(f"plugin install {name}@fullchico --scope project", self.calls())
+            self.assertIn(f"plugin update {name}@fullchico --scope project", self.calls())
+        self.assertIn("plugin marketplace update fullchico", self.calls())
         for name in ("bugs", "qualidade"):
             self.assertNotIn(f"plugin install {name}@fullchico --scope project", self.calls())
         # ponytail (código mínimo e reutilizável) vem junto, do marketplace dele

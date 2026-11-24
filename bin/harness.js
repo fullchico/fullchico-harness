@@ -129,6 +129,7 @@ if (command === "install-codex") {
   }
   // A lib cuida do caminho e da aprendizagem; começo e fim são das ferramentas do projeto, ligadas pelos
   // portões. O ponytail (código mínimo) e o mattpocock-skills (processo: grilling, tdd, revisão) vêm junto.
+  pinMarketplace(project);
   let status = addPlugins(["tr", "memoria"], project, [
     ["ponytail", "DietrichGebert/ponytail", "ponytail"],
     ["claude-plugins-official", "anthropics/claude-plugins-official", "mattpocock-skills"],
@@ -231,7 +232,9 @@ function selectEnvironment(args) {
 // Os nomes são do marketplace do FullChico; `extras` são [marketplace, repositório, plugin] de outros.
 function addPlugins(names, project, extras = []) {
   const commands = [["plugin", "marketplace", "add", "FullChico/fullchico-harness"],
-    ...names.map((n) => ["plugin", "install", `${n}@fullchico`, "--scope", "project"])];
+    ["plugin", "marketplace", "update", "fullchico"],
+    ...names.flatMap((n) => [["plugin", "install", `${n}@fullchico`, "--scope", "project"],
+                            ["plugin", "update", `${n}@fullchico`, "--scope", "project"]])];
   for (const [market, repo, plugin] of extras) {
     commands.push(["plugin", "marketplace", "add", repo], ["plugin", "install", `${plugin}@${market}`, "--scope", "project"]);
   }
@@ -246,7 +249,8 @@ function addPlugins(names, project, extras = []) {
       break;
     }
     // o marketplace já registrado não é erro; a instalação que falha é
-    if (args[1] === "install" && run.status !== 0) status = run.status === null ? 1 : run.status;
+    if ((["install", "update"].includes(args[1]) || (args[1] === "marketplace" && args[2] === "update")) &&
+        run.status !== 0) status = run.status === null ? 1 : run.status;
   }
   // Cada plugin com `portao.json` registra o próprio portão (só acrescenta; entrada existente fica como está).
   for (const name of names) {
