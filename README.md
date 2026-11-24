@@ -34,8 +34,54 @@ iniciais Opus/Sol, Sonnet/Luna, Haiku/Terra e Fable/Astra. A configuração regi
 grava um manifesto fora do repositório e passa ao modelo de apoio se a primeira CLI retornar
 erro de limite. O loop completo entre os três papéis ainda é conduzido pelas skills do `tr`.
 
+## Exemplo: dois trilhos, uma entrega
+
+![Duas locomotivas puxam vagões independentes até a conferência do passaporte](site/img/locomotivas-cartoon.png)
+
+Uma tela e uma API podem avançar em paralelo. Cada ticket declara seus próprios portões: a tela
+pede acessibilidade; a API pede testes de contrato. A conferência final exige os carimbos de
+qualidade e bugs do estado entregue.
+
+```text
+# docs/specs/perfil/issues/01-tela.md
+Status: open
+Bloqueado por: nenhum
+Entrada: processo
+Meio: acessibilidade
+Portões: qualidade, bugs
+Arquivos: apps/web/src/perfil
+
+# docs/specs/perfil/issues/02-api.md
+Status: open
+Bloqueado por: nenhum
+Entrada: processo
+Meio: contrato
+Portões: qualidade, bugs
+Arquivos: apps/api/src/perfil
+```
+
+Os nomes `acessibilidade` e `contrato` são exemplos de portões que o projeto registra em
+`.claude/trilho.json`. Um fiscal independente assina cada validação; se reprovar, o ticket volta
+ao executor. O comando `fullchico-harness entregar` confere o passaporte antes de declarar a
+entrega concluída.
+
+![Claude entrevista e executa o vagão, Codex revisa e o passaporte chega carimbado](site/img/passaporte-cartoon.png)
+
+Neste exemplo, o mascote do Claude conduz a entrevista e a execução; o do Codex faz a revisão.
+Esses papéis podem ser configurados por projeto:
+
+```bash
+fullchico-harness modelos configurar planejamento claude:opus execucao claude:sonnet revisao codex:sol apoio codex:luna
+fullchico-harness modelos mostrar
+```
+
+O primeiro comando registra a escolha; `modelos executar <papel> --pedido "..."` inicia uma
+CLI por vez e usa o modelo de apoio quando encontra um erro de limite. O fluxo completo entre
+os papéis ainda é conduzido pelas skills do `tr`.
+
 ## Sumário
 
+- [Exemplo: dois trilhos, uma entrega](#exemplo-dois-trilhos-uma-entrega)
 - [A divisão](#a-divisão)
 - [Os oito conceitos](#os-oito-conceitos)
 - [Plugins](#plugins)
