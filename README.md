@@ -132,8 +132,8 @@ demanda pede) e os tickets, cada um com a `Complexidade:` que decide o modelo de
 `/tr:configurar` começa pelos diagnósticos disponíveis (`claude doctor` e `codex doctor --json`),
 analisa scripts, CI e ferramentas do projeto e usa `/tr:grill-me` para decidir com o dono os
 portões de entrada e saída. O fluxo de entrevista de Matt Pocock está incluído no plugin `tr`,
-com atribuição em `plugins/tr/THIRD_PARTY_NOTICES.md`. Os três portões padrão são somente um
-ponto de partida: novos portões podem ter nomes e verificadores próprios. A IA entrega o
+com atribuição em `plugins/tr/THIRD_PARTY_NOTICES.md`. O install não cadastra portões;
+o projeto pode criar portões com nomes e verificadores próprios. A IA entrega o
 esboço e os comandos; quem grava o registro protegido é o dono.
 
 ### 3. Paralelismo com grafo
@@ -277,7 +277,8 @@ A skill `graphify` do plugin `memoria` também é instalada em `.agents/skills/g
 Para habilitar o motor AST local, instale a CLI oficial com `uv tool install --with anyio graphifyy`.
 O registro de portões fica em
 `.claude/trilho.json` e é compartilhado com Claude Code quando os dois estão instalados.
-`install --ambiente codex --padrao` usa os portões padrão; sem a opção, analisa o projeto. Rodar o
+O install não cria portões; o dono os escolhe em `$tr-configurar` e os registra pelo CLI.
+`install --ambiente codex --padrao` é uma opção explícita para o modelo de exemplo. Rodar o
 instalador novamente preserva a configuração de outros plugins, hooks e registro existentes.
 Abra uma sessão nova em um projeto
 confiável e aceite os hooks locais quando o Codex pedir. Use a skill `tr-codex` para executar
@@ -308,11 +309,11 @@ No terminal interativo, escolha **1** para este fluxo do Claude Code; também po
 `--mcp-config .claude/mcp.json` ao comando do modo puro.
 O `install` traz `tr` (incluindo `grill-me`), `memoria`, `ponytail`
 (código mínimo) e `mattpocock-skills` (processo e revisão: `grilling`, `domain-modeling`, `tdd`,
-`clean-code-guard`...), e liga o hook do `rtk`. O `install` analisa o que o projeto já usa (specs,
-OpenSpec, scripts do `package.json`) e grava os portões em `.claude/trilho.json`. Para ver a
-proposta sem gravar, ou mudá-la depois: `npx @fullchico/harness portoes --analisar` e
-`portoes --gravar`; `portoes --padrao` grava o registro padrão da lib (com o comando de qualidade
-tirado do `package.json`). Um registro que já existe não é reescrito por um `install` de novo. O
+`clean-code-guard`...), e liga o hook do `rtk`. O `install` não escolhe nem grava portões.
+O dono configura os portões com `/tr:configurar`, que usa o diagnóstico do projeto e a entrevista
+`/tr:grill-me`. Para ver sugestões sem gravar, ou mudá-las depois: `npx @fullchico/harness portoes --analisar` e
+`portoes --gravar`. O modelo de exemplo `portoes --padrao` só grava se o dono o pedir
+explicitamente. Um registro que já existe não é reescrito por um `install` de novo. O
 marketplace fica preso a esta versão da lib, e o `install` grava o modelo por papel em
 `.claude/settings.local.json` (`"model": "opus"`, `CLAUDE_CODE_SUBAGENT_MODEL=sonnet`), sem tocar no resto.
 
@@ -327,7 +328,7 @@ permissões de `.harness/`), tira `bugs@`/`qualidade@` e troca `bugs:cacador` po
 registro. A pasta `.harness/` fica para você apagar; atualize o `AGENTS.md` se ele ainda mandar usar
 `.harness/push`.
 
-Portão novo, além dos que o `install` grava: monte um esboço `{"nome": {portão}}` e rode
+Para cadastrar um portão: monte um esboço `{"nome": {portão}}` e rode
 `npx @fullchico/harness portoes --registrar esboco.json`. Para trocar só o comando de um portão:
 `portoes --definir <nome> "<comando>"`.
 

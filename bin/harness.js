@@ -136,15 +136,17 @@ if (command === "install-codex") {
   ]);
   addRtkHook(project);
   writeLocalModels(project);
-  // O registro do dono não é reescrito por um install de novo: os portões dele (e2e, seo...) ficam.
+  // Instalar ferramentas não decide os portões do projeto. Só --padrao, pedido explícito do dono,
+  // grava o modelo de exemplo; um registro existente nunca é reescrito.
   let gates = { status: 0 };
   if (hasRegistry(project)) {
     console.log("\nRegistro de portões existente mantido (.claude/trilho.json). Para refazer: `fullchico-harness portoes --gravar`.");
-  } else {
-    const mode = rest.includes("--padrao") ? "--padrao" : "--analisar";
-    console.log(`\n$ fullchico-harness portoes ${mode} --gravar`);
-    gates = spawnSync("python3", ["-I", path.join(root, "plugins/tr/scripts/portoes.py"), mode, "--gravar",
+  } else if (rest.includes("--padrao")) {
+    console.log("\n$ fullchico-harness portoes --padrao --gravar");
+    gates = spawnSync("python3", ["-I", path.join(root, "plugins/tr/scripts/portoes.py"), "--padrao", "--gravar",
       "--projeto", project], { stdio: "inherit" });
+  } else {
+    console.log("\nNenhum portão cadastrado. Use `/tr:configurar` para decidir os portões do projeto.");
   }
   // Portão que assina por agente de outro plugin do FullChico precisa desse plugin (os do tr já vêm).
   const agents = agentPlugins(project).filter((n) => !["tr", "memoria"].includes(n));
@@ -251,13 +253,6 @@ function addPlugins(names, project, extras = []) {
     // o marketplace já registrado não é erro; a instalação que falha é
     if ((["install", "update"].includes(args[1]) || (args[1] === "marketplace" && args[2] === "update")) &&
         run.status !== 0) status = run.status === null ? 1 : run.status;
-  }
-  // Cada plugin com `portao.json` registra o próprio portão (só acrescenta; entrada existente fica como está).
-  for (const name of names) {
-    const manifest = path.join(root, "plugins", name, "portao.json");
-    if (!fs.existsSync(manifest)) continue;
-    spawnSync("python3", ["-I", path.join(root, "plugins/tr/scripts/portoes.py"), "--registrar", manifest,
-      "--projeto", project], { stdio: "inherit" });
   }
   // O carimbo fica fora do projeto, onde o sandbox impede o agente de gravar. Sem sandbox, o agente
   // consegue gravar lá: o portão continua avisando, mas deixa de ser barreira.

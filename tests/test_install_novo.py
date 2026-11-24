@@ -35,7 +35,7 @@ class TestInstall(unittest.TestCase):
     def calls(self):
         return (self.bin / "calls").read_text().splitlines()
 
-    def test_default_installs_the_plugins_and_registers_the_gates_from_the_project(self):
+    def test_default_installs_the_plugins_without_registering_gates(self):
         r = self.install()
         self.assertEqual(r.returncode, 0, r.stderr)
         # A lib cuida do caminho e da aprendizagem: o núcleo é tr e memoria. Começo e fim são do projeto.
@@ -56,9 +56,8 @@ class TestInstall(unittest.TestCase):
         self.assertNotIn("sandbox", settings, "o harness não liga o sandbox nativo por padrão")
         hooks = [h["command"] for g in settings["hooks"]["PreToolUse"] for h in g["hooks"]]
         self.assertTrue(any("rtk hook claude" in c and "command -v rtk" in c for c in hooks), hooks)
-        gates = json.loads((self.repo / ".claude/trilho.json").read_text())["portoes"]
-        self.assertEqual(gates["qualidade"]["comando"], "pnpm lint && pnpm test", "veio do package.json do projeto")
-        self.assertEqual(gates["processo"]["artefato"], "docs/specs/*/spec.md")
+        self.assertFalse((self.repo / ".claude/trilho.json").exists())
+        self.assertIn("Nenhum portão cadastrado", r.stdout)
         self.assertIn("Abra o projeto com `claude`", r.stdout)
         self.assertTrue((self.repo / ".agents/plugins/marketplace.json").exists(), "sem TTY, o padrão também instala Codex")
 
@@ -72,10 +71,11 @@ class TestInstall(unittest.TestCase):
                          "tr:bugs-cacador")
 
     def test_codex_selection_does_not_call_claude(self):
-        r = self.install("--ambiente", "codex", "--padrao")
+        r = self.install("--ambiente", "codex")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertFalse((self.bin / "calls").exists())
         self.assertTrue((self.repo / ".agents/plugins/marketplace.json").exists())
+        self.assertFalse((self.repo / ".claude/trilho.json").exists())
         calls = (self.bin / "npx-calls").read_text()
         self.assertIn("skills add DietrichGebert/ponytail", calls)
         self.assertIn("skills add mattpocock/skills", calls)

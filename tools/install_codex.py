@@ -31,8 +31,7 @@ def enable_auto_review(config):
     lines = config.splitlines()
     first_table = next((i for i, line in enumerate(lines) if line.lstrip().startswith("[")), len(lines))
     root_keys = {line.split("=", 1)[0].strip() for line in lines[:first_table] if "=" in line}
-    defaults = {"approval_policy": '"on-request"', "approvals_reviewer": '"auto_review"',
-                "sandbox_mode": '"workspace-write"'}
+    defaults = {"approval_policy": '"on-request"', "approvals_reviewer": '"auto_review"'}
     additions = [f"{key} = {value}" for key, value in defaults.items() if key not in root_keys]
     if additions:
         lines[first_table:first_table] = additions + ([""] if first_table < len(lines) else [])
@@ -190,9 +189,8 @@ def main(args):
     for name in ("tr", "memoria"):
         config = enable_plugin(config, f"{name}@{market_name}")
     config_file.write_text(config)
-    if not registry.exists():
-        mode = "--padrao" if "--padrao" in args else "--analisar"
-        run = subprocess.run(["python3", "-I", str(SOURCE / "plugins/tr/scripts/portoes.py"), mode, "--gravar",
+    if not registry.exists() and "--padrao" in args:
+        run = subprocess.run(["python3", "-I", str(SOURCE / "plugins/tr/scripts/portoes.py"), "--padrao", "--gravar",
                               "--projeto", str(project)])
         if run.returncode:
             return run.returncode
