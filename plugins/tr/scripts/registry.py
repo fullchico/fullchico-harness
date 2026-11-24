@@ -21,7 +21,7 @@ DEFINIR = "@definir"  # comando ainda sem dono: o portão barra até o dono defi
 VERIFICADOR = "tr:qualidade-verificador"  # quem valida os portões de comando, um disparo por portão
 # O invoker de cada validador do tr (`/tr:<portão>-<ação>`), para a mensagem apontar o caminho.
 INVOKERS = {VERIFICADOR: "/tr:qualidade-verificar", "tr:bugs-cacador": "/tr:bugs-cacar"}
-# Modelo por papel: a sessão principal (opus) planeja e orquestra; o subagente executa.
+# Modelo por papel: a sessão principal planeja; o orquestrador coordena executores e fiscais.
 COMPLEXIDADE = {"simples": "haiku", "complexa": "sonnet"}
 MODELO_EXECUTOR = "sonnet"
 IGNORADOS = ("docs", ".claude", ".git")
@@ -285,7 +285,7 @@ def missing(root, momento, reg=None):
     return [n for n in exigidos(root, momento, reg) if not satisfied(root, n, reg)]
 
 
-def passos(name, gate):
+def passos(name, gate, modelos=None):
     """O que fazer para o portão assinar, um passo por item."""
     mode = gate["assina"]
     if mode == "comando" and gate["comando"] == DEFINIR:
@@ -297,13 +297,17 @@ def passos(name, gate):
         valida = f" e que passe em `{gate['valida']}`" if gate.get("valida") else ""
         depois = f"depois {INVOKERS[VERIFICADOR]} (o carimbo sai do `{VERIFICADOR}`)"
         return [f"produza `{gate['artefato']}` no projeto{valida}", depois]
+    choice = ((modelos or {}).get("portoes") or {}).get(name) or (modelos or {}).get("revisao")
+    if isinstance(choice, dict) and choice.get("cli") in ("claude", "codex") and choice.get("modelo"):
+        return [f"rode `fullchico-harness modelos validar-portao {name}` "
+                f"(fiscal {gate['agente']} em {choice['cli']}:{choice['modelo']})"]
     if gate["agente"] in INVOKERS:
         return [INVOKERS[gate["agente"]]]
     return [f"dispare o agente `{gate['agente']}` sobre o estado atual do projeto", "só ele assina"]
 
 
-def howto(name, gate):
-    return "; ".join(passos(name, gate))
+def howto(name, gate, modelos=None):
+    return "; ".join(passos(name, gate, modelos))
 
 
 def validadores(reg):

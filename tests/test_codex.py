@@ -43,6 +43,12 @@ class TestCodex(unittest.TestCase):
             self.assertTrue((self.repo / f".codex/harness/tr/codex-skills/tr-memory-{name}/SKILL.md").exists())
             self.assertFalse((self.repo / f".codex/harness/memoria/codex-skills/memoria-{name}/SKILL.md").exists())
         self.assertTrue((self.repo / ".codex/agents/tr-bugs-cacador.toml").exists())
+        self.assertTrue((self.repo / ".codex/agents/tr-orquestrador.toml").exists())
+        planner = (self.repo / ".codex/harness/tr/codex-skills/tr-processo-planejar/SKILL.md").read_text()
+        self.assertIn("tr-orquestrador", planner)
+        discovery = self.repo / ".codex/harness/tr/codex-skills/tr-skills-descobrir/SKILL.md"
+        self.assertTrue(discovery.exists())
+        self.assertIn("$tr-grill-me", discovery.read_text())
         self.assertTrue((self.repo / ".claude/trilho.json").exists())
         market = json.loads((self.repo / ".agents/plugins/marketplace.json").read_text())
         self.assertEqual([p["name"] for p in market["plugins"]], ["tr", "memoria"])
@@ -72,6 +78,13 @@ class TestCodex(unittest.TestCase):
         self.assertFalse(helper.exists())
         new = self.repo / ".codex/harness/tr/codex-skills/tr-memory-dream/SKILL.md"
         self.assertIn("name: tr-memory-dream", new.read_text())
+
+    def test_reinstall_updates_generated_orchestrator_instructions(self):
+        self.assertEqual(self.install().returncode, 0)
+        agent = self.repo / ".codex/agents/tr-orquestrador.toml"
+        agent.write_text('name = "tr-orquestrador"\ndeveloper_instructions = "Dispare implementadores em subagentes separados"\n')
+        self.assertEqual(self.install().returncode, 0)
+        self.assertIn("modelos validar-portao", agent.read_text())
 
     def test_existing_marketplace_config_and_old_hooks_are_migrated(self):
         market = self.repo / ".agents/plugins/marketplace.json"

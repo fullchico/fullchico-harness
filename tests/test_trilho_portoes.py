@@ -324,6 +324,15 @@ class TestEndGateByAgent(Case):
         out = self.pre("Agent", subagent_type="tr:bugs-cacador", prompt="Revise bugs")
         self.assertEqual(json.loads(out.stdout)["hookSpecificOutput"]["updatedInput"]["model"], "haiku")
 
+    def test_codex_model_gate_cannot_be_stamped_by_claude_agent(self):
+        path = self.repo / ".claude/trilho.json"
+        data = json.loads(path.read_text())
+        data["modelos"] = {"portoes": {"bugs": {"cli": "codex", "modelo": "sol"}}}
+        path.write_text(json.dumps(data))
+        out = self.pre("Agent", subagent_type="tr:bugs-cacador", prompt="Revise bugs")
+        self.assertEqual(out.returncode, 2)
+        self.assertIn("modelos validar-portao bugs", out.stderr)
+
     def test_the_wrong_agent_or_commit_does_not_sign(self):
         self.stop(self.block(), agent="outro:agente")
         self.handback(self.block(), agent="general-purpose")
@@ -389,14 +398,14 @@ class TestProtectionAndInit(Case):
         self.assertEqual(hooks["PostToolUse"][0]["matcher"], "Bash")
         self.assertNotIn("matcher", hooks["SubagentStop"][0])
         self.assertTrue(os.access(PLUGIN / "bin/portao", os.X_OK))
-        for skill in ("portoes", "configurar", "processo-planejar", "qualidade-verificar", "bugs-cacar", "grill-me"):
+        for skill in ("portoes", "configurar", "processo-planejar", "qualidade-verificar", "bugs-cacar", "grill-me", "skills-descobrir"):
             self.assertTrue((PLUGIN / f"skills/{skill}/SKILL.md").exists(), skill)
         self.assertIn("codex doctor --json", (PLUGIN / "skills/configurar/SKILL.md").read_text())
         self.assertIn("versão 1.3.1", (PLUGIN / "skills/grill-me/SKILL.md").read_text())
         self.assertNotIn("disable-model-invocation: true", (PLUGIN / "skills/grill-me/SKILL.md").read_text(),
                          "configurar e processo-planejar precisam chamar grill-me dentro do fluxo")
         self.assertTrue((PLUGIN / "THIRD_PARTY_NOTICES.md").exists())
-        for agent in ("bugs-cacador", "qualidade-verificador"):
+        for agent in ("bugs-cacador", "qualidade-verificador", "orquestrador"):
             text = (PLUGIN / f"agents/{agent}.md").read_text()
             self.assertIn(f"name: {agent}\n", text)
             self.assertRegex(text, r"\nmodel: (haiku|sonnet)\n")

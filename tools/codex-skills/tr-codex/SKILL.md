@@ -16,6 +16,9 @@ Quando a implementação estiver pronta, confira os portões de fim. Para cada p
 subagente `tr-qualidade-verificador` com mensagem na primeira linha `portao: <nome>`. O hook substitui
 a mensagem por nome e snapshot e assina após a execução bem sucedida do comando. Para `bugs`, use um
 subagente `tr-bugs-cacador`; o hook substitui a mensagem pelo snapshot e lê o veredito final.
+Se o portão de agente tiver modelo configurado, use `fullchico-harness modelos validar-portao
+<nome> [--ticket <caminho>] [--pedido <resumo>]`. O harness abre a CLI escolhida, exige o
+veredito no snapshot atual e carimba. Um modelo próprio do portão sobrescreve `revisao`.
 Espere cada validador terminar antes do próximo. O próprio agente que implementou não assina os
 portões de fim. Rode `python3 -I .codex/harness/tr/scripts/portao.py entrega` antes de responder.
 Só declare `ENTREGA: concluída` quando passar. O instalador inicia Git; PR e push são opcionais.

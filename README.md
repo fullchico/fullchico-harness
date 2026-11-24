@@ -32,12 +32,18 @@ execucao codex:luna revisao codex:sol apoio claude:sonnet`. `modelos mostrar` ex
 iniciais Opus/Sol, Sonnet/Luna, Haiku/Terra e Fable/Astra. A configuração registra a intenção;
 `modelos executar <papel> --pedido "<texto>" [--ticket <caminho>]` inicia a CLI escolhida,
 grava um manifesto fora do repositório e passa ao modelo de apoio se a primeira CLI retornar
-erro de limite. O loop completo entre os três papéis ainda é conduzido pelas skills do `tr`.
+erro de limite. O subagente orquestrador usa esse comando para cada ticket liberado pelo grafo
+e devolve as reprovações ao executor antes de avançar.
 No Claude Code, `revisao claude:<modelo>` também define o modelo padrão dos fiscais. Para um
-portão específico, use `portao:<nome> claude:<modelo>`, por exemplo
-`npx @fullchico/harness modelos configurar revisao claude:sonnet portao:design-revisao claude:opus`.
-Essa escolha sobrescreve o `model:` do agente ao dispará-lo. `modelos executar revisao` com Codex
-abre uma execução separada e ainda não carimba automaticamente um portão disparado pelo Claude.
+portão de agente específico, use `portao:<nome> claude:<modelo>` ou `portao:<nome> codex:<modelo>`, por exemplo
+`npx @fullchico/harness modelos configurar revisao claude:sonnet portao:seguranca codex:sol
+portao:design-revisao claude:opus`.
+Cada portão de agente pode usar Claude ou Codex e um modelo próprio. O orquestrador abre os
+executores com `modelos executar execucao --ticket <caminho> --pedido <handoff>` e os fiscais
+externos com `modelos validar-portao <nome> [--ticket <caminho>] [--pedido <resumo>]`.
+O harness exige veredito, hash do estado examinado e processo bem sucedido antes de carimbar.
+Se o modelo do portão for Codex, o hook impede que um Agent Claude assine no lugar dele.
+As execuções e seus manifestos ficam fora do repositório.
 
 ## Exemplo: dois trilhos, uma entrega
 
@@ -140,8 +146,9 @@ esboço e os comandos; quem grava o registro protegido é o dono.
 
 Tickets com `Bloqueado por:` formam um grafo. A fronteira contém os tickets cujos bloqueadores
 já foram concluídos e carimbados; o hook impede o disparo antecipado de um executor. Tickets
-independentes podem avançar em contextos isolados. A skill `/tr:processo-planejar` coordena
-os subagentes, os fiscais e a integração.
+independentes podem avançar em contextos isolados. Após o planejamento aprovado, a sessão
+principal lança o subagente `tr:orquestrador` em segundo plano. Ele coordena executores,
+fiscais e integração; a sessão principal continua disponível para o dono.
 
 *Status: disponível no `tr` para tickets em `docs/specs/<demanda>/issues/`.*
 
@@ -150,7 +157,7 @@ os subagentes, os fiscais e a integração.
 Cada fiscal valida o estado atual do ticket. Se reprovar, o implementador corrige e o fiscal
 reexamina. Só o trabalho aprovado entra no passaporte e libera os dependentes.
 
-*Status: conduzido pela skill `/tr:processo-planejar`; a conferência final é aplicada pelo hook.*
+*Status: conduzido pelo subagente orquestrador; a conferência final é aplicada pelo hook.*
 
 ### 5. Guardrails
 
@@ -162,8 +169,8 @@ arquivos e rede. Com registro, o hook também:
 - escreve o pedido de cada validador (o que quem escreveu o código disse é descartado);
 - mantém o validador só leitura;
 - mantém a seleção existente por complexidade do ticket (haiku ou sonnet) nos subagentes Claude;
-  `fullchico-harness modelos configurar` registra os modelos por papel e permite escolher o
-  revisor Claude de cada portão antes de um fluxo misto;
+  `fullchico-harness modelos configurar` registra os modelos por papel e permite escolher Claude
+  ou Codex e o modelo próprio de cada portão de agente;
 - barra `portao <nome>` combinado com pipe ou `&&` (rodaria sem carimbar) e os scripts do harness
   antigo (`.harness/`).
 
@@ -242,13 +249,14 @@ Toda skill própria é acionada pelo `tr`, inclusive as de memória, com invoker
 
 | Invoker | Validador | Valida só |
 |---|---|---|
-| `/tr:processo-planejar` | (a sessão que planeja) | abre a demanda: entrevista, spec, tickets, orquestra |
+| `/tr:processo-planejar` | sessão principal → `tr:orquestrador` | entrevista, spec e tickets; depois delega execução e validação |
 | `/tr:qualidade-verificar` | `tr:qualidade-verificador` (haiku), um por portão de comando | o comando daquele portão |
 | `/tr:bugs-cacar` | `tr:bugs-cacador` (sonnet) | defeitos no diff |
 | `/tr:memory-mapear` | subagentes de leitura | mapa do código |
 | `/tr:memory-dream` | `memoria:extrator` (haiku) | notas de sessões conferidas com o código |
 | `/tr:memory-aprender` | (a sessão que fecha a entrega) | retrospectiva e consolidação |
 | `/tr:grill-me` | (a sessão que entrevista) | decisões em rodadas para planejar e configurar trilhos e portões |
+| `/tr:skills-descobrir` | catálogo skills.sh + `grill-me` | compara skills para a demanda, instala a escolhida nos ambientes e propõe portão só com evidência verificável |
 
 Os plugins `bugs` e `qualidade` da 2.x foram absorvidos pelo `tr` na 3.0. Em Claude Code, cada
 plugin usa `--scope project`. Em Codex, o marketplace local `.agents/plugins/marketplace.json`
@@ -268,8 +276,8 @@ padrão é **ambos**, inclusive sem terminal interativo. Em automações, use
 `--ambiente claude|codex|ambos` para fixar a escolha. `install-codex` permanece como atalho.
 
 O instalador monta os plugins `tr` e `memoria` em `.codex/harness/`, registra o marketplace local
-em `.agents/plugins/marketplace.json`, habilita ambos em `.codex/config.toml` e cria três agentes
-em `.codex/agents/`. As oito skills próprias e o fluxo `grill-me` incluído ficam em `tr`; o prompt auxiliar fica
+em `.agents/plugins/marketplace.json`, habilita ambos em `.codex/config.toml` e cria quatro agentes
+em `.codex/agents/`. As nove skills próprias e o fluxo `grill-me` incluído ficam em `tr`; o prompt auxiliar fica
 em `.agents/skills/`. Instala também todas as skills de
 [Ponytail](https://www.skills.sh/dietrichgebert/ponytail) e
 [Matt Pocock](https://www.skills.sh/mattpocock/skills) pelo skills CLI, direcionadas ao Codex.

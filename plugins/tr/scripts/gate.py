@@ -38,7 +38,7 @@ def lista(reg, names):
     for n in names:
         gate = reg["portoes"][n]
         linhas.append(f"  ✗ {n} · {gate.get('descricao') or '(sem descrição)'}")
-        linhas += [f"    → {p}" for p in registry.passos(n, gate)]
+        linhas += [f"    → {p}" for p in registry.passos(n, gate, reg.get('modelos'))]
     return linhas
 
 
@@ -108,6 +108,16 @@ def disparo(root, reg, ti):
             return 0
         novo["model"] = modelo
         return permitir(novo)
+    config = reg.get("modelos") or {}
+    por_portao = config.get("portoes") or {}
+    cli_externos = [name for name in validadores[tipo]
+                    if reg["portoes"][name]["assina"] == "agente" and
+                    (por_portao.get(name) or config.get("revisao") or {}).get("cli") == "codex"]
+    if cli_externos:
+        return deny(root, f"revisor Codex externo: {tipo}", quadro("modelo do portão", [
+            ("portões", ", ".join(cli_externos)),
+            ("motivo", "este portão usa Codex CLI; o Agent do Claude não pode assinar no lugar dele"),
+        ], [f"  → rode `fullchico-harness modelos validar-portao {name}`" for name in cli_externos]))
     top = ledger.head(root) or ""
     if tipo == registry.VERIFICADOR:
         m = re.search(r"(?m)^\s*portao:\s*([\w.-]+)", ti.get("prompt") or "")
@@ -230,7 +240,7 @@ def main():
             ], rodape="use os comandos Git normais; não edite os arquivos internos"))
         if rel in (".codex/hooks.json", ".codex/config.toml", ".agents/plugins/marketplace.json") or (
                 rel or "").startswith(".codex/harness/") or rel in (
-                ".codex/agents/tr-qualidade-verificador.toml", ".codex/agents/tr-bugs-cacador.toml",
+                ".codex/agents/tr-orquestrador.toml", ".codex/agents/tr-qualidade-verificador.toml", ".codex/agents/tr-bugs-cacador.toml",
                 ".codex/agents/memoria-extrator.toml"):
             return deny(root, f"configuração Codex: {t}", quadro("harness protegido", [
                 ("arquivo", rel), ("motivo", "contém os hooks ou validadores que aplicam os portões"),

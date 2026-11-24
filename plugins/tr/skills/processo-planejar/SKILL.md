@@ -5,12 +5,17 @@ description: Abre e conduz uma demanda até a entrega validada — entrevista o 
 
 # Planejar e conduzir a demanda
 
-Você é a sessão que planeja e orquestra (modelo opus). Quem executa os tickets são subagentes; o hook
+Você é a sessão principal que entrevista, planeja e acompanha o dono (modelo de planejamento).
+Depois da aprovação do plano e dos portões de entrada, dispare `tr:orquestrador` como subagente
+em segundo plano (`run_in_background: true` no Agent do Claude). No Codex, use `spawn_agent`
+com `tr-orquestrador` e continue disponível para mensagens do dono. Não conduza cada ticket
+na sessão principal. O orquestrador dispara executores e fiscais como subagentes dele; o hook
 do trilho escolhe o modelo deles pela `Complexidade:` do ticket (`simples` → haiku, `complexa` →
-sonnet). Quem valida são os validadores dos portões, em contexto limpo. O meio é seu; o começo e o fim
+sonnet). Quem valida são os validadores dos portões, em contexto limpo. O meio é do orquestrador; o começo e o fim
 são barrados por hook até as etapas acontecerem.
 
-Depois que o dono aprovar o planejamento e os portões de entrada passarem, conduza a demanda até a
+Depois que o dono aprovar o planejamento e os portões de entrada passarem, entregue ao orquestrador
+o caminho da spec, os tickets, o resultado dos portões de entrada e as decisões aprovadas. Ele conduz a demanda até a
 entrega sem pedir confirmação para escolhas rotineiras de implementação. Use a recomendação do plano,
 as convenções do projeto e o resultado dos verificadores. Uma mudança de formatação sem alteração de
 conteúdo, como linhas em branco em `PRODUCT.md`, é uma decisão de engenharia: mantenha-a se for
@@ -70,35 +75,42 @@ ou uma proposta de tela podem ser exigidos aí antes de qualquer código.
 
 ## 4. Portão de início
 
-Prepare a spec e os tickets. Dispare `/tr:qualidade-verificar` para o portão de início
-`processo`: um fiscal independente roda `portao processo` e carimba o plano. Passou, a escrita de
-código fica liberada. O mesmo vale para qualquer outro portão de início do registro.
+Prepare a spec e os tickets. Consulte `portao` e valide cada portão de início exigido pelo registro.
+Para portões de comando ou artefato, dispare `/tr:qualidade-verificar`. Para portões de agente,
+use o fiscal configurado; se o modelo for de outra CLI, rode
+`fullchico-harness modelos validar-portao <nome>`. Só os portões cadastrados pelo projeto são exigidos.
 
-## 5. Execução
+## 5. Execução pelo subagente orquestrador
 
-Os tickets sem bloqueio e com `Entrada:` carimbada são a fronteira. Para cada um, um subagente implementador com o caminho do
+O orquestrador lê a spec, os tickets e `fullchico-harness modelos mostrar`. Os tickets sem bloqueio e com `Entrada:` carimbada são a fronteira. Se `execucao` estiver configurada, para cada ticket liberado ele usa
+`fullchico-harness modelos executar execucao --ticket <caminho> --pedido <handoff>` para abrir a CLI e o modelo escolhidos. O handoff contém a spec, a decisão aprovada, o ticket e seus portões. O manifesto da execução fica fora do repositório e permite retomar após uma falha. Se `execucao` não estiver configurada, ele dispara um subagente implementador com o caminho do
 ticket no pedido (o hook lê a `Complexidade:` dele), a skill `tdd`, e um contexto isolado quando houver
 mais de um em paralelo. Para **cada portão do passaporte**,
-dispare o fiscal correspondente em contexto limpo. Quem implementou não valida.
+dispare o fiscal correspondente em contexto limpo. Para um portão de agente com modelo configurado,
+use `fullchico-harness modelos validar-portao <nome> --ticket <caminho> --pedido <resumo>`;
+o harness confere o veredito, o snapshot e emite o carimbo. Para comandos e artefatos, use o
+verificador do portão. Quem implementou não valida.
 Se reprovar, devolva os achados ao implementador; ele corrige e o fiscal reexamina.
 A aprovação carimba o estado atual do projeto.
 
 Só depois dos carimbos, registre `Status: done` no ticket e abra a próxima fronteira.
 Se o projeto usa Git, `Entrega:` pode registrar o commit validado.
-Você orquestra, junta e decide.
+O orquestrador junta, decide e informa a sessão principal sobre progresso, bloqueios reais e resultado.
 
 ## 6. Portões de fim
 
-Antes de declarar a entrega, confira a branch como trabalho de engenharia: `git status`, arquivos
+Antes de declarar a entrega, o orquestrador confere a branch como trabalho de engenharia: `git status`, arquivos
 ignorados e não rastreados, diff do que será incluído, resultados dos testes e carimbos. Corrija
 arquivo local incluído por engano e mudanças sem relação com a demanda. O revisor de cada portão
 examina o estado que será entregue; quem executou não aprova seu próprio trabalho. Não exija PR,
 push ou remoto se o projeto não os configurou como portão.
 
-Quando o executor declarar a implementação pronta, rode `portao`: ele confere os passaportes e mostra a
-fronteira ainda aberta. Rode também `/tr:qualidade-verificar` (um verificador por portão global
-de comando) e `/tr:bugs-cacar`. Falhou ou reprovou: um implementador corrige e o fiscal
+Quando o executor declarar a implementação pronta, o orquestrador roda `portao`: ele confere os passaportes e mostra a
+fronteira ainda aberta. Ele dispara os verificadores de `/tr:qualidade-verificar` (um por portão global
+de comando ou artefato) e, para cada portão de agente exigido, o fiscal cadastrado ou
+`fullchico-harness modelos validar-portao <nome>` conforme o modelo configurado.
+Falhou ou reprovou: um implementador corrige e o fiscal
 revalida o que mudou. Por fim, rode `fullchico-harness entregar` ou `portao entrega`.
-Só declare a entrega concluída quando esse comando passar. No início da resposta final escreva
+O orquestrador reporta o resultado à sessão principal; ela só declara a entrega concluída quando esse comando passar. No início da resposta final escreva
 `ENTREGA: concluída`; o hook Stop confere novamente os carimbos. Respostas intermediárias e perguntas
 não usam essa marca. Git é iniciado pelo instalador; push e PR são ações separadas.

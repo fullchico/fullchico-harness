@@ -10,7 +10,10 @@ escreve o pedido dele: o hook do trilho escreve o snapshot, para o caçador come
 contexto de quem escreveu o código. Sem Git, ele inspeciona os arquivos atuais.
 
 1. **Estado pronto.** O implementador terminou o código a validar; não é preciso abrir PR.
-2. **Dispare o agente `tr:bugs-cacador`.** Qualquer pedido curto serve; o hook troca pelo canônico.
+2. **Dispare o agente `tr:bugs-cacador`.** Se `portao:bugs` ou o papel `revisao` usar
+   modelo de outra CLI, rode `fullchico-harness modelos validar-portao bugs`. O harness abre o
+   fiscal independente, confere o snapshot e carimba. No agente nativo, qualquer pedido curto
+   serve; o hook troca pelo canônico.
 3. **O veredito** vem em três linhas (`VEREDITO`, `COMMIT`, `RESUMO`).
    - `APPROVED`: o hook carimba o estado atual.
    - `REJECTED`: o implementador corrige, e outro exame valida o novo estado.
