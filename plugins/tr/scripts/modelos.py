@@ -168,6 +168,12 @@ def executar(root, role, prompt, ticket=None):
         prompt = f"Papel: {role}. Ticket: {ticket}\n\n{file.read_text()}\n\nPedido: {prompt}"
     elif not prompt:
         raise ValueError("informe --pedido ou --ticket")
+    instructions = {
+        "planejamento": "Você é o planejador. Defina requisitos, dependências, critérios e portões aplicáveis.",
+        "execucao": "Você é o executor. Implemente a tarefa, registre evidências e deixe a revisão para outro agente.",
+        "revisao": "Você é o revisor independente. Não edite arquivos. Examine código e evidências, liste defeitos concretos e conclua com VEREDITO: APPROVED ou REJECTED.",
+    }
+    prompt = instructions[role] + "\n\n" + prompt
     state = _state_dir(root)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
     folder = os.path.join(state, run_id)
