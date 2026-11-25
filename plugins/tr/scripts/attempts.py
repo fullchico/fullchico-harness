@@ -8,7 +8,7 @@ import ledger
 
 
 def _path(root, name):
-    active = os.path.join(root, ".claude", "demanda-atual")
+    active = os.path.join(root, ".claude", "current-demand")
     try:
         with open(active, encoding="utf-8") as stream:
             demand = stream.read().strip()
@@ -28,15 +28,15 @@ def status(root, name):
 
 
 def reject(root, name, gate, evidence=None):
-    if gate.get("momento") != "fim":
+    if gate.get("stage") != "end":
         return None
     data = status(root, name)
-    if evidence and data.get("ultimo") == evidence:
+    if evidence and data.get("last") == evidence:
         return data
-    data["reprovacoes"] = data.get("reprovacoes", 0) + 1
-    data["ultimo"] = evidence
-    limit = gate.get("tentativas", 3)
-    data["intervencao"] = bool(data.get("intervencao") or data["reprovacoes"] > limit)
+    data["rejections"] = data.get("rejections", 0) + 1
+    data["last"] = evidence
+    limit = gate.get("attempts", 3)
+    data["intervention"] = bool(data.get("intervention") or data["rejections"] > limit)
     path = _path(root, name)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), suffix=".tmp")

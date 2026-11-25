@@ -1,6 +1,0 @@
-{
-  "name": "memoria",
-  "version": "0.1.1",
-  "description": "Mapa do código, sessões e notas ancoradas do harness por projeto.",
-  "hooks": "./codex-hooks/hooks.json"
-}

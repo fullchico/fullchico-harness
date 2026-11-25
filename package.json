@@ -1,7 +1,7 @@
 {
   "name": "@fullchico/harness",
-  "version": "3.1.12",
-  "description": "Harness por projeto para Claude Code e Codex: orquestração, guardrails, memória e validações.",
+  "version": "4.0.0-rc.1",
+  "description": "Per-project harness plugin for Claude Code and Codex: orchestration, guardrails, memory and validations.",
   "license": "MIT",
   "author": "FullChico",
   "repository": {
@@ -22,8 +22,7 @@
   ],
   "bin": {
     "harness": "bin/harness.js",
-    "fullchico-harness": "bin/harness.js",
-    "cc": "bin/cc"
+    "fullchico-harness": "bin/harness.js"
   },
   "files": [
     "bin/",

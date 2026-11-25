@@ -1,42 +1,42 @@
 ---
 name: grill-me
-description: Entrevista o dono para decidir a configuração do harness, os trilhos e os portões com base no diagnóstico dos ambientes e nas evidências do projeto.
+description: Interviews the owner to decide the harness configuration, the rails and the gates based on the environment diagnostics and the project's evidence.
 ---
 
-# Entrevistar para configurar o projeto
+# Interview to configure the project
 
-Esta skill inclui o fluxo `grilling` de Matt Pocock (versão 1.3.1, licença MIT;
-veja `../../THIRD_PARTY_NOTICES.md`) adaptado para a configuração do FullChico Harness.
-Use-a dentro de `/tr:configurar`, depois de ler os diagnósticos e o projeto.
+This skill includes Matt Pocock's `grilling` flow (version 1.3.1, MIT license;
+see `../../THIRD_PARTY_NOTICES.md`) adapted for configuring FullChico Harness.
+Use it inside `/tr:configure`, after reading the diagnostics and the project.
 
-Mapeie as decisões como uma árvore: cada escolha abre as decisões que dependem dela.
-Pergunte em rodadas. Em cada rodada, apresente somente as perguntas cujas premissas já
-estão resolvidas. Numere as perguntas, dê uma recomendação concreta para cada uma e
-espere as respostas do dono antes de avançar. Recalcule a próxima rodada com base nas
-respostas. Formule cada pergunta de modo que “sim” aceite sua recomendação.
+Map the decisions as a tree: each choice opens the decisions that depend on it.
+Ask in rounds. In each round, present only the questions whose premises are already
+resolved. Number the questions, give a concrete recommendation for each one and
+wait for the owner's answers before moving on. Recompute the next round based on the
+answers. Phrase each question so that "yes" accepts your recommendation.
 
-Descobrir fatos é trabalho seu: confira arquivos, comandos e diagnósticos antes de
-perguntar. Pergunte ao dono apenas por decisões, por exemplo o nível de rigor no envio,
-quais verificações são obrigatórias e quais são opcionais por tipo de entrega.
-Para os portões finais escolhidos como critérios de aprovação, confirme `aprovacao: auto`
-(padrão) ou `humana`, e o limite `tentativas` de reprovações automáticas (padrão 3;
-configurável por portão). A quarta reprovação com limite padrão pede intervenção humana.
-Deixe critérios, evidências e correções esperadas tão claros quanto a entrevista permitir.
-Identifique na entrevista os serviços e comandos necessários para executar e validar:
-por exemplo, qual Compose subir, quais serviços em localhost testar, qual navegador ou
-Playwright usar, quais destinos de rede acessar e se haverá escrita fora do projeto.
-Registre no plano o propósito dessas ações e o que continua fora do escopo. O plano não
-desliga o sandbox nem concede acesso automaticamente: quando a plataforma pedir permissão,
-o executor solicita liberação para a ação concreta. Se uma necessidade surgir depois,
-peça liberação só para ela, sem reabrir todo o planejamento.
+Discovering facts is your job: check files, commands and diagnostics before
+asking. Ask the owner only about decisions, for example the level of rigor at submission,
+which checks are mandatory and which are optional per type of delivery.
+For the end gates chosen as approval criteria, confirm `approval: auto`
+(default) or `human`, and the `attempts` limit of automatic rejections (default 3;
+configurable per gate). The fourth rejection with the default limit asks for human intervention.
+Leave criteria, evidence and expected fixes as clear as the interview allows.
+Identify in the interview the services and commands needed to run and validate:
+for example, which Compose to bring up, which services on localhost to test, which browser or
+Playwright to use, which network destinations to access and whether there will be writes outside the project.
+Record in the plan the purpose of those actions and what remains out of scope. The plan does not
+turn off the sandbox or grant access automatically: when the platform asks for permission,
+the executor requests release for the concrete action. If a need arises later,
+ask for release only for it, without reopening all of the planning.
 
-Para cada portão proposto, mostre a evidência, o momento (`inicio` ou `fim`), o modo de
-assinatura (`comando`, `artefato` ou `agente`) e o comando, caminho ou agente exato.
-Se não houver evidência para um comando, não invente: deixe a decisão aberta.
+For each proposed gate, show the evidence, the moment (`start` or `end`), the signing
+mode (`command`, `artifact` or `agent`) and the exact command, path or agent.
+If there is no evidence for a command, do not invent one: leave the decision open.
 
-Termine quando não houver decisão pendente. Resuma o acordo, a recomendação para cada escolha
-e o que o plano autoriza entregar. Peça ao dono uma confirmação final desse entendimento.
-Essa confirmação autoriza a execução do plano recomendado até os portões de fim; não peça
-outra aprovação do mesmo plano antes de implementar. Se houver registro protegido a gravar,
-inclua o comando do terminal como último passo da configuração e confira que foi aplicado.
-Só então anuncie a entrevista encerrada e faça o handoff ao orquestrador.
+Finish when there is no pending decision. Summarize the agreement, the recommendation for each choice
+and what the plan authorizes delivering. Ask the owner for a final confirmation of that understanding.
+That confirmation authorizes execution of the recommended plan through to the end gates; do not ask for
+another approval of the same plan before implementing. If there is a protected record to write,
+include the terminal command as the last step of the configuration and check that it was applied.
+Only then announce the interview closed and hand off to the orchestrator.

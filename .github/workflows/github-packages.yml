@@ -18,6 +18,9 @@ jobs:
           node-version: 22
           registry-url: https://npm.pkg.github.com
           scope: "@fullchico"
-      - run: npm publish --registry https://npm.pkg.github.com --provenance=false
+      # Pré-lançamento (vX.Y.Z-rc.N) vai para a tag `next`, como no npm.
+      - run: |
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then TAG="--tag next"; else TAG=; fi
+          npm publish --registry https://npm.pkg.github.com --provenance=false $TAG
         env:
           NODE_AUTH_TOKEN: ${{ github.token }}

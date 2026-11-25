@@ -15,6 +15,11 @@ sys.path.insert(0, str(ROOT / "plugins/_shared"))
 os.environ["GIT_CONFIG_GLOBAL"] = os.devnull
 os.environ["GIT_CONFIG_NOSYSTEM"] = "1"
 
+# Isola da sessão do agente que roda os testes: as travas do harness leem essas variáveis.
+# Os testes que exercitam a trava as definem de novo explicitamente.
+for _var in [v for v in os.environ if v == "CLAUDECODE" or v.startswith(("CLAUDE_CODE_", "CODEX_"))] + ["CLAUDE_PROJECT_DIR"]:
+    os.environ.pop(_var, None)
+
 
 def _tmpdir() -> pathlib.Path:
     d = pathlib.Path(tempfile.mkdtemp(prefix="harness t ")).resolve()
@@ -30,7 +35,7 @@ def git(repo, *args) -> str:
 
 
 def _forget_state(repo) -> None:
-    """O estado do trilho de um repositório de teste fica em ~/.claude/trilho; apaga ao sair."""
+    """O estado do trilho de um repositório de teste fica em ~/.claude/tr; apaga ao sair."""
     import ledger
     state = ledger.state_dir(str(repo))
     if state:
@@ -66,7 +71,7 @@ def commit_file(repo, path: str, subject: str) -> str:
 
 def hook_verdict(r):
     """Traduz o JSON de decisão de um hook do trilho para o código de saída de antes: bloqueio vira 2, com o
-    motivo em `stderr`; o aviso (`systemMessage`) fica em `stdout`. Assim os testes leem "barrou" como sempre."""
+    motivo em `stderr`; o aviso (`systemMessage`) fica em `stdout`. Assim os testes leem o bloqueio como sempre."""
     try:
         out = json.loads(r.stdout) if r.stdout.strip() else {}
     except ValueError:

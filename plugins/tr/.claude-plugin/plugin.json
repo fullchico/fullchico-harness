@@ -1,7 +1,7 @@
 {
   "name": "tr",
-  "version": "1.0.8",
-  "description": "Entrada única do harness: diagnóstico, entrevista grill-me, portões, validadores e memória.",
+  "version": "2.0.0",
+  "description": "Single entry point of the harness: diagnosis, grill-me interview, gates, validators and memory.",
   "author": {
     "name": "FullChico"
   },

@@ -6,14 +6,14 @@ portões e estado. Este módulo só lê os carimbos do ledger.
 import os
 import re
 
-FIELD = re.compile(r"(?mi)^\s*(Status|Bloqueado por|Entrada|Meio|Portões|Arquivos|Entrega):\s*(.*?)\s*$")
+FIELD = re.compile(r"(?mi)^\s*(Status|Blocked by|Start|Middle|Gates|Files|Delivery):\s*(.*?)\s*$")
 
 
 def tickets(root):
     """Tickets presentes no projeto, com ou sem Git."""
     import glob
     out = {}
-    active = os.path.join(root, ".claude", "demanda-atual")
+    active = os.path.join(root, ".claude", "current-demand")
     demand = None
     if os.path.isfile(active):
         with open(active, encoding="utf-8") as stream:
@@ -29,11 +29,16 @@ def tickets(root):
     return out
 
 
+def open_tickets(root):
+    """Tickets da demanda que ainda não terminaram: enquanto houver, o código é dos executores."""
+    return [path for path, fields in tickets(root).items() if fields.get("status", "").lower() != "done"]
+
+
 def required_gates(root):
     """Portões locais pedidos pelos passaportes dos tickets."""
     return {gate for fields in tickets(root).values()
-            for field in ("entrada", "meio", "portões")
-            for gate in (_names(fields.get(field)) or []) if gate.lower() != "nenhum"}
+            for field in ("start", "middle", "gates")
+            for gate in (_names(fields.get(field)) or []) if gate.lower() != "none"}
 
 
 def _names(value):
@@ -43,7 +48,7 @@ def _names(value):
 
 
 def _blockers(root, path, value, all_tickets):
-    if not value or value.lower() in ("nenhum", "none", "-"):
+    if not value or value.lower() in ("none", "-"):
         return [], []
     folder = os.path.dirname(path)
     indexed = {os.path.basename(p).split("-", 1)[0]: p for p in all_tickets if os.path.dirname(p) == folder}
@@ -60,12 +65,12 @@ def _blockers(root, path, value, all_tickets):
 
 def audit(root, reg):
     """Devolve (pendências, fronteira). Nenhum carimbo é criado aqui."""
-    active = os.path.join(root, ".claude", "demanda-atual")
+    active = os.path.join(root, ".claude", "current-demand")
     if os.path.isfile(active):
         with open(active, encoding="utf-8") as stream:
             demand = stream.read().strip()
         if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", demand):
-            return [".claude/demanda-atual: slug inválido"], []
+            return [".claude/current-demand: slug inválido"], []
     all_tickets = tickets(root)
     if not all_tickets:
         return [], []
@@ -76,55 +81,55 @@ def audit(root, reg):
         if ticket_id in ids:
             problems.append(f"{path}: número de ticket duplicado com {ids[ticket_id]}")
         ids[ticket_id] = path
-        blockers, errors = _blockers(root, path, fields.get("bloqueado por"), all_tickets)
+        blockers, errors = _blockers(root, path, fields.get("blocked by"), all_tickets)
         graph[path] = blockers
         problems.extend(errors)
-        if "bloqueado por" not in fields:
-            problems.append(f"{path}: falta `Bloqueado por:`")
-        entry = _names(fields.get("entrada"))
+        if "blocked by" not in fields:
+            problems.append(f"{path}: falta `Blocked by:`")
+        entry = _names(fields.get("start"))
         if entry is None:
-            problems.append(f"{path}: falta `Entrada:` no passaporte")
+            problems.append(f"{path}: falta `Start:` no passaporte")
             entry = []
-        if len(entry) == 1 and entry[0].lower() == "nenhum":
+        if len(entry) == 1 and entry[0].lower() == "none":
             entry = []
         entries_ok[path] = True
         for gate in entry:
-            item = reg["portoes"].get(gate)
-            if not item or item["momento"] != "inicio":
+            item = reg["gates"].get(gate)
+            if not item or item["stage"] != "start":
                 problems.append(f"{path}: `{gate}` não é portão de início do registro")
                 entries_ok[path] = False
             elif not registry_satisfied(root, gate, reg):
                 problems.append(f"{path}: falta carimbo de entrada `{gate}`")
                 entries_ok[path] = False
-        gates = _names(fields.get("portões"))
+        gates = _names(fields.get("gates"))
         if gates is None:
-            problems.append(f"{path}: falta `Portões:` no passaporte")
+            problems.append(f"{path}: falta `Gates:` no passaporte")
             gates = []
-        if len(gates) == 1 and gates[0].lower() == "nenhum":
+        if len(gates) == 1 and gates[0].lower() == "none":
             gates = []
-        middle = _names(fields.get("meio"))
+        middle = _names(fields.get("middle"))
         if middle is None:
             middle = []
-        if len(middle) == 1 and middle[0].lower() == "nenhum":
+        if len(middle) == 1 and middle[0].lower() == "none":
             middle = []
         status = fields.get("status", "").lower()
         for gate in middle:
-            item = reg["portoes"].get(gate)
-            if not item or item["momento"] != "meio":
+            item = reg["gates"].get(gate)
+            if not item or item["stage"] != "middle":
                 problems.append(f"{path}: `{gate}` não é portão de meio do registro")
             elif status == "done" and not registry_satisfied(root, gate, reg, ticket=path):
                 problems.append(f"{path}: falta carimbo de meio `{gate}` para esta versão do ticket")
         for gate in gates:
-            item = reg["portoes"].get(gate)
-            if not item or item["momento"] != "fim":
+            item = reg["gates"].get(gate)
+            if not item or item["stage"] != "end":
                 problems.append(f"{path}: `{gate}` não é portão de fim do registro")
-        paths = _names(fields.get("arquivos"))
+        paths = _names(fields.get("files"))
         if paths is None or not paths:
-            problems.append(f"{path}: falta `Arquivos:` no passaporte")
+            problems.append(f"{path}: falta `Files:` no passaporte")
             paths = []
         for pattern in paths:
             if pattern.startswith("/") or ".." in pattern.split("/"):
-                problems.append(f"{path}: caminho inválido em `Arquivos:`: {pattern}")
+                problems.append(f"{path}: caminho inválido em `Files:`: {pattern}")
         plan_ok[path] = len(problems) == first_problem
         if status not in ("open", "done"):
             problems.append(f"{path}: `Status:` deve ser open ou done")
@@ -135,7 +140,7 @@ def audit(root, reg):
         import registry
         missing_stamp = []
         for gate in gates:
-            if gate in reg["portoes"] and reg["portoes"][gate]["momento"] == "fim" and not registry.satisfied(root, gate, reg):
+            if gate in reg["gates"] and reg["gates"][gate]["stage"] == "end" and not registry.satisfied(root, gate, reg):
                 problems.append(f"{path}: falta carimbo `{gate}` no estado atual do projeto")
                 missing_stamp.append(gate)
         if not missing_stamp and len(problems) == first_problem:
@@ -145,7 +150,7 @@ def audit(root, reg):
 
     def visit(path):
         if path in visiting:
-            problems.append(f"{path}: ciclo em `Bloqueado por:`")
+            problems.append(f"{path}: ciclo em `Blocked by:`")
             return
         if path in visited:
             return
@@ -173,7 +178,7 @@ def audit(root, reg):
              and plan_ok[path]
              and entries_ok[path]
              and all_tickets[path].get("status", "").lower() != "done"]
-    if any("ciclo em `Bloqueado por:`" in problem for problem in problems):
+    if any("ciclo em `Blocked by:`" in problem for problem in problems):
         ready = []
     return problems, ready
 
@@ -183,13 +188,22 @@ def registry_satisfied(root, name, reg, ticket=None):
     return registry.satisfied(root, name, reg, ticket=ticket)
 
 
-def dispatch_problem(root, reg, prompt):
-    """Impede iniciar um ticket antes de seus bloqueadores estarem integrados e carimbados."""
+READ_ONLY_AGENTS = {"Explore", "Plan", "claude-code-guide"}
+
+
+def dispatch_problem(root, reg, prompt, caller=None, kind=None):
+    """Impede iniciar um ticket antes de seus bloqueadores estarem integrados e carimbados.
+
+    Quando quem dispara é o orquestrador, todo executor precisa citar o ticket: sem ele, a fronteira
+    não teria o que conferir."""
     all_tickets = tickets(root)
     if not all_tickets:
         return None
     references = [path for path in all_tickets if path in (prompt or "")]
     if not references:
+        import registry
+        if caller in registry.ORCHESTRATORS and kind not in READ_ONLY_AGENTS and open_tickets(root):
+            return "o orquestrador dispara executor só com o caminho do ticket no pedido"
         return None  # exploração e validadores sem ticket seguem livres
     problems, ready = audit(root, reg)
     for path in references:

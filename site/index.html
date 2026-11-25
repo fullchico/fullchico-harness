@@ -239,7 +239,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
 
     <div class="install">
       <div class="cmd"><code id="c1">npx @fullchico/harness@latest install</code><button type="button" data-copy="c1">Copiar</button></div>
-      <p class="note">Rode na pasta do projeto. O instalador oferece Claude, Codex ou ambos; ambos é o padrão. Depois, comece por <code>/tr:processo-planejar</code>.</p>
+      <p class="note">Rode na pasta do projeto. O instalador oferece Claude, Codex ou ambos; ambos é o padrão. Depois, comece por <code>/tr:process-plan</code>.</p>
     </div>
   </div>
 
@@ -253,16 +253,16 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
   <section id="conceitos">
     <div class="wrap">
       <h2>Oito conceitos, nesta ordem</h2>
-      <p class="intro">Portão é uma etapa obrigatória; carimbo é a prova de que ela passou. A lib não escolhe o seu lint nem o seu teste: exige que a etapa aconteça.</p>
+      <p class="intro">Portão é uma etapa obrigatória; carimbo é a prova de que ela passou. O plugin não escolhe o seu lint nem o seu teste: exige que a etapa aconteça.</p>
       <ul class="cards count">
-        <li><h3>Harness</h3><p>O conjunto do projeto: plugins, portões e configuração. O <strong>modo puro</strong> é opcional e limita a sessão Claude às configurações do projeto. Ative com <code>npx @fullchico/harness puro</code> e abra com <code>claude --setting-sources project,local --strict-mcp-config</code>.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
-        <li><h3>Planejamento</h3><p>O <code>/tr:grill-me</code> refina requisitos, critérios e portões com o dono. A confirmação do plano autoriza a execução até a entrega; os portões escolhidos ficam no registro do projeto.</p><p class="note"><strong>Status:</strong> disponível em <code>/tr:configurar</code> e <code>/tr:processo-planejar</code>.</p></li>
+        <li><h3>Harness</h3><p>O conjunto do projeto: plugins, portões e configuração.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
+        <li><h3>Planejamento</h3><p>O <code>/tr:grill-me</code> refina requisitos, critérios e portões com o dono. A confirmação do plano autoriza a execução até a entrega; os portões escolhidos ficam no registro do projeto.</p><p class="note"><strong>Status:</strong> disponível em <code>/tr:configure</code> e <code>/tr:process-plan</code>.</p></li>
         <li><h3>Paralelismo com grafo</h3><p>Tickets independentes entram na fronteira juntos; o hook só libera os que não têm bloqueadores pendentes.</p><p class="note"><strong>Status:</strong> grafo e trava disponíveis no <code>tr</code>.</p></li>
         <li><h3>Loops</h3><p>Se o fiscal reprovar, o orquestrador devolve a tarefa ao executor, corrige e pede nova validação. Cada portão final tem um limite configurável de tentativas automáticas.</p><p class="note"><strong>Status:</strong> disponível; 3 reprovações por padrão, intervenção na quarta.</p></li>
-        <li><h3>Guardrails</h3><p>Hooks em Claude Code e Codex conferem as chamadas cobertas e apontam etapas pendentes antes da entrega. O sandbox nativo é opcional; Docker segue disponível no fluxo padrão.</p><p class="note"><strong>Status:</strong> disponível como controle de fluxo.</p></li>
-        <li><h3>Portões</h3><p>Na entrada exigem os requisitos; no fim validam a entrega. Portões de meio podem exigir evidência de um ticket específico. Você os configura em <code>.claude/trilho.json</code>.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
+        <li><h3>Guardrails</h3><p>Hooks em Claude Code e Codex conferem as chamadas cobertas e apontam etapas pendentes antes da entrega. Quem planeja não executa: com tickets abertos, a sessão principal e o orquestrador não escrevem código. Escrita indireta pelo terminal (<code>python -c</code>, scripts) é conferida pelo efeito. Perfil <code>fluxo</code> sem sandbox nativo, com Docker disponível; perfil <code>isolado</code> com <code>install --sandbox</code>.</p><p class="note"><strong>Status:</strong> disponível como controle de fluxo.</p></li>
+        <li><h3>Portões</h3><p>Na entrada exigem os requisitos; no fim validam a entrega. Portões de meio podem exigir evidência de um ticket específico. Você os configura em <code>.claude/harness.json</code>.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
         <li><h3>Validações</h3><p>O que dá o carimbo: um <strong>comando</strong> que passa, o <strong>veredito de um agente</strong> ou um <strong>artefato</strong> validado. O carimbo vale para o estado atual; alteração de código pede nova validação.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
-        <li><h3>Memória organizada</h3><p>Mapa do código e notas ancoradas, por projeto, carregados no começo de cada sessão (plugin <code>memoria</code>).</p><p class="note"><strong>Status:</strong> disponível.</p></li>
+        <li><h3>Memória organizada</h3><p>Mapa do código e notas ancoradas, por projeto, carregados no começo de cada sessão (plugin <code>memory</code>).</p><p class="note"><strong>Status:</strong> disponível.</p></li>
       </ul>
     </div>
   </section>
@@ -292,7 +292,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <figure class="art"><img src="img/locomotivas-cartoon.png" width="1835" height="857" loading="lazy" alt="Duas locomotivas puxam vagões com tarefas em trilhos paralelos rumo ao fiscal, que segura o passaporte carimbado."><figcaption><img src="img/claude-mascot.svg" alt="" width="28" height="28" style="display:inline;vertical-align:middle;width:1.75rem;margin-right:.3rem"> Claude pode puxar a tela. <img src="img/codex-mascot.svg" alt="" width="28" height="28" style="display:inline;vertical-align:middle;width:1.75rem;margin:0 .3rem 0 .6rem"> Codex pode puxar a API. Você escolhe os modelos de cada papel; as skills do tr conduzem o fluxo.</figcaption></figure>
       <h3 class="sub">Conferência antes de declarar a entrega</h3>
       <p>O executor produz o trabalho; outro agente examina a evidência. Se faltar um carimbo ou a revisão reprovar, a tarefa volta para correção e passa de novo pelo portão. A aprovação é automática por padrão. O projeto pode exigir uma assinatura humana para um portão final.</p>
-      <div class="cmd" style="margin-top:2rem"><code id="c2">fullchico-harness modelos configurar</code><button type="button" data-copy="c2">Copiar</button></div>
+      <div class="cmd" style="margin-top:2rem"><code id="c2">fullchico-harness models configure</code><button type="button" data-copy="c2">Copiar</button></div>
       <p class="note" style="margin-top:0.8rem">Escolha quem planeja, quem executa, quem revisa e o modelo de apoio para erro de limite. A configuração vale para o projeto.</p>
     </div>
   </section>
@@ -302,9 +302,9 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <h2>Plugins</h2>
       <p class="intro">Cada um é independente e se liga só no projeto, em Claude Code ou Codex.</p>
       <dl class="facts">
-        <div><dt><code>tr</code></dt><dd><strong>Disponível.</strong> Registro, portões de entrada, meio e fim, validadores em subagente limpo (<code>/tr:qualidade-verificar</code>, <code>/tr:bugs-cacar</code>), passaporte por demanda, modelos por papel, <code>/tr:processo-planejar</code> e modo puro.</dd></div>
-        <div><dt><code>memoria</code></dt><dd><strong>Disponível.</strong> Mapa do código, notas ancoradas e busca por grafo local, compartilhados entre Claude e Codex sem versionar o índice gerado.</dd></div>
-        <div><dt>Orquestração</dt><dd><strong>Disponível no <code>tr</code>.</strong> Um subagente coordena tickets liberados pelo grafo, executores e fiscais independentes. Modelos Claude e Codex podem ser escolhidos por papel e por portão.</dd></div>
+        <div><dt><code>tr</code></dt><dd><strong>Disponível.</strong> Registro, portões de entrada, meio e fim, validadores em subagente limpo (<code>/tr:quality-check</code>, <code>/tr:bugs-hunt</code>, <code>/tr:scope-check</code>), passaporte por demanda, modelos por papel e <code>/tr:process-plan</code>.</dd></div>
+        <div><dt><code>memory</code></dt><dd><strong>Disponível.</strong> Mapa do código, notas ancoradas e busca por grafo local, compartilhados entre Claude e Codex sem versionar o índice gerado.</dd></div>
+        <div><dt>Orquestração</dt><dd><strong>Disponível no <code>tr</code>.</strong> Um subagente coordena tickets liberados pelo grafo, executores e fiscais independentes, em segundo plano. Modelos Claude e Codex podem ser escolhidos por papel e por portão; execuções longas rodam com <code>models run --detach</code> e são consultadas com <code>models wait</code>.</dd></div>
         <div><dt>Segurança</dt><dd><strong>Configurável pelo projeto.</strong> Registre um portão final com comando ou fiscal próprio se a entrega exigir essa revisão.</dd></div>
       </dl>
     </div>
@@ -325,12 +325,12 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
     <div class="wrap">
       <h2>Instalar</h2>
       <h3 class="sub">Tudo</h3>
-      <p>O <code>install</code> pergunta se o projeto usa Claude Code, Codex ou ambos; a opção padrão é ambos. Ele liga os plugins <code>tr</code> e <code>memoria</code> no projeto e instala as skills de Ponytail e Matt Pocock para o ambiente escolhido. No Claude, o modo puro é opcional.</p>
+      <p>O <code>install</code> pergunta se o projeto usa Claude Code, Codex ou ambos; a opção padrão é ambos. Ele liga os plugins <code>tr</code> e <code>memory</code> no projeto e instala as skills de Ponytail e Matt Pocock para o ambiente escolhido.</p>
       <ol class="steps">
         <li><div><h3>Instale</h3><div class="cmd"><code id="c3">npx @fullchico/harness@latest install</code><button type="button" data-copy="c3">Copiar</button></div></div></li>
-        <li><div><h3>Entreviste e configure</h3><p>Na sessão, use <code>/tr:configurar</code>. O diagnóstico mostra candidatos; o <code>/tr:grill-me</code> refina quais portões o projeto realmente quer, seus critérios e as tentativas de correção.</p></div></li>
-        <li><div><h3>Registre o plano</h3><p>Confirme o plano uma vez. A configuração escolhida vai para <code>.claude/trilho.json</code>; o orquestrador segue autonomamente até os portões finais.</p></div></li>
-        <li><div><h3>Abra a sessão</h3><p>Use <code>claude</code> ou <code>codex</code> normalmente. Se quiser isolar as configurações Claude no projeto, ative o modo puro.</p><div class="cmd"><code id="c6">npx @fullchico/harness puro</code><button type="button" data-copy="c6">Copiar</button></div></div></li>
+        <li><div><h3>Entreviste e configure</h3><p>Na sessão, use <code>/tr:configure</code>. O diagnóstico mostra candidatos; o <code>/tr:grill-me</code> refina quais portões o projeto realmente quer, seus critérios e as tentativas de correção.</p></div></li>
+        <li><div><h3>Registre o plano</h3><p>Confirme o plano uma vez. A configuração escolhida vai para <code>.claude/harness.json</code>; o orquestrador segue autonomamente até os portões finais.</p></div></li>
+        <li><div><h3>Abra a sessão</h3><p>Use <code>claude</code> ou <code>codex</code> normalmente.</p></div></li>
       </ol>
       <p class="note" style="margin-top:2rem"><strong>Cada clone precisa do install.</strong> Ligar o plugin no settings não o baixa (limite da plataforma). Quem clona roda <code>install</code> uma vez.</p>
     </div>
@@ -339,40 +339,45 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
   <section id="registro">
     <div class="wrap">
       <h2>Registro de portões</h2>
-      <p class="intro">Fica em <code>.claude/trilho.json</code>, chave <code>portoes</code>. O instalador não cadastra portões automaticamente. O projeto escolhe início, meio e fim; os portões finais podem limitar correções automáticas e pedir aprovação humana.</p>
+      <p class="intro">Fica em <code>.claude/harness.json</code>, chave <code>gates</code>. O instalador não cadastra portões automaticamente. O projeto escolhe início, meio e fim; os portões finais podem limitar correções automáticas e pedir aprovação humana.</p>
 <pre class="verdict" style="max-width:46rem">{
-  "codigo": ["apps", "packages"],
-  "portoes": {
-    "processo": {
-      "momento": "inicio",
-      "assina": "artefato",
-      "artefato": "docs/specs/*/spec.md",
-      "descricao": "spec da mudança, saída da entrevista"
+  "code": ["apps", "packages"],
+  "gates": {
+    "process": {
+      "stage": "start",
+      "signs": "artifact",
+      "artifact": "docs/specs/*/spec.md",
+      "description": "spec da mudança, saída da entrevista"
     },
-    "qualidade": {
-      "momento": "fim",
-      "assina": "comando",
-      "comando": "pnpm lint &amp;&amp; pnpm test",
-      "tentativas": 5,
-      "aprovacao": "auto"
+    "quality": {
+      "stage": "end",
+      "signs": "command",
+      "command": "pnpm lint &amp;&amp; pnpm test",
+      "attempts": 5,
+      "approval": "auto"
     },
     "bugs": {
-      "momento": "fim",
-      "assina": "agente",
-      "agente": "tr:bugs-cacador"
+      "stage": "end",
+      "signs": "agent",
+      "agent": "tr:bug-hunter"
+    },
+    "scope": {
+      "stage": "end",
+      "signs": "agent",
+      "agent": "tr:scope-checker"
     },
     "segredos": {
-      "momento": "fim",
-      "assina": "comando",
-      "comando": "gitleaks detect"
+      "stage": "end",
+      "signs": "command",
+      "command": "gitleaks detect"
     }
   }
 }</pre>
       <dl class="facts">
-        <div><dt>O que o <code>portao</code> mostra</dt><dd>Sem argumento, lista cada portão com <code>ok</code> ou <code>falta</code>, o momento, o modo de assinar e o que fazer. Com um nome, roda a verificação e termina em <code>passou</code> ou <code>FALHOU</code>.</dd></div>
-        <div><dt>Tentativas e aprovação</dt><dd><code>tentativas</code> aceita qualquer inteiro não negativo; o padrão é 3, com intervenção na reprovação seguinte. <code>aprovacao: auto</code> é o padrão. Com <code>humana</code>, o dono usa <code>fullchico-harness portoes --aprovar &lt;nome&gt;</code> depois que o fiscal validar o estado.</dd></div>
-        <div><dt><code>codigo</code></dt><dd>As pastas que são código do app. Sem a chave, é tudo menos <code>docs/</code>, <code>.claude/</code>, <code>.md</code> e o ignorado pelo git.</dd></div>
-        <div><dt>O registro é do dono</dt><dd>O agente não decide os critérios depois do plano aprovado. O CLI recusa gravar <code>.claude/trilho.json</code> de dentro de uma sessão Claude; se o projeto já usa sandbox, também adiciona o arquivo ao <code>denyWrite</code>.</dd></div>
+        <div><dt>O que o <code>gate</code> mostra</dt><dd>Sem argumento, lista cada portão com <code>ok</code> ou <code>falta</code>, o momento, o modo de assinar e o que fazer. Com um nome, roda a verificação e termina em <code>passou</code> ou <code>FALHOU</code>.</dd></div>
+        <div><dt>Tentativas e aprovação</dt><dd><code>attempts</code> aceita qualquer inteiro não negativo; o padrão é 3, com intervenção na reprovação seguinte. <code>approval: auto</code> é o padrão. Com <code>human</code>, o dono usa <code>fullchico-harness gates --approve &lt;name&gt;</code> depois que o fiscal validar o estado.</dd></div>
+        <div><dt><code>code</code></dt><dd>As pastas que são código do app. Sem a chave, é tudo menos <code>docs/</code>, <code>.claude/</code>, <code>.md</code> e o ignorado pelo git.</dd></div>
+        <div><dt>O registro é do dono</dt><dd>O agente não decide os critérios depois do plano aprovado. O CLI recusa gravar <code>.claude/harness.json</code> de dentro de uma sessão Claude; se o projeto já usa sandbox, também adiciona o arquivo ao <code>denyWrite</code>.</dd></div>
       </dl>
     </div>
   </section>
@@ -381,8 +386,9 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
     <div class="wrap">
       <h2>Limites honestos</h2>
       <dl class="facts">
-        <div><dt>Validação na entrega</dt><dd>Os hooks valem nas sessões de Claude Code ou Codex em que estiverem ativos. A checagem explícita <code>fullchico-harness entregar</code> também funciona no terminal. O instalador inicia Git quando necessário.</dd></div>
-        <div><dt>Sandbox opcional</dt><dd>O instalador preserva a configuração existente e não liga o sandbox nativo automaticamente. Os hooks e a checagem explícita aplicam o fluxo nas sessões cobertas; sem isolamento, não são uma barreira contra adulteração por processos com acesso ao usuário.</dd></div>
+        <div><dt>Validação na entrega</dt><dd>Os hooks valem nas sessões de Claude Code ou Codex em que estiverem ativos. A checagem explícita <code>fullchico-harness deliver</code> também funciona no terminal. O instalador inicia Git quando necessário.</dd></div>
+        <div><dt>Sandbox opcional</dt><dd>O perfil padrão (<code>fluxo</code>) não liga o sandbox nativo, para o Docker do projeto funcionar. Os hooks e a checagem explícita aplicam o fluxo nas sessões cobertas e detectam escrita indireta depois que ela acontece; sem isolamento, não são uma barreira contra adulteração por processos com acesso ao usuário. O perfil <code>isolado</code> (<code>install --sandbox</code>) protege o registro e o estado.</dd></div>
+        <div><dt>Codex</dt><dd>Hooks de projeto só rodam depois que você confia neles; o <code>models run</code> recusa uma execução Codex em que eles não rodaram. Na versão 0.171, a mensagem do disparo de subagente chega cifrada ao hook: a fronteira por ticket e o pedido canônico do fiscal não se aplicam a esses disparos.</dd></div>
         <div><dt>O carimbo é prova de etapa</dt><dd>Ele prova que a etapa aconteceu, não que o revisor foi bom.</dd></div>
       </dl>
     </div>

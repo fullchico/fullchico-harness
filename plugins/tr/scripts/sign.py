@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Assina os carimbos dos portões. Quem assina é o hook, nunca o agente.
 
-- `PostToolUse` de `Bash`: o comando foi exatamente `portao <nome>` e a saída termina em
-  `portao <nome>: passou` -> portão `comando` ou `artefato`. Portão de fim só assina dentro do
-  `tr:qualidade-verificador` (quem escreveu não assina); o de início (o plano) assina onde rodar. Árvore suja num portão de fim: não assina e recusa (JSON `decision: block`).
-- `SubagentStop` e `PreToolUse` de `SubagentHandback`: o veredito APPROVED do agente de um portão `agente`.
+- `PostToolUse` de `Bash`: o comando foi exatamente `gate <name>` e a saída termina em
+  `gate <name>: passou` -> portão `command` ou `artifact`. Portão de fim só assina dentro do
+  `tr:quality-checker` (quem escreveu não assina); o de início (o plano) assina onde rodar. Árvore suja num portão de fim: não assina e recusa (JSON `decision: block`).
+- `SubagentStop` e `PreToolUse` de `SubagentHandback`: o veredito APPROVED do agente de um portão `agent`.
   REJECTED apaga o carimbo.
 """
 import json
@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ledger  # noqa: E402
 import attempts  # noqa: E402
 import registry  # noqa: E402
-import saida  # noqa: E402
+import render  # noqa: E402
 
 
 def version():
@@ -41,51 +41,51 @@ def output_of(response):
 
 def from_command(payload, root, reg):
     command = ((payload.get("tool_input") or {}).get("command") or "").strip()
-    m = re.fullmatch(r"portao[ \t]+([\w.-]+)(?:[ \t]+--ticket[ \t]+([^\s]+))?", command)
+    m = re.fullmatch(r"gate[ \t]+([\w.-]+)(?:[ \t]+--ticket[ \t]+([^\s]+))?", command)
     if not m:
         return 0
     name, ticket = m.group(1), m.group(2)
-    gate = reg["portoes"].get(name)
-    if not gate or gate["assina"] == "agente":
+    gate = reg["gates"].get(name)
+    if not gate or gate["signs"] == "agent":
         return 0
     lines = [l for l in output_of(payload.get("tool_response")).splitlines() if l.strip()]
-    expected = f"portao {name}{' ticket ' + ticket if ticket else ''}: passou"
-    if lines and lines[-1].strip().startswith(f"portao {name}: FALHOU") and payload.get("agent_type") == registry.VERIFICADOR:
+    expected = f"gate {name}{' ticket ' + ticket if ticket else ''}: passou"
+    if lines and lines[-1].strip().startswith(f"gate {name}: FALHOU") and payload.get("agent_type") == registry.CHECKER:
         key = registry.stamp_key(root, gate, ticket)
         if key:
             ledger.forget(root, registry.scoped_stamp(name, ticket) if ticket else name, key)
         state = attempts.reject(root, name, gate)
-        if state and state["intervencao"]:
-            return saida.avisar(f"Intervenção humana necessária no portão {name}: {state['reprovacoes']} reprovações; limite {gate.get('tentativas', 3)}.")
+        if state and state["intervention"]:
+            return render.warn(f"Intervenção humana necessária no portão {name}: {state['rejections']} reprovações; limite {gate.get('attempts', 3)}.")
         return 0
     if not lines or lines[-1].strip() != expected:
         return 0
-    if payload.get("agent_type") != registry.VERIFICADOR:
+    if payload.get("agent_type") != registry.CHECKER:
         # quem escreveu o código vê o resultado, mas não assina: o carimbo vem de um subagente limpo
-        ledger.log(root, "trilho", "não assinou", f"{name}: rodado fora do {registry.VERIFICADOR}")
-        return saida.avisar(f"trilho · {name} passou aqui, mas o carimbo vem de {registry.INVOKERS[registry.VERIFICADOR]}")
+        ledger.log(root, "tr", "not_signed", f"{name}: rodado fora do {registry.CHECKER}")
+        return render.warn(f"trilho · {name} passou aqui, mas o carimbo vem de {registry.INVOKERS[registry.CHECKER]}")
     if registry.dirty(root):
-        ledger.log(root, "trilho", "não assinou", f"{name}: árvore suja")
-        return saida.recusar(saida.quadro("carimbo recusado", [
+        ledger.log(root, "tr", "not_signed", f"{name}: árvore suja")
+        return render.refuse(render.panel("carimbo recusado", [
             ("portão", name), ("motivo", "passou, mas a árvore tem alteração sem commit"),
-        ], [f"  → faça o commit e rode `portao {name}` de novo"],
+        ], [f"  → faça o commit e rode `gate {name}` de novo"],
             "o fiscal só assina com a árvore limpa"))
-    if gate["momento"] == "meio" and (not ticket or ticket not in __import__("tasks").tickets(root)):
+    if gate["stage"] == "middle" and (not ticket or ticket not in __import__("tasks").tickets(root)):
         return 0
-    if gate["momento"] != "meio" and ticket:
+    if gate["stage"] != "middle" and ticket:
         return 0
     key = registry.stamp_key(root, gate, ticket)
     if not key:
         return 0
     stamp = registry.scoped_stamp(name, ticket) if ticket else name
-    ledger.sign(root, stamp, key, "trilho", version(), f"portao {name}", f"{name} passou ({gate['assina']})")
-    ledger.log(root, "trilho", "assinou", f"{stamp}: {key[:10]}")
-    return saida.avisar(f"✓ trilho · {name} carimbado ({key[:10]})")
+    ledger.sign(root, stamp, key, "tr", version(), f"gate {name}", f"{name} passou ({gate['signs']})")
+    ledger.log(root, "tr", "signed", f"{stamp}: {key[:10]}")
+    return render.warn(f"✓ trilho · {name} carimbado ({key[:10]})")
 
 
 def from_agent(payload, root, reg):
     agent = payload.get("agent_type")
-    gates = {n: g for n, g in reg["portoes"].items() if g["assina"] == "agente" and g["agente"] == agent}
+    gates = {n: g for n, g in reg["gates"].items() if g["signs"] == "agent" and g["agent"] == agent}
     if not gates:
         return 0
     if payload.get("hook_event_name") == "PreToolUse":
@@ -96,33 +96,33 @@ def from_agent(payload, root, reg):
         text = payload.get("last_assistant_message")
     if not isinstance(text, str):
         return 0
-    verdict = once(r"^[ \t]*VEREDITO: (APPROVED|REJECTED)[ \t]*$", text)
+    verdict = once(r"^[ \t]*VERDICT: (APPROVED|REJECTED)[ \t]*$", text)
     commit = once(r"^[ \t]*COMMIT: ([0-9a-f]{40})[ \t]*$", text)
-    summary = once(r"^[ \t]*RESUMO: (\S.*?)[ \t]*$", text)
+    summary = once(r"^[ \t]*SUMMARY: (\S.*?)[ \t]*$", text)
     top = ledger.head(root)
-    avisos = []
+    warnings = []
     for name, gate in gates.items():
         key = registry.stamp_key(root, gate)
         if not (verdict and commit and summary):
             # no SubagentStop vem só o fecho: se o relatório já assinou na entrega, não é falha
             if not (payload.get("hook_event_name") == "SubagentStop" and key and ledger.has(root, name, key)):
-                ledger.log(root, "trilho", "não assinou", f"{name}: bloco de três linhas ausente ou ambíguo")
+                ledger.log(root, "tr", "not_signed", f"{name}: bloco de três linhas ausente ou ambíguo")
         elif commit != top:
-            ledger.log(root, "trilho", "não assinou", f"{name}: o commit {commit[:10]} não é o topo ({(top or '?')[:10]})")
+            ledger.log(root, "tr", "not_signed", f"{name}: o commit {commit[:10]} não é o topo ({(top or '?')[:10]})")
         elif not key:
-            ledger.log(root, "trilho", "não assinou", f"{name}: sem chave do carimbo")
+            ledger.log(root, "tr", "not_signed", f"{name}: sem chave do carimbo")
         elif verdict == "APPROVED":
-            ledger.sign(root, name, key, "trilho", version(), agent, summary)
-            ledger.log(root, "trilho", "assinou", f"{name}: {key[:10]}: {summary}")
-            avisos.append(f"✓ trilho · {name} carimbado por {agent} ({key[:10]})")
+            ledger.sign(root, name, key, "tr", version(), agent, summary)
+            ledger.log(root, "tr", "signed", f"{name}: {key[:10]}: {summary}")
+            warnings.append(f"✓ trilho · {name} carimbado por {agent} ({key[:10]})")
         else:
             ledger.forget(root, name, key)
             state = attempts.reject(root, name, gate, f"{commit}:{summary}")
-            ledger.log(root, "trilho", "reprovou", f"{name}: {key[:10]}: {summary}")
-            avisos.append(f"✗ trilho · {name} reprovado por {agent} ({key[:10]}): {summary}")
-            if state and state["intervencao"]:
-                avisos.append(f"Intervenção humana necessária: {state['reprovacoes']} reprovações; limite {gate.get('tentativas', 3)}.")
-    return saida.avisar("\n".join(avisos)) if avisos else 0
+            ledger.log(root, "tr", "rejected", f"{name}: {key[:10]}: {summary}")
+            warnings.append(f"✗ trilho · {name} reprovado por {agent} ({key[:10]}): {summary}")
+            if state and state["intervention"]:
+                warnings.append(f"Intervenção humana necessária: {state['rejections']} reprovações; limite {gate.get('attempts', 3)}.")
+    return render.warn("\n".join(warnings)) if warnings else 0
 
 
 def main():

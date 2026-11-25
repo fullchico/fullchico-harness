@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Lê as transcrições de sessão deste projeto: consumo por papel e resumo enxuto de cada sessão.
+# Uso: memory-sessions <sessions [--all]|digest <id> <arquivo>|usage [<id>...]|mark <id>...|propose <assunto> <arquivo>|proposals>
+set -uo pipefail
+dir=$(cd "$(dirname "$0")/.." && pwd -P)
+root=$(pwd -P)
+while [[ "$root" != "/" && ! -f "$root/.claude/harness.json" ]]; do root=$(dirname "$root"); done
+if [[ "$root" == "/" ]]; then root=$(git rev-parse --show-toplevel 2>/dev/null || pwd -P); fi
+exec python3 -I "$dir/scripts/learn.py" "$root" "$@"
