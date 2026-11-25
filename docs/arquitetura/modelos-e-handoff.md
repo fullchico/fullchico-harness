@@ -8,7 +8,7 @@ O harness configura três papéis personalizáveis por projeto:
 2. **Meio / execução**: executa os nós do grafo, inclusive os independentes em paralelo quando houver isolamento adequado.
 3. **Revisão**: examina o resultado e os portões aplicáveis, devolvendo pendências ao executor até a entrega ser validada. O autor de uma alteração não aprova a própria alteração.
 
-Cada papel escolhe uma CLI (`claude` ou `codex`) e um modelo. Há também um **modelo de apoio** configurável para continuidade quando o modelo principal não puder prosseguir por limite. Modelos próprios para cada portão ficam para uma evolução posterior; nesta etapa, o papel de revisão cobre os portões aplicáveis.
+Cada papel escolhe uma CLI (`claude` ou `codex`) e um modelo. Há também um **modelo de apoio** configurável para continuidade quando o modelo principal não puder prosseguir por limite. Cada portão de agente pode escolher seu próprio modelo revisor em `modelos.portoes`; o fiscal permanece independente de quem executou.
 
 ## Três momentos dos portões
 
@@ -18,7 +18,9 @@ Os três papéis de modelo e os três momentos dos portões são conceitos disti
 2. **Meio**: acompanha os nós do grafo, suas dependências, evidências e critérios locais; só libera um nó dependente quando os anteriores estiverem válidos. Pode ocorrer em paralelo para tarefas independentes.
 3. **Fim**: o revisor independente confere resultado, evidências e todos os carimbos exigidos antes da entrega. Pendências voltam ao meio.
 
-O registro (`.claude/trilho.json`) aceita `inicio`, `meio` e `fim`. O portão de meio é declarado no campo `Meio:` do ticket, validado com `portao <nome> --ticket <caminho>` e carimbado pelo fiscal. O carimbo vincula ticket e estado do código; alterar o resultado invalida a aprovação. Nesta versão, portões de meio aceitam `comando` ou `artefato`; agente próprio por portão é evolução futura.
+O registro (`.claude/trilho.json`) aceita `inicio`, `meio` e `fim`. O portão de meio é declarado no campo `Meio:` do ticket, validado com `portao <nome> --ticket <caminho>` e carimbado pelo fiscal. O carimbo vincula ticket e estado do código; alterar o resultado invalida a aprovação. Portões de meio aceitam `comando` ou `artefato`.
+
+Um portão final aceita `tentativas` (inteiro não negativo, 3 por padrão) e `aprovacao` (`auto` por padrão, ou `humana`). Reprovações dentro do limite retornam ao executor sem perguntar ao dono. Na reprovação seguinte, o orquestrador faz um handoff para intervenção humana. Se a aprovação humana foi escolhida, o dono assina somente depois da validação técnica com `fullchico-harness portoes --aprovar <nome>`; a assinatura vale para aquele estado do código.
 
 ## Espelhos iniciais
 
@@ -31,7 +33,7 @@ O registro (`.claude/trilho.json`) aceita `inicio`, `meio` e `fim`. O portão de
 
 Essa tabela é um **dicionário inicial configurável**, não uma afirmação de equivalência de capacidade ou custo. A direção inversa usa o mesmo par. O apoio explícito prevalece sobre o espelho. Hoje `modelos mostrar` verifica a presença da CLI no PATH; a verificação de acesso ao modelo ainda falta.
 
-## Configuração desejada
+## Configuração por projeto
 
 `fullchico-harness modelos configurar` apresenta planejamento, execução, revisão e apoio. `fullchico-harness modelos mostrar` exibe a escolha e os espelhos. A configuração fica na chave `modelos` do registro do projeto. O congelamento em manifesto de execução ainda falta.
 
@@ -58,8 +60,10 @@ Quando a CLI oferece sinal confiável de limite iminente, o harness pode prepara
 - Portões de meio por ticket e validação na entrega: implementados.
 - `modelos executar` inicia um papel em Claude ou Codex, resolve os aliases Codex conhecidos,
   salva um manifesto fora do repositório e tenta o apoio quando a CLI retorna erro de limite.
+- `modelos validar-portao` abre o fiscal independente no modelo configurado para o portão;
+  o subagente orquestrador coordena tickets liberados e revisões até a entrega ou intervenção.
+- Portões finais têm limite de reprovações e aprovação humana opcionais por projeto.
 - Validar acesso aos IDs de modelos antes da execução e mostrar um plano congelado.
-- Encadear planejamento, execução e revisão num loop automático com estado do grafo e
-  handoffs entre tarefas; hoje `modelos executar` inicia um papel por vez.
+- Persistir uma retomada mais detalhada do loop quando a sessão inteira termina no meio de uma demanda.
 - Registrar provedor e modelo real nas evidências de revisão; rejeitar carimbo que não corresponda ao manifesto.
 - Testar troca por limite, retomada sem duplicar alterações e revisão independente.

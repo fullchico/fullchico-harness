@@ -40,8 +40,12 @@ modelos para cada papel antes de executar.
   quando necessário, sem exigir remoto, push ou PR.
 
 O runner `modelos executar` inicia um papel por vez e pode trocar para o modelo de apoio quando
-a CLI retorna erro de limite. A coordenação completa entre os três papéis ainda é orientada
-pelas skills do `tr`; a automação dedicada de múltiplos worktrees é futura.
+a CLI retorna erro de limite. O subagente orquestrador usa os tickets e o grafo para coordenar
+executores e fiscais independentes. Após a confirmação do plano no `grill-me`, ele resolve
+decisões técnicas dentro do escopo e corrige reprovações sem aprovações intermediárias.
+Cada portão final permite três reprovações automáticas por padrão; o projeto pode ajustar
+`tentativas` e `aprovacao` em `.claude/trilho.json`. A reprovação seguinte ao limite pede
+intervenção. Aprovação humana explícita, quando configurada, assina o estado já validado.
 
 ## Ferramentas integradas
 
