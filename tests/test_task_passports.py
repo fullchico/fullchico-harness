@@ -228,6 +228,16 @@ class TestTaskPassports(unittest.TestCase):
         self.assertEqual(run.returncode, 0, run.stderr)
         return json.loads(run.stdout)["hookSpecificOutput"] if run.stdout.strip() else {}
 
+    def test_session_start_points_to_the_flow(self):
+        import flow_context
+        root = str(self.repo)
+        self.assertIn("/tr:process-plan", flow_context.context(root))
+        self.ticket("01", "api")
+        self.assertIn("open tickets", flow_context.context(root))
+        (self.repo / ".claude/harness.json").unlink()
+        self.assertIn("/tr:configure", flow_context.context(root))
+        self.assertIn("tools inside this flow", flow_context.context(root))
+
     def test_the_orchestrator_dispatches_executors_only_with_a_ticket(self):
         ticket = self.ticket("01", "api")
         commit_all(self.repo, "plan")

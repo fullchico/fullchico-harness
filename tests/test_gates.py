@@ -370,8 +370,11 @@ class TestProtectionAndInit(Case):
         self.assertEqual(self.bash("echo {} > .claude/harness.json").returncode, 2)
         self.assertEqual(self.write(".claude/outra.json").returncode, 0)
 
-    def test_without_a_registry_core_guardrails_still_apply(self):
-        for r in (self.write("apps/a.ts"), self.bash("git push")):
+    def test_without_a_registry_code_waits_for_the_gates_and_core_guardrails_apply(self):
+        blocked = self.write("apps/a.ts")
+        self.assertEqual(blocked.returncode, 2)
+        self.assertIn("/tr:configure", blocked.stderr + blocked.stdout)
+        for r in (self.write("docs/notas.md"), self.bash("git push")):
             self.assertEqual((r.returncode, r.stderr), (0, ""))
         for path in (".claude/harness.json", ".claude/settings.json", ".claude/settings.local.json", ".git/info/exclude"):
             self.assertEqual(self.write(path).returncode, 2, path)
