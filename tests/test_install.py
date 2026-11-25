@@ -185,7 +185,7 @@ class TestInstall(unittest.TestCase):
     def test_padrao_uses_the_library_default(self):
         self.assertEqual(self.install("--default").returncode, 0)
         gates = json.loads((self.repo / ".claude/harness.json").read_text())["gates"]
-        self.assertEqual(set(gates), {"process", "quality", "bugs", "scope"})
+        self.assertEqual(set(gates), {"process", "domain", "quality", "bugs", "scope"})
 
     def test_the_bug_gate_is_signed_by_the_tr_agent(self):
         # o caçador é do tr: nenhum plugin a mais para o portão `bugs`

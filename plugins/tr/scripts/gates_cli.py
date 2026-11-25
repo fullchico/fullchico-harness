@@ -21,6 +21,8 @@ DEFAULT_REGISTRY = {
     "gates": {
         "process": {"stage": "start", "signs": "artifact", "artifact": "docs/specs/*/spec.md",
                      "description": "spec da mudança, saída da entrevista"},
+        "domain": {"stage": "start", "signs": "artifact", "artifact": "GLOSSARY.md",
+                   "description": "glossário do domínio, saída do planejamento (domain-modeling)"},
         "quality": {"stage": "end", "signs": "command", "command": "@discover"},
         "bugs": {"stage": "end", "signs": "agent", "agent": "tr:bug-hunter"},
         "scope": {"stage": "end", "signs": "agent", "agent": "tr:scope-checker",
@@ -72,20 +74,26 @@ def merge(project, entries_in):
     data = read_json(path)
     gates = data.get("gates") if isinstance(data.get("gates"), dict) else {}
     new_items = {}
+    # `code` no esboço: as pastas do código do app. Só entra se o registro ainda não tem a chave.
+    code = entries_in.get("code")
+    new_code = code if (isinstance(code, list) and code and all(isinstance(c, str) and c for c in code)
+                        and "code" not in data) else None
     for gate_name, gate in entries_in.items():
-        if gate_name in gates or not isinstance(gate, dict):
+        if gate_name == "code" or gate_name in gates or not isinstance(gate, dict):
             continue
         gate = dict(gate)
         if gate.get("command") == "@discover":
             gate["command"] = discover(project)
         new_items[gate_name] = gate
-    if not new_items:
+    if not new_items and not new_code:
         return []
     check_writable(project)
     data["gates"] = {**gates, **new_items}
+    if new_code:
+        data["code"] = new_code
     write_json(path, data)
     protect_sandbox(project)
-    return list(new_items)
+    return list(new_items) + (["code"] if new_code else [])
 
 
 USAGE_TEXT = ('uso: fullchico-harness gates [--analyze] [--write] [--default] [--approve <portão>] [--set <portão> "<comando>"] '
@@ -193,18 +201,22 @@ def analyze(project):
     settings = read_json(p(".claude", "settings.json"))
     gates, why = {}, []
 
-    grill = bool(glob.glob(p(".claude", "skills", "*grill*"))) or plugin_on(settings, "mattpocock-skills")
-    interview = " (entrevista com grill-me)" if grill else ""
+    grill = bool(glob.glob(p(".claude", "skills", "*grilling*"))) or plugin_on(settings, "mattpocock-skills")
+    interview = " (entrevista com grilling)" if grill else ""
     if os.path.isdir(p("openspec")):
         gates["process"] = {"stage": "start", "signs": "command", "command": "openspec validate --all",
                                "description": "spec da mudança validada pelo OpenSpec" + interview}
         why.append(("process", "a pasta `openspec/` existe: a etapa é a spec valer, conferida por `openspec validate --all`"))
     elif os.path.isdir(p("docs", "specs")):
         gates["process"] = {"stage": "start", "signs": "artifact", "artifact": "docs/specs/*/spec.md",
-                               "description": "spec da mudança, saída da entrevista" + (" (grill-me)" if grill else "")}
+                               "description": "spec da mudança, saída da entrevista" + (" (grilling)" if grill else "")}
         why.append(("process", "a pasta `docs/specs/` existe: a etapa é haver uma spec para a demanda atual"))
     if grill and "process" in gates:
-        why.append(("process", "há skill de entrevista (grill-me) no projeto: a descrição a cita"))
+        why.append(("process", "há skill de entrevista (grilling) no projeto: a descrição a cita"))
+
+    if "process" in gates:
+        gates["domain"] = dict(DEFAULT_REGISTRY["gates"]["domain"])
+        why.append(("domain", "há spec da demanda: o glossário `GLOSSARY.md` é saída do planejamento e a etapa confere que existe"))
 
     found, pm = quality_scripts(project)
     if found:
@@ -287,6 +299,9 @@ def execute(project, flags, setting, register):
             print(f"esboço vazio ou inválido: {register}", file=sys.stderr)
             return 2
         for gate_name in merge(project, draft_file):
+            if gate_name == "code":
+                print(f"pastas de código registradas: {', '.join(draft_file['code'])}")
+                continue
             gate = read_json(os.path.join(project, ".claude", "harness.json"))["gates"][gate_name]
             print(f"portão `{gate_name}` registrado: {gate.get('command') or gate.get('agent') or gate.get('artifact')}")
         return 0

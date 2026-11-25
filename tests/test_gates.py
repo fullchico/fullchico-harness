@@ -410,13 +410,14 @@ class TestProtectionAndInit(Case):
         self.assertEqual(hooks["PostToolUse"][0]["matcher"], "Bash")
         self.assertNotIn("matcher", hooks["SubagentStop"][0])
         self.assertTrue(os.access(PLUGIN / "bin/gate", os.X_OK))
-        for skill in ("gates", "configure", "process-plan", "quality-check", "bugs-hunt", "grill-me", "skills-discover"):
+        for skill in ("gates", "configure", "process-plan", "quality-check", "bugs-hunt", "skills-discover"):
             self.assertTrue((PLUGIN / f"skills/{skill}/SKILL.md").exists(), skill)
         self.assertIn("codex doctor --json", (PLUGIN / "skills/configure/SKILL.md").read_text())
-        self.assertIn("version 1.3.1", (PLUGIN / "skills/grill-me/SKILL.md").read_text())
-        self.assertNotIn("disable-model-invocation: true", (PLUGIN / "skills/grill-me/SKILL.md").read_text(),
-                         "configurar e process-plan precisam chamar grill-me dentro do fluxo")
-        self.assertTrue((PLUGIN / "THIRD_PARTY_NOTICES.md").exists())
+        self.assertFalse((PLUGIN / "skills/grill-me").exists(), "a entrevista é a skill grilling de Matt, invocada")
+        self.assertFalse((PLUGIN / "THIRD_PARTY_NOTICES.md").exists())
+        for skill in ("configure", "process-plan"):
+            self.assertIn("mattpocock-skills:grilling", (PLUGIN / f"skills/{skill}/SKILL.md").read_text(), skill)
+        self.assertIn("mattpocock-skills:domain-modeling", (PLUGIN / "skills/process-plan/SKILL.md").read_text())
         for agent in ("bug-hunter", "quality-checker", "orchestrator"):
             text = (PLUGIN / f"agents/{agent}.md").read_text()
             self.assertIn(f"name: {agent}\n", text)
@@ -473,10 +474,11 @@ class TestGatesCli(Case):
         reg = self.proposed(out.stdout)
         self.assertEqual(reg["code"], ["apps"])
         p = reg["gates"]
-        self.assertEqual(list(p), ["process", "quality", "bugs", "scope"])
+        self.assertEqual(list(p), ["process", "domain", "quality", "bugs", "scope"])
         self.assertEqual((p["process"]["stage"], p["process"]["signs"], p["process"]["artifact"]),
                          ("start", "artifact", "docs/specs/*/spec.md"))
-        self.assertIn("grill-me", p["process"]["description"])
+        self.assertIn("grilling", p["process"]["description"])
+        self.assertEqual((p["domain"]["stage"], p["domain"]["artifact"]), ("start", "GLOSSARY.md"))
         self.assertEqual(p["quality"], {"stage": "end", "signs": "command", "command": "pnpm lint && pnpm test"})
         self.assertEqual(p["bugs"], {"stage": "end", "signs": "agent", "agent": "tr:bug-hunter"})
         self.assertIn("- quality:", out.stdout)
@@ -498,7 +500,7 @@ class TestGatesCli(Case):
         self.assertEqual(self.cli("--write", "--project", str(r)).returncode, 0)
         data = json.loads((r / ".claude/harness.json").read_text())
         self.assertEqual(data["quality"], {"command": "antigo"})
-        self.assertEqual(list(data["gates"]), ["process", "quality", "bugs", "scope"])
+        self.assertEqual(list(data["gates"]), ["process", "domain", "quality", "bugs", "scope"])
         settings = json.loads((r / ".claude/settings.json").read_text())
         self.assertEqual(settings["sandbox"]["filesystem"]["denyWrite"], [".claude/harness.json"])
         self.assertTrue(settings["enabledPlugins"]["bugs@fullchico"])

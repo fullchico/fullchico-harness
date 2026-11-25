@@ -179,6 +179,7 @@ def main(args):
             text = source.read_text()
             text = text.replace(f"name: {source.parent.name}", f"name: {plugin}-{source.parent.name}", 1)
             text = text.replace("/tr:", "$tr-")
+            text = text.replace("`mattpocock-skills:", "`$")
             text = text.replace("tr:quality-checker", "tr-quality-checker")
             text = text.replace("tr:bug-hunter", "tr-bug-hunter")
             text = text.replace("tr:scope-checker", "tr-scope-checker")

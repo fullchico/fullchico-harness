@@ -6,7 +6,7 @@ description: Researches skills useful for the project's stack and demand, compar
 # Discover skills for the project
 
 Use this flow when configuring the harness or when a demand needs a capability that the
-installed skills do not cover. `/tr:grill-me` remains responsible for the entry and exit decisions;
+installed skills do not cover. The interview (`mattpocock-skills:grilling`) remains responsible for the entry and exit decisions;
 if you came from `/tr:configure`, bring the options to the same interview, without opening another.
 
 1. **Inventory, by scope.** Read the stack, the current spec/ticket, `skills-lock.json` and
@@ -29,11 +29,12 @@ if you came from `/tr:configure`, bring the options to the same interview, witho
    record the gap without inventing a dependency.
 3. When the choice is part of the demand, install **the specific skill**, in the project, for
    the present environments: `npx --yes skills add <source> --skill <name> -a claude-code -a codex -y`
-   for both. Use only the installed environment if the project has just one. Prefer a source pinned to a
-   tag or commit for reproducibility. Check `npx skills list --json` and the installed content.
+   for both. Use only the installed environment if the project has just one. The `skills` CLI accepts a
+   branch or a tag as the source ref, not a commit; it records the installed commit in `skills-lock.json`,
+   which is what makes the install reproducible. Check `npx skills list --json` and the installed content.
 4. Present each selected candidate as a simple proposal: **skill and origin**, task
    covered, **entry gate or final reviewer**, approval evidence, tickets it
-   applies to and the reviewer's model. Take this proposal to `/tr:grill-me`: the owner decides whether the skill
+   applies to and the reviewer's model. Take this proposal to the interview (`mattpocock-skills:grilling`): the owner decides whether the skill
    only helps the executor, becomes a requirement before starting, or reviews the delivery.
    An installed skill does not automatically become a gate. For a verifier with a
    real command, propose `signs: command` and test the command. For AI review, create a

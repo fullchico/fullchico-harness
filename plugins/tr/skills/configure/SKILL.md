@@ -1,11 +1,11 @@
 ---
 name: configure
-description: Diagnoses Claude Code and Codex, analyzes the project and interviews the owner with grill-me to propose rails and entry and exit gates (.claude/harness.json).
+description: Diagnoses Claude Code and Codex, analyzes the project and interviews the owner with Matt Pocock's grilling skill to propose rails and entry and exit gates (.claude/harness.json).
 ---
 
 # Configure the project's gates
 
-You will diagnose the environments, analyze the project, interview the owner with `/tr:grill-me`
+You will diagnose the environments, analyze the project, interview the owner with `mattpocock-skills:grilling`
 and propose the `.claude/harness.json` registry. The agent **does not edit** that file (the tr hook
 blocks it): the harness CLI writes it, and only with the **owner's approval**. You ask the questions,
 decide the gates, build the sketch and run the CLI; the owner approves each write in Claude Code's
@@ -44,12 +44,13 @@ a gate.
 
 ## 3. Interview with Matt Pocock's flow
 
-Call `/tr:grill-me`, included in this plugin from Matt Pocock's `grilling` flow.
-Show first what the doctors and the project revealed. Explore the decisions in rounds,
-with a recommendation per question, until the owner confirms the design. The interview defines:
+Invoke `mattpocock-skills:grilling` with the Skill tool. Invoke it; do not reproduce its format from memory.
+Show first what the doctors and the project revealed. Follow its flow: one question at a time, each with
+your recommended answer, until the owner confirms the design. The interview defines:
 
 - which **entry** gates prevent starting code: spec, spec validation, architecture
-  review, approval or another verifiable artifact/command/agent;
+  review, the domain glossary (`domain` gate, checks `GLOSSARY.md`), approval or another
+  verifiable artifact/command/agent;
 - the **environment profile**: `fluxo` (default, no native sandbox, so the project's Docker works;
   hooks steer the flow but stamps are not tamper-proof) or `isolado` (native sandbox with the
   registry write-protected and only `docker` and `fullchico-harness` outside it). For `isolado`,
@@ -76,7 +77,7 @@ Task-specific entry gates use `always: false` in the registry and are named on t
 a frontend task asks for `Start: design` and `Gates: accessibility`; a backend one
 uses `Start: none` and `Gates: api`. Gates without `always: false` remain global.
 
-Do not limit the configuration to the names `process`, `quality`, `bugs` and `scope`: they are only
+Do not limit the configuration to the names `process`, `domain`, `quality`, `bugs` and `scope`: they are only
 default proposals. You can create any number of entry and exit gates. A
 doctor warning is an environment improvement; it only becomes a gate if there is a verifiable
 project check and the owner chooses it. With no known command, leave `@define` and
@@ -84,6 +85,9 @@ explain how to define it later.
 
 ## How to write it, with the owner's approval
 
+0. **Code paths.** Add a top-level `"code": [...]` to the sketch with the folders that will hold the app's
+   code (for a planned monorepo, `apps` and `packages`), even before they exist. Without it, everything
+   outside `docs/`, `.claude/`, `.codex/`, `.agents/` and Markdown counts as code, which is too broad.
 1. **New gate** (a name not yet in the registry): build a JSON sketch. Entry example:
    `{"planning": {"stage": "start", "signs": "artifact", "artifact": "docs/specs/*/spec.md"}}`.
    Exit example: `{"e2e": {"stage": "end", "signs": "command", "command": "pnpm test:e2e", "always": false}}`.
@@ -107,9 +111,13 @@ explain how to define it later.
    owner declines, ask what to change; do not retry the same command or look for another way. If the
    hook denies it instead (no dialog in this mode), hand the owner the line from `tr-harness owner <args>`
    for their terminal and wait.
-4. After it is written, check `.claude/harness.json` and `.claude/settings.json`, if it changed.
+4. **Close the round against the owner's answers.** Before moving on, list each decision the owner gave
+   in this interview (including answers that contradicted your recommendation, such as "make it a gate
+   anyway") and check that the registry, the models, the installed skills and the agents reflect it. Anything
+   still missing is done now, with approval, before `/tr:process-plan`.
+5. After it is written, check `.claude/harness.json` and `.claude/settings.json`, if it changed.
    Only consider the configuration closed when the chosen registry is applied and
-   readable. The final confirmation of `/tr:grill-me` already authorized the plan; do not ask for another
+   readable. The final confirmation of the interview already authorized the plan; do not ask for another
    approval to start execution after the entry gates pass. The final stamp
    validates the current state of the project.
 
@@ -126,7 +134,7 @@ check, explain what is missing without rewriting the registry.
 
 - [ ] I summarized the doctor for each available environment and analyzed the project before asking.
 - [ ] With the stack decided, I ran `/tr:skills-discover`: inventory by scope, pinning of machine-only skills, best practices per technology, owner asked before installing.
-- [ ] I used `/tr:grill-me` to decide the entry and exit gates with the owner.
+- [ ] I invoked `mattpocock-skills:grilling` (Skill tool) to decide the entry and exit gates with the owner.
 - [ ] Each proposed gate has evidence, timing, signing mode and a concrete verifier.
 - [ ] Sketch outside the repository; `--register`/`--set`/`models configure` run by me and approved by the owner in the dialog, never `Write`/`Edit`.
 - [ ] I remembered to review the registry before stamping.
