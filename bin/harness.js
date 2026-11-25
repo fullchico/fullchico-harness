@@ -25,8 +25,14 @@ const usage = "uso: fullchico-harness install [pasta do projeto] [--target claud
   "     fullchico-harness --version\n" +
   "  (pelo npx: npx @fullchico/harness <comando>)";
 
+main().catch((error) => {
+  console.error(`fullchico-harness: ${error && error.message ? error.message : error}`);
+  process.exit(1);
+});
+
+async function main() {
 if (command === "install") {
-  const chosen = selectEnvironment(rest);
+  const chosen = await selectEnvironment(rest);
   if (chosen.error) {
     console.error(`install: ${chosen.error}\n${usage}`);
     process.exit(2);
@@ -167,10 +173,10 @@ if (command === "install-codex") {
     const codexStatus = installCodex(project, rest.includes("--default"));
     if (codexStatus) process.exit(codexStatus);
   }
-  console.log("\nPróximos passos:\n" +
-    "  1. Revise `.claude/settings.json` e `.claude/harness.json`; o install inicia Git se necessário.\n" +
-    "  2. Abra o projeto com `claude`.\n" +
-    "  3. Na sessão, peça `/tr:configure` para a entrevista propor os portões; quem grava é você, no terminal.\n" +
+  await finish("  1. Revise `.claude/settings.json` e `.claude/harness.json`; o install inicia Git se necessário.\n" +
+    "  2. Abra o projeto com `claude`. Na primeira vez, o Claude pergunta se você confia na pasta: responda\n" +
+    "     \"Yes, I trust this folder\"; sem isso, o settings do projeto (e os hooks do harness) não carregam.\n" +
+    "  3. Na sessão, peça `/tr:configure`: a entrevista propõe os portões e você aprova a gravação no diálogo.\n" +
     "  4. Confira com `gate` o que cada etapa pede; ao final, rode `fullchico-harness deliver`.\n" +
     "  5. Cada demanda começa com `/tr:process-plan` (entrevista, spec, tickets); os portões de fim\n" +
     "     são validados por `/tr:quality-check` e `/tr:bugs-hunt`.\n" +
@@ -180,6 +186,18 @@ if (command === "install-codex") {
 } else {
   console.error(usage);
   process.exit(command === "--help" || command === "-h" ? 0 : 2);
+}
+}
+
+// Os próximos passos: num quadro no terminal interativo, em texto simples fora dele (CI, testes).
+async function finish(steps) {
+  if (process.stdout.isTTY) {
+    const prompts = await import("@clack/prompts");
+    prompts.note(steps.replace(/^  /gm, ""), "Próximos passos");
+    prompts.outro("Pronto. Abra o projeto com `claude`.");
+    return;
+  }
+  console.log("\nPróximos passos:\n" + steps);
 }
 
 function installCodex(project, padrao) {
@@ -193,7 +211,7 @@ function python(script, args, options = {}) {
   return run.status === null ? 1 : run.status;
 }
 
-function selectEnvironment(args) {
+async function selectEnvironment(args) {
   const kept = [];
   let selected;
   for (let i = 0; i < args.length; i++) {
@@ -208,26 +226,19 @@ function selectEnvironment(args) {
     return { error: "--target deve ser claude, codex ou both." };
   }
   if (!selected && process.stdin.isTTY && process.stdout.isTTY) {
-    process.stdout.write("\nInstalar o harness em qual ambiente?\n  1. Claude Code\n  2. Codex\n  3. Ambos\nEscolha [3]: ");
-    const buffer = Buffer.alloc(32);
-    const pause = new Int32Array(new SharedArrayBuffer(4));
-    let line = "";
-    while (!line.includes("\n") && line.length < 32) {
-      let count;
-      try {
-        count = fs.readSync(0, buffer, 0, buffer.length, null);
-      } catch (error) {
-        if (!["EAGAIN", "EWOULDBLOCK", "EINTR"].includes(error.code)) throw error;
-        Atomics.wait(pause, 0, 0, 25);
-        continue;
-      }
-      if (!count) return { error: "nenhuma escolha recebida." };
-      line += buffer.toString("utf8", 0, count);
-    }
-    const answer = line.trim();
-    selected = ({ "": "both", "1": "claude", "2": "codex", "3": "both",
-      "claude": "claude", "codex": "codex", "both": "both" })[answer];
-    if (!selected) return { error: "escolha inválida; use 1, 2 ou 3." };
+    const prompts = await import("@clack/prompts");
+    prompts.intro("FullChico Harness");
+    const answer = await prompts.select({
+      message: "Instalar o harness em qual ambiente?",
+      initialValue: "both",
+      options: [
+        { value: "both", label: "Claude Code e Codex" },
+        { value: "claude", label: "Claude Code" },
+        { value: "codex", label: "Codex" },
+      ],
+    });
+    if (prompts.isCancel(answer)) return { error: "instalação cancelada." };
+    selected = answer;
   }
   return { environment: selected || "both", args: kept };
 }

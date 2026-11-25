@@ -6,10 +6,16 @@ description: Diagnoses Claude Code and Codex, analyzes the project and interview
 # Configure the project's gates
 
 You will diagnose the environments, analyze the project, interview the owner with `/tr:grill-me`
-and propose the `.claude/harness.json` registry. The agent **does not write** that
-file: the tr hook blocks it, and with a sandbox the file is also write-protected. Whoever writes it is
-the `fullchico-harness gates` CLI, run by the owner in their terminal. You ask the question, decide the
-gates, build the sketch and hand the owner the ready-made commands.
+and propose the `.claude/harness.json` registry. The agent **does not edit** that file (the tr hook
+blocks it): the harness CLI writes it, and only with the **owner's approval**. You ask the questions,
+decide the gates, build the sketch and run the CLI; the owner approves each write in Claude Code's
+permission dialog. The owner does not have to type commands.
+
+Inside the session, always call the CLI as `tr-harness` (it ships with the installed plugin, at the same
+version). Never use `npx @fullchico/harness` without a version: it fetches another release, with another
+registry format. When a write cannot be approved in the session (the hook says so, for example in
+`bypassPermissions` mode), get the exact terminal line with `tr-harness owner <args>`: it prints the
+`npx @fullchico/harness@<version>` pinned in this project.
 
 ## 1. Diagnose the environments
 
@@ -22,14 +28,16 @@ Do not apply repairs suggested by the doctors without a decision from the owner.
 
 ## 2. Analyze the project
 
-Run `fullchico-harness gates --analyze` (or the script installed in the project) and read the
+Run `tr-harness gates --analyze` (or the script installed in the project) and read the
 existing registry. Also check `package.json`, `pyproject.toml`, `Cargo.toml`, CI scripts,
 tests, lint/typecheck configuration, spec documentation and deploy
 tools. For each suggestion, note the concrete evidence and check that the command really
 exists. Preserve the gates already defined by the owner.
 
-Use `/tr:skills-discover` to search for a skill only when the stack or the demand
-shows a concrete gap. Bring the chosen candidate to the interview, with its origin, what it
+As soon as the stack and the architecture are decided in the interview, run `/tr:skills-discover`
+by default: inventory what the project and this machine already have, propose pinning to the project the
+machine-only skills that matter to the stack, and search best-practice skills for each main technology
+(framework, ORM, queue, UI, accessibility). Ask the owner before installing. Bring each chosen candidate to the interview, with its origin, what it
 runs and whether it produces evidence for an entry gate or final review. Show which
 tickets the gate applies to and who reviews it. Installing a skill does not register
 a gate.
@@ -45,7 +53,7 @@ with a recommendation per question, until the owner confirms the design. The int
 - the **environment profile**: `fluxo` (default, no native sandbox, so the project's Docker works;
   hooks steer the flow but stamps are not tamper-proof) or `isolado` (native sandbox with the
   registry write-protected and only `docker` and `fullchico-harness` outside it). For `isolado`,
-  hand the owner `npx @fullchico/harness install --sandbox`. Do not switch profiles during an
+  hand the owner the line printed by `tr-harness owner install --sandbox`. Do not switch profiles during an
   approved demand.
 - which **exit** gates validate the delivery: tests, lint, typecheck, build, e2e, review,
   security, accessibility, deploy or other checks actually used in the project;
@@ -55,7 +63,7 @@ with a recommendation per question, until the owner confirms the design. The int
   the orchestrator asks for intervention; the reviewer remains independent of the executor.
 - which CLI and model do planning, execution and review, and whether any end gate needs a
   reviewer different from the default. Show the models already configured with
-  `npx @fullchico/harness models show`; include the choice in the interview. In Claude Code,
+  `tr-harness models show`; include the choice in the interview. In Claude Code,
   `models.review` sets the default for agent gates; on command or artifact gates,
   a Claude model can tune the native verifier. `gate:<name> cli:model` overrides
   a specific reviewer. Agent gates can use Claude or Codex in a separate CLI session:
@@ -74,7 +82,7 @@ doctor warning is an environment improvement; it only becomes a gate if there is
 project check and the owner chooses it. With no known command, leave `@define` and
 explain how to define it later.
 
-## How to hand over to the owner
+## How to write it, with the owner's approval
 
 1. **New gate** (a name not yet in the registry): build a JSON sketch. Entry example:
    `{"planning": {"stage": "start", "signs": "artifact", "artifact": "docs/specs/*/spec.md"}}`.
@@ -82,19 +90,24 @@ explain how to define it later.
    Use a field that matches the signing mode and write the sketch
    **outside the repository** (the session's temporary folder). A new file inside the repository dirties the
    tree, and an end stamp does not sign with a dirty tree.
-2. **Existing gate command**: `fullchico-harness gates --set <name> "<command>"`.
-   **Models**: also hand over the chosen pairs for the owner to write in the terminal, for example
-   `npx @fullchico/harness models configure review claude:sonnet gate:design-review codex:sol`.
-3. Write the exact commands for the owner, one per line, to run in the terminal, outside the session:
+2. **Existing gate command**: `gates --set <name> "<command>"`.
+   **Models**: also hand over the chosen pairs, for example `models configure review claude:sonnet`.
+   In a Claude-only project, do not configure `execution`: executors are native subagents whose model
+   comes from the ticket's `Complexity:` (haiku or sonnet). Never propose opus for an executor; opus is the
+   planning session's model.
+3. Run each write yourself, alone in its terminal call (no `&&`, pipe or `cd` in front), one per call:
 
    ```bash
-   npx @fullchico/harness gates --set quality "pnpm lint && pnpm test"
-   npx @fullchico/harness gates --register /path/to/draft.json
+   tr-harness gates --register /path/to/draft.json
+   tr-harness models configure planning claude:opus review claude:sonnet
    ```
 
-   If you want to try it yourself, run the CLI once. If it answers "Sem permissão para gravar" (no permission to write), do not
-   insist or look for another way: that is the protection working. Hand over the commands and wait.
-4. After the owner has written it, check `.claude/harness.json` and `.claude/settings.json`, if it changed.
+   Before each one, tell the owner in one line what it writes. The tr hook turns each call into a Claude
+   Code permission dialog with the exact command: the owner's approval is what lets it write. If the
+   owner declines, ask what to change; do not retry the same command or look for another way. If the
+   hook denies it instead (no dialog in this mode), hand the owner the line from `tr-harness owner <args>`
+   for their terminal and wait.
+4. After it is written, check `.claude/harness.json` and `.claude/settings.json`, if it changed.
    Only consider the configuration closed when the chosen registry is applied and
    readable. The final confirmation of `/tr:grill-me` already authorized the plan; do not ask for another
    approval to start execution after the entry gates pass. The final stamp
@@ -112,9 +125,9 @@ check, explain what is missing without rewriting the registry.
 ## Checklist
 
 - [ ] I summarized the doctor for each available environment and analyzed the project before asking.
-- [ ] I compared installed skills with concrete gaps; I used `/tr:skills-discover` when appropriate.
+- [ ] With the stack decided, I ran `/tr:skills-discover`: inventory by scope, pinning of machine-only skills, best practices per technology, owner asked before installing.
 - [ ] I used `/tr:grill-me` to decide the entry and exit gates with the owner.
 - [ ] Each proposed gate has evidence, timing, signing mode and a concrete verifier.
-- [ ] Sketch outside the repository; `--set`/`--register` commands handed to the owner, never `Write`/`Edit`.
+- [ ] Sketch outside the repository; `--register`/`--set`/`models configure` run by me and approved by the owner in the dialog, never `Write`/`Edit`.
 - [ ] I remembered to review the registry before stamping.
 - [ ] I ran `gate` at the end and showed the state.

@@ -97,16 +97,16 @@ or a screen proposal may be required there before any code.
 Prepare the spec and the tickets. Consult `gate` and validate each start gate required by the registry.
 For command or artifact gates, dispatch `/tr:quality-check`. For agent gates,
 use the configured reviewer; if the model is from another CLI, run
-`fullchico-harness models validate-gate <name>`. Only the gates registered by the project are required.
+`tr-harness models validate-gate <name>`. Only the gates registered by the project are required.
 
 ## 5. Execution by the orchestrator subagent
 
-The orchestrator reads the spec, the tickets and `fullchico-harness models show`. Tickets with no blockers and with `Start:` stamped are the frontier. If `execution` is configured, for each released ticket it uses
-`fullchico-harness models run execution --ticket <path> --prompt <handoff> --detach` to open the chosen CLI and model, and collects it with `fullchico-harness models wait <id>`. The handoff contains the spec, the approved decision, the ticket and its gates. The execution manifest stays outside the repository and allows resuming after a failure. If `execution` is not configured, it dispatches an implementer subagent with the
+The orchestrator reads the spec, the tickets and `tr-harness models show`. Tickets with no blockers and with `Start:` stamped are the frontier. If `execution` is configured, for each released ticket it uses
+`tr-harness models run execution --ticket <path> --prompt <handoff> --detach` to open the chosen CLI and model, and collects it with `tr-harness models wait <id>`. The handoff contains the spec, the approved decision, the ticket and its gates. The execution manifest stays outside the repository and allows resuming after a failure. If `execution` is not configured, it dispatches an implementer subagent with the
 ticket path in the request (the hook reads its `Complexity:`), the `tdd` skill, and an isolated context when there is
 more than one in parallel. For **each gate in the passport**,
 dispatch the matching reviewer in a clean context. For an agent gate with a configured model,
-use `fullchico-harness models validate-gate <name> --ticket <path> --prompt <summary>`;
+use `tr-harness models validate-gate <name> --ticket <path> --prompt <summary>`;
 the harness checks the verdict and the snapshot and issues the stamp. For commands and artifacts, use the
 gate's verifier. Whoever implemented does not validate.
 If rejected, hand the findings back to the implementer; it fixes and the reviewer re-examines.
@@ -127,9 +127,9 @@ push or remote if the project did not configure them as a gate.
 When the executor declares the implementation ready, the orchestrator runs `gate`: it checks the passports and shows the
 frontier still open. It dispatches the verifiers of `/tr:quality-check` (one per global
 command or artifact gate) and, for each required agent gate, the registered reviewer or
-`fullchico-harness models validate-gate <name>` depending on the configured model.
+`tr-harness models validate-gate <name>` depending on the configured model.
 If it failed or was rejected: an implementer fixes and the reviewer revalidates what changed, without asking
-the owner for intermediate approval. Finally, run `fullchico-harness deliver` or `gate delivery`.
+the owner for intermediate approval. Finally, run `tr-harness deliver` or `gate delivery`.
 The orchestrator reports the result to the main session; it only declares the delivery complete when that command passes. At the start of the final response write
 `DELIVERY: done`; the Stop hook checks the stamps again. Intermediate replies and questions
 do not use this mark. Git is initialized by the installer; push and PR are separate actions.

@@ -1,6 +1,7 @@
 """Tickets independentes carregam só os carimbos que seu trabalho exige."""
 import json
 import os
+import shlex
 import subprocess
 import sys
 import unittest
@@ -227,6 +228,61 @@ class TestTaskPassports(unittest.TestCase):
                              capture_output=True, text=True, env=dict(os.environ, CLAUDE_PROJECT_DIR=str(self.repo)))
         self.assertEqual(run.returncode, 0, run.stderr)
         return json.loads(run.stdout)["hookSpecificOutput"] if run.stdout.strip() else {}
+
+    def test_the_agent_that_signs_a_gate_is_protected_and_config_dirs_are_not_code(self):
+        reg = {"gates": dict(GATES, ui={"stage": "end", "signs": "agent", "agent": "ui-reviewer", "always": False})}
+        (self.repo / ".claude/harness.json").write_text(json.dumps(reg))
+        for path in (".claude/agents/ui-reviewer.md", ".codex/agents/ui-reviewer.toml"):
+            out = self.hook("Edit", {"file_path": str(self.repo / path)}, "general-purpose")
+            self.assertEqual(out.get("permissionDecision"), "deny", path)
+            self.assertIn("agente de portão", out["permissionDecisionReason"])
+        self.assertEqual(self.hook("Edit", {"file_path": str(self.repo / ".claude/agents/outro.md")}), {})
+        self.assertEqual(self.hook("Edit", {"file_path": str(self.repo / ".codex/agents/outro.toml")}), {},
+                         "configuração do Codex não é código do app")
+
+    def test_the_plugin_cli_runs_at_its_own_version_and_pins_owner_commands(self):
+        cli = str(ROOT / "plugins/tr/bin/tr-harness")
+        settings = {"extraKnownMarketplaces": {"fullchico": {"source": {"source": "github", "repo": "x/y", "ref": "v9.9.9-rc.1"}}}}
+        (self.repo / ".claude/settings.json").write_text(json.dumps(settings))
+        owner = subprocess.run([cli, "owner", "gates", "--set", "quality", "pnpm test"], cwd=self.repo, capture_output=True, text=True)
+        self.assertEqual(owner.stdout.strip(), "npx @fullchico/harness@9.9.9-rc.1 gates --set quality 'pnpm test'")
+        analyze = subprocess.run([cli, "gates", "--analyze"], cwd=self.repo, capture_output=True, text=True)
+        self.assertEqual(analyze.returncode, 0, analyze.stderr)
+        refused = subprocess.run([cli, "gates", "--write"], cwd=self.repo, capture_output=True, text=True,
+                                 env=dict(os.environ, CLAUDECODE="1"))
+        self.assertIn("npx @fullchico/harness@9.9.9-rc.1 gates --write", refused.stderr)
+
+    def owner_hook(self, command, mode="auto"):
+        payload = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "cwd": str(self.repo),
+                   "permission_mode": mode, "tool_input": {"command": command}}
+        run = subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/guard.py")], input=json.dumps(payload),
+                             capture_output=True, text=True, env=dict(os.environ, CLAUDE_PROJECT_DIR=str(self.repo)))
+        return json.loads(run.stdout)["hookSpecificOutput"]
+
+    def test_the_owner_approves_registry_writes_in_the_permission_dialog(self):
+        (self.repo / ".claude/harness.json").unlink()
+        draft = self.repo.parent / "draft.json"
+        draft.write_text(json.dumps({"quality": {"stage": "end", "signs": "command", "command": "true"}}))
+        cli = [str(ROOT / "plugins/tr/bin/tr-harness"), "gates", "--register", str(draft)]
+        in_session = dict(os.environ, CLAUDECODE="1")
+        refused = subprocess.run(cli, cwd=self.repo, capture_output=True, text=True, env=in_session)
+        self.assertNotEqual(refused.returncode, 0, "sem aprovação, a sessão não grava")
+        bypass = self.owner_hook(f"tr-harness gates --register {shlex.quote(str(draft))}", "bypassPermissions")
+        self.assertEqual(bypass["permissionDecision"], "deny", "sem diálogo possível, o dono grava no terminal")
+        asked = self.owner_hook(f"tr-harness gates --register {shlex.quote(str(draft))}")
+        self.assertEqual(asked["permissionDecision"], "ask")
+        done = subprocess.run(cli, cwd=self.repo, capture_output=True, text=True, env=in_session)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("quality", json.loads((self.repo / ".claude/harness.json").read_text())["gates"])
+        again = subprocess.run(cli, cwd=self.repo, capture_output=True, text=True, env=in_session)
+        self.assertEqual(again.returncode, 0, "registrar de novo não regrava nada")
+        models = [str(ROOT / "plugins/tr/bin/tr-harness"), "models", "configure", "review", "claude:sonnet"]
+        self.assertNotEqual(subprocess.run(models, cwd=self.repo, capture_output=True, env=in_session).returncode, 0,
+                            "a aprovação é de uso único e de um comando só")
+        self.assertEqual(self.owner_hook("tr-harness models configure review claude:sonnet")["permissionDecision"], "ask")
+        pin = self.owner_hook("claude plugin install vercel@claude-plugins-official --scope project")
+        self.assertEqual(pin["permissionDecision"], "ask", "fixar plugin no projeto é decisão do dono")
+        self.assertEqual(subprocess.run(models, cwd=self.repo, capture_output=True, env=in_session).returncode, 0)
 
     def test_session_start_points_to_the_flow(self):
         import flow_context

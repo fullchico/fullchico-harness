@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# O CLI do harness dentro da sessão, sempre na versão do plugin instalado (o `npx` sem versão traria outra).
+# `tr-harness owner <args>` imprime o comando exato para o terminal do dono, com a versão fixada no projeto.
+dir=$(cd "$(dirname "$0")/.." && pwd)
+cmd=$1; shift 2>/dev/null
+case "$cmd" in
+  gates)   exec python3 -I "$dir/scripts/gates_cli.py" "$@" ;;
+  models)  exec python3 -I "$dir/scripts/models_cli.py" "$@" ;;
+  cost)    exec python3 -I "$dir/scripts/cost_report.py" "$@" ;;
+  deliver) exec python3 -I "$dir/scripts/gate_cli.py" delivery ;;
+  owner)   exec python3 -I "$dir/scripts/registry.py" owner "$@" ;;
+  *) echo "uso: tr-harness gates|models|cost|deliver|owner <args>" >&2; exit 2 ;;
+esac

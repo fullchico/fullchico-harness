@@ -17,7 +17,7 @@ When the implementation is ready, check the end gates. For each command gate, us
 the message with the name and snapshot and signs after the command runs successfully. For `bugs`, use a
 `tr-bug-hunter` subagent, and for `scope` a `tr-scope-checker` subagent; the hook replaces the message
 with the snapshot and reads the final verdict.
-If the agent gate has a configured model, use `fullchico-harness models validate-gate
+If the agent gate has a configured model, use `tr-harness models validate-gate
 <name> [--ticket <path>] [--prompt <summary>]`. The harness opens the chosen CLI, requires the
 verdict on the current snapshot and stamps. A gate's own model overrides `review`.
 Wait for each validator to finish before the next. The agent that implemented does not sign the

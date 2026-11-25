@@ -54,7 +54,8 @@ def validate_role(value):
 
 
 def configure(root, args):
-    if os.environ.get("CLAUDECODE") == "1":
+    if os.environ.get("CLAUDECODE") == "1" and not registry.owner_approved(
+            root, registry.owner_canonical(["models", "configure", *args])):
         raise ValueError("Sem permissão para alterar .claude/harness.json nesta sessão do Claude Code. Rode no terminal do dono.")
     if args and len(args) % 2:
         raise ValueError("informe pares papel cli:modelo")
@@ -181,7 +182,7 @@ def detach(root, argv):
     subprocess.Popen(["sh", "-c", script, folder, *command], cwd=root, start_new_session=True,
                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                      env=dict(os.environ, FULLCHICO_RUN_ID=run_id))
-    print(json.dumps({"id": run_id, "status": "running", "wait": f"fullchico-harness models wait {run_id}"},
+    print(json.dumps({"id": run_id, "status": "running", "wait": f"tr-harness models wait {run_id}"},
                      ensure_ascii=False))
     return 0
 
@@ -198,7 +199,7 @@ def wait(root, run_id, timeout=100):
     deadline = time.monotonic() + timeout
     while not os.path.isfile(os.path.join(folder, "exit")):
         if time.monotonic() >= deadline:
-            print(json.dumps({"id": run_id, "status": "running", "wait": f"fullchico-harness models wait {run_id}"},
+            print(json.dumps({"id": run_id, "status": "running", "wait": f"tr-harness models wait {run_id}"},
                              ensure_ascii=False))
             return 3
         time.sleep(1)
@@ -493,6 +494,8 @@ def main(argv):
         return 0
     except ValueError as error:
         print(error, file=sys.stderr)
+        if "Sem permissão" in str(error):
+            print(f"No seu terminal: {registry.owner_command(root, ['models', *argv])}", file=sys.stderr)
         return 2
 
 

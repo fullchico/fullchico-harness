@@ -39,7 +39,7 @@ def list_all(root, reg):
             print("        validação técnica passou; falta aprovação humana deste estado")
             continue
         if not stamped:
-            print(f"        fazer: {registry.howto(name, gate, reg.get('models'))}")
+            print(f"        fazer: {registry.howto(name, gate, reg.get('models'), root=root)}")
         elif gate["stage"] == "end" and stamped != top:
             print(f"        carimbo de {stamped[:10]}; depois dele só mudou documentação")
     end_ts = {n for n, g in reg["gates"].items() if g["stage"] == "end"}
@@ -77,11 +77,11 @@ def verify(root, reg, name, ticket=None):
         return 2
     if gate["signs"] == "agent":
         print(f"O portão `{name}` só é assinado pelo agente `{gate['agent']}`: "
-              f"{registry.howto(name, gate, reg.get('models'))}.\n"
+              f"{registry.howto(name, gate, reg.get('models'), root=root)}.\n"
               "O harness só carimba depois do veredito APPROVED no estado atual.")
         return 2
     if gate["signs"] == "command" and gate["command"] == registry.TO_DEFINE:
-        print(f"gate {name}: FALHOU ({registry.howto(name, gate)})")
+        print(f"gate {name}: FALHOU ({registry.howto(name, gate, root=root)})")
         return 2
     if gate["signs"] == "command":
         code, reason_text = run(gate["command"], root), gate["command"]
@@ -118,7 +118,7 @@ def main(argv):
         missing_gates = registry.missing(root, "start", reg) + registry.missing(root, "end", reg)
         passports, _ = tasks.audit(root, reg)
         for name in missing_gates:
-            print(f"[falta] portão `{name}`: {registry.howto(name, reg['gates'][name], reg.get('models'))}")
+            print(f"[falta] portão `{name}`: {registry.howto(name, reg['gates'][name], reg.get('models'), root=root)}")
         for problem in passports:
             print(f"[falta] {problem}")
         if missing_gates or passports:

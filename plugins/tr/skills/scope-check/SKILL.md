@@ -11,7 +11,7 @@ whoever wrote the code. It reads the spec and tickets of `.claude/current-demand
 
 1. **State ready.** The tickets are done and the code to validate is finished.
 2. **Dispatch the `tr:scope-checker` agent.** If `gate:scope` or the `review` role uses a model
-   from another CLI, run `fullchico-harness models validate-gate scope`. With the native agent, any
+   from another CLI, run `tr-harness models validate-gate scope`. With the native agent, any
    short request works; the hook swaps it for the canonical one.
 3. **The verdict** comes in three lines (`VERDICT`, `COMMIT`, `SUMMARY`).
    - `APPROVED`: the hook stamps the current state.

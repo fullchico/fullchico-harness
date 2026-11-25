@@ -26,7 +26,74 @@ INVOKERS = {CHECKER: "/tr:quality-check", "tr:bug-hunter": "/tr:bugs-hunt", "tr:
 # Modelo por papel: a sessão principal planeja; o orquestrador coordena executores e fiscais.
 COMPLEXITY = {"simple": "haiku", "complex": "sonnet"}
 EXECUTOR_MODEL = "sonnet"
-IGNORED = ("docs", ".claude", ".git")
+IGNORED = ("docs", ".claude", ".git", ".codex", ".agents")  # configuração e plano, não código do app
+
+
+def owner_command(root, args):
+    """O comando que o dono roda no terminal, na versão do harness fixada no projeto (o ref do marketplace)."""
+    import shlex
+    try:
+        with open(os.path.join(root, ".claude", "settings.json"), encoding="utf-8") as f:
+            ref = (json.load(f).get("extraKnownMarketplaces") or {}).get("fullchico", {}).get("source", {}).get("ref", "")
+    except (OSError, ValueError, AttributeError):
+        ref = ""
+    spec = "@fullchico/harness" + ("@" + ref[1:] if isinstance(ref, str) and ref.startswith("v") else "")
+    text = args if isinstance(args, str) else shlex.join(args)
+    return f"npx {spec} {text}".rstrip()
+
+
+OWNER_APPROVAL_TTL = 120  # segundos de validade, uso único: cobre o diálogo, não sobra para outro caminho
+
+
+def owner_canonical(words):
+    """O comando do dono sem `--project <pasta>`: é o texto que a aprovação cobre."""
+    import shlex
+    out, skip = [], False
+    for word in words:
+        if skip:
+            skip = False
+        elif word == "--project":
+            skip = True
+        else:
+            out.append(word)
+    return shlex.join(out)
+
+
+def _approvals(root):
+    return os.path.join(ledger.state_dir(root), "owner-approvals.json")
+
+
+def _load_approvals(root):
+    import time
+    try:
+        with open(_approvals(root), encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        data = {}
+    now = time.time()
+    return {k: v for k, v in data.items() if isinstance(v, (int, float)) and v > now}
+
+
+def grant_owner(root, canonical):
+    """O hook pediu a aprovação do dono para este comando exato: vale uma vez, por pouco tempo."""
+    import time
+    data = _load_approvals(root)
+    data[hashlib.sha256(canonical.encode()).hexdigest()] = time.time() + OWNER_APPROVAL_TTL
+    os.makedirs(os.path.dirname(_approvals(root)), exist_ok=True)
+    with open(_approvals(root), "w", encoding="utf-8") as f:
+        json.dump(data, f)
+
+
+def owner_approved(root, canonical):
+    """O CLI dentro da sessão só grava com uma aprovação viva para este comando; ela é consumida aqui."""
+    data = _load_approvals(root)
+    key = hashlib.sha256(canonical.encode()).hexdigest()
+    if key not in data:
+        return False
+    del data[key]
+    with open(_approvals(root), "w", encoding="utf-8") as f:
+        json.dump(data, f)
+    return True
 
 
 class RegistryError(ValueError):
@@ -59,7 +126,7 @@ def load(root):
         # Registro só no formato antigo: sem barrar, os portões do projeto sumiriam em silêncio.
         if os.path.isfile(os.path.join(root, ".claude", "trilho.json")):
             raise RegistryError("o registro está no formato antigo (.claude/trilho.json). "
-                                "Rode `npx @fullchico/harness install` no seu terminal para migrar.")
+                                f"Rode `{owner_command(root, 'install')}` no seu terminal para migrar.")
         return None
     except (OSError, ValueError) as e:
         raise RegistryError(f".claude/harness.json não pôde ser lido: {e}")
@@ -303,12 +370,12 @@ def missing(root, stage, reg=None):
     return [n for n in required(root, stage, reg) if not satisfied(root, n, reg)]
 
 
-def steps(name, gate, models=None):
+def steps(name, gate, models=None, root=None):
     """O que fazer para o portão assinar, um passo por item."""
     mode = gate["signs"]
     if mode == "command" and gate["command"] == TO_DEFINE:
         return [f"o comando do portão `{name}` ainda não foi definido: só o dono o define, no terminal, com "
-                f'`fullchico-harness gates --set {name} "<command>"`']
+                f'`{owner_command(root or ".", ["gates", "--set", name, "<command>"])}`']
     if mode == "command":
         return [f"{INVOKERS[CHECKER]} (o `{CHECKER}` roda `{gate['command']}` e o carimbo sai dele)"]
     if mode == "artifact":
@@ -317,15 +384,15 @@ def steps(name, gate, models=None):
         return [f"produza `{gate['artifact']}` no projeto{check_cmd}", after_step]
     choice = ((models or {}).get("gates") or {}).get(name) or (models or {}).get("review")
     if isinstance(choice, dict) and choice.get("cli") in ("claude", "codex") and choice.get("model"):
-        return [f"rode `fullchico-harness models validate-gate {name}` "
+        return [f"rode `tr-harness models validate-gate {name} --detach` "
                 f"(fiscal {gate['agent']} em {choice['cli']}:{choice['model']})"]
     if gate["agent"] in INVOKERS:
         return [INVOKERS[gate["agent"]]]
     return [f"dispare o agente `{gate['agent']}` sobre o estado atual do projeto", "só ele assina"]
 
 
-def howto(name, gate, models=None):
-    return "; ".join(steps(name, gate, models))
+def howto(name, gate, models=None, root=None):
+    return "; ".join(steps(name, gate, models, root))
 
 
 def validators(reg):
@@ -356,3 +423,7 @@ def ticket_model(root, prompt):
         if m:
             return COMPLEXITY.get(m.group(1).lower())
     return None
+
+
+if __name__ == "__main__" and sys.argv[1:2] == ["owner"]:
+    print(owner_command(toplevel(os.getcwd()), sys.argv[2:]))

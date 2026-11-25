@@ -4,3 +4,4 @@ __pycache__/
 .playwright-mcp/
 graphify-out/
 .DS_Store
+node_modules/
