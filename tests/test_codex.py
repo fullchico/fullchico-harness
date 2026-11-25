@@ -85,6 +85,9 @@ class TestCodex(unittest.TestCase):
         agent.write_text('name = "tr-orquestrador"\ndeveloper_instructions = "Dispare implementadores em subagentes separados"\n')
         self.assertEqual(self.install().returncode, 0)
         self.assertIn("modelos validar-portao", agent.read_text())
+        self.assertIn("# fullchico-managed", agent.read_text())
+        import tomllib
+        self.assertIn("sem pedir aprovação intermediária", tomllib.loads(agent.read_text())["developer_instructions"])
 
     def test_existing_marketplace_config_and_old_hooks_are_migrated(self):
         market = self.repo / ".agents/plugins/marketplace.json"

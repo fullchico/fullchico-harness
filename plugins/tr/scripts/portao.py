@@ -32,8 +32,12 @@ def listar(root, reg):
                 print(f"[fora] {name} ({MOMENTO[gate['momento']]}, fora do passaporte desta demanda)")
             continue
         stamped = registry.stamped_commit(root, name, gate)
+        approved = registry.satisfied(root, name, reg)
         desc = f" — {gate['descricao']}" if gate.get("descricao") else ""
-        print(f"[{'ok' if stamped else 'falta'}] {name} ({MOMENTO[gate['momento']]}, assina por {gate['assina']}){desc}")
+        print(f"[{'ok' if approved else 'falta'}] {name} ({MOMENTO[gate['momento']]}, assina por {gate['assina']}){desc}")
+        if stamped and not approved:
+            print("        validação técnica passou; falta aprovação humana deste estado")
+            continue
         if not stamped:
             print(f"        fazer: {registry.howto(name, gate, reg.get('modelos'))}")
         elif gate["momento"] == "fim" and stamped != top:

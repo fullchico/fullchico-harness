@@ -148,7 +148,14 @@ Tickets com `Bloqueado por:` formam um grafo. A fronteira contém os tickets cuj
 já foram concluídos e carimbados; o hook impede o disparo antecipado de um executor. Tickets
 independentes podem avançar em contextos isolados. Após o planejamento aprovado, a sessão
 principal lança o subagente `tr:orquestrador` em segundo plano. Ele coordena executores,
-fiscais e integração; a sessão principal continua disponível para o dono.
+fiscais e integração; a sessão principal continua disponível para o dono. A confirmação final
+do `grill-me` autoriza o plano recomendado até a entrega. Reprovações voltam ao executor para
+correção e nova validação. Cada portão final aceita `"tentativas": 3` por padrão; na quarta
+reprovação, o orquestrador solicita intervenção humana. O limite pode ser aumentado por portão.
+`"aprovacao": "auto"` é o padrão; `"humana"` exige aprovação explícita do estado já validado com
+`fullchico-harness portoes --aprovar <nome>`. O orquestrador só consulta o dono se
+precisar mudar o objetivo aprovado, executar uma ação irreversível não coberta pelo plano ou
+enfrentar um bloqueio sem alternativa permitida.
 
 *Status: disponível no `tr` para tickets em `docs/specs/<demanda>/issues/`.*
 
@@ -286,6 +293,8 @@ Para habilitar o motor AST local, instale a CLI oficial com `uv tool install --w
 O registro de portões fica em
 `.claude/trilho.json` e é compartilhado com Claude Code quando os dois estão instalados.
 O install não cria portões; o dono os escolhe em `$tr-configurar` e os registra pelo CLI.
+O grill-me também define os critérios de aprovação e o limite de correções automáticas de cada
+portão final. Exemplo: `"qualidade": {"momento":"fim","assina":"comando","comando":"pnpm test","tentativas":5,"aprovacao":"auto"}`.
 `install --ambiente codex --padrao` é uma opção explícita para o modelo de exemplo. Rodar o
 instalador novamente preserva a configuração de outros plugins, hooks e registro existentes.
 Abra uma sessão nova em um projeto

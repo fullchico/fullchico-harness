@@ -14,6 +14,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ledger  # noqa: E402
+import attempts  # noqa: E402
 import registry  # noqa: E402
 import saida  # noqa: E402
 
@@ -49,6 +50,14 @@ def from_command(payload, root, reg):
         return 0
     lines = [l for l in output_of(payload.get("tool_response")).splitlines() if l.strip()]
     expected = f"portao {name}{' ticket ' + ticket if ticket else ''}: passou"
+    if lines and lines[-1].strip().startswith(f"portao {name}: FALHOU") and payload.get("agent_type") == registry.VERIFICADOR:
+        key = registry.stamp_key(root, gate, ticket)
+        if key:
+            ledger.forget(root, registry.scoped_stamp(name, ticket) if ticket else name, key)
+        state = attempts.reject(root, name, gate)
+        if state and state["intervencao"]:
+            return saida.avisar(f"Intervenção humana necessária no portão {name}: {state['reprovacoes']} reprovações; limite {gate.get('tentativas', 3)}.")
+        return 0
     if not lines or lines[-1].strip() != expected:
         return 0
     if payload.get("agent_type") != registry.VERIFICADOR:
@@ -108,8 +117,11 @@ def from_agent(payload, root, reg):
             avisos.append(f"✓ trilho · {name} carimbado por {agent} ({key[:10]})")
         else:
             ledger.forget(root, name, key)
+            state = attempts.reject(root, name, gate, f"{commit}:{summary}")
             ledger.log(root, "trilho", "reprovou", f"{name}: {key[:10]}: {summary}")
             avisos.append(f"✗ trilho · {name} reprovado por {agent} ({key[:10]}): {summary}")
+            if state and state["intervencao"]:
+                avisos.append(f"Intervenção humana necessária: {state['reprovacoes']} reprovações; limite {gate.get('tentativas', 3)}.")
     return saida.avisar("\n".join(avisos)) if avisos else 0
 
 

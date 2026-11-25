@@ -11,6 +11,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(__file__))
 import gate
 import sign
+import orchestrator_stop
 
 AGENTS = {"tr-qualidade-verificador": "tr:qualidade-verificador",
           "tr-bugs-cacador": "tr:bugs-cacador"}
@@ -54,8 +55,6 @@ def normalize(payload):
                                   (" --ticket " + match.group(2) if match.group(2) else "")}
         response = data.get("tool_response")
         if isinstance(response, dict):
-            if response.get("exit_code", 0) not in (0, None):
-                data["tool_input"] = {}
             data["tool_response"] = {"stdout": response.get("stdout") or response.get("output") or ""}
     return data
 
@@ -93,7 +92,8 @@ def main():
         if result:
             print(json.dumps(result, ensure_ascii=False))
         elif event == "SubagentStop":
-            print("{}")
+            continuation = invoke(orchestrator_stop, data)
+            print(json.dumps(continuation or {}, ensure_ascii=False))
 
 
 if __name__ == "__main__":

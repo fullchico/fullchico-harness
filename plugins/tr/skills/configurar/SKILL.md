@@ -45,6 +45,9 @@ com recomendação por pergunta, até o dono confirmar o desenho. A entrevista d
 - quais portões de **saída** validam a entrega: testes, lint, typecheck, build, e2e, revisão,
   segurança, acessibilidade, deploy ou outros checks realmente usados no projeto;
 - quais são sempre obrigatórios e quais dependem do tipo de entrega.
+- para cada portão final, o limite `tentativas` de reprovações automáticas (3 por padrão;
+  configurável) e `aprovacao: auto` (padrão) ou `humana`. Na quarta reprovação com o padrão,
+  o orquestrador pede intervenção; o fiscal continua independente do executor.
 - qual CLI e modelo faz planejamento, execução e revisão, e se algum portão de fim precisa de
   revisor diferente do padrão. Mostre os modelos já configurados com
   `npx @fullchico/harness modelos mostrar`; inclua a escolha na entrevista. No Claude Code,
@@ -86,8 +89,11 @@ explique como defini-lo depois.
 
    Se quiser tentar você mesmo, rode o CLI uma vez. Se ele responder "Sem permissão para gravar", não
    insista nem procure outro caminho: é a proteção funcionando. Entregue os comandos e espere.
-4. Depois que o dono gravar, diga para ele revisar `.claude/trilho.json` e
-   `.claude/settings.json`, se mudou. O carimbo final valida o estado atual do projeto.
+4. Depois que o dono gravar, confira `.claude/trilho.json` e `.claude/settings.json`, se mudou.
+   Só considere a configuração encerrada quando o registro escolhido estiver aplicado e
+   legível. A confirmação final do `/tr:grill-me` já autorizou o plano; não peça outra
+   aprovação para começar a execução após os portões de entrada passarem. O carimbo final
+   valida o estado atual do projeto.
 
 Nunca tente `Write` ou `Edit` em `.claude/trilho.json`: o hook barra.
 

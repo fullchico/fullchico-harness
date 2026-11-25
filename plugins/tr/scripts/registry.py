@@ -14,6 +14,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ledger  # noqa: E402
+import attempts  # noqa: E402
 
 MOMENTOS = ("inicio", "meio", "fim")
 MODOS = ("comando", "artefato", "agente")
@@ -106,6 +107,12 @@ def _validate(name, gate):
             raise RegistryError(f"{where}: `{opt}` deve ser texto.")
     if "sempre" in gate and not isinstance(gate["sempre"], bool):
         raise RegistryError(f"{where}: `sempre` deve ser true ou false.")
+    if "tentativas" in gate and (type(gate["tentativas"]) is not int or gate["tentativas"] < 0):
+        raise RegistryError(f"{where}: `tentativas` deve ser um inteiro não negativo.")
+    if gate.get("aprovacao", "auto") not in ("auto", "humana"):
+        raise RegistryError(f"{where}: `aprovacao` deve ser `auto` ou `humana`.")
+    if gate.get("aprovacao") == "humana" and gate["momento"] != "fim":
+        raise RegistryError(f"{where}: aprovação humana só se aplica a portões finais.")
 
 
 def relative(root, path):
@@ -232,7 +239,13 @@ def scoped_stamp(name, ticket):
 
 def satisfied(root, name, reg=None, ticket=None):
     reg = reg or load(root)
-    return stamped_commit(root, name, reg["portoes"][name], ticket) is not None
+    gate = reg["portoes"][name]
+    key = stamped_commit(root, name, gate, ticket)
+    if key is None:
+        return False
+    if gate["momento"] == "fim" and (gate.get("aprovacao") == "humana" or attempts.status(root, name).get("intervencao")):
+        return ledger.has(root, "aprovacao-" + name, key)
+    return True
 
 
 _PORTOES = re.compile(r"(?mi)^[\s>*_-]*port(?:õ|o)es[*_]*:[*_]*\s*(.+?)\s*$")

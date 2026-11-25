@@ -20,11 +20,17 @@ hook, fora dos arquivos do projeto: você cumpre a etapa, não assina nada, e n�
 3. **Portão de início:** `portao <nome>`, sozinho numa chamada (sem `&&`, sem pipe; o hook barra a
    forma combinada). Termina com `portao <nome>: passou` ou `FALHOU (<motivo>)`; passou, o hook assina.
    Em portão de artefato, o arquivo precisa existir. Mudou o artefato: o carimbo é novo.
-4. **Portões de fim:** quem escreveu o código não carimba. Quando a implementação estiver pronta, rode
-   `/tr:qualidade-verificar` (um subagente limpo por portão de comando) e `/tr:bugs-cacar` (o caçador de
-   bugs). O hook escreve o pedido de cada validador e assina a partir dele. O carimbo é do estado
-   atual: código alterado pede nova validação. A linha `Portões:` da spec escolhe os opcionais.
+4. **Portões de fim:** quem escreveu o código não carimba. Quando a implementação estiver pronta,
+   rode o fiscal de cada portão exigido pelo registro e pelo passaporte: `/tr:qualidade-verificar`
+   para comando ou artefato; o agente cadastrado ou `modelos validar-portao <nome>` para revisão
+   por agente. O hook ou o executor de revisão confere o estado atual antes de carimbar; código
+   alterado pede nova validação. A linha `Portões:` da spec escolhe os opcionais.
 5. **Entregue** após `fullchico-harness entregar` passar (`[fora]` é portão que esta demanda não pede).
+
+Cada portão final aceita `tentativas` (3 por padrão) e `aprovacao` (`auto` por padrão ou
+`humana`). Após exceder o limite de reprovações da demanda, ou se `aprovacao: humana` foi
+configurada, o dono aprova o estado já validado no próprio terminal com
+`fullchico-harness portoes --aprovar <nome>`. Uma mudança no estado invalida esse carimbo.
 
 Uma demanda nova começa por `/tr:processo-planejar`.
 
