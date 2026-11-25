@@ -37,6 +37,10 @@ process), and do not change the worktree's commit (`checkout`, `switch`, `reset`
 - **Edges:** empty, zero, one, the last, the exact limit. `>` where `>=` was needed, and the reverse.
 - **State:** lost or inconsistent data, multi-step writes without a transaction, wrong order.
 - **Concurrency:** two requests at the same time on the same resource; two people changing the same thing.
+  Concurrent writes that a database constraint or lock arbitrates also fail with **transient** errors
+  (deadlock, serialization failure, lock timeout) besides the expected conflict: if the code treats only the
+  conflict, the transient one becomes a 500. A concurrency test that passed once proves little: run each test
+  file that exercises concurrent writes at least five times; a single failure is a severe finding.
 - **Errors:** a failure that vanishes, that becomes success, or that becomes the wrong error.
 - **Broken contract:** does whoever calls what changed still receive what they expect? Signature, format, name, status.
 - **Obvious security:** protection that does not protect (authorization, limit, validation), secret in the code.

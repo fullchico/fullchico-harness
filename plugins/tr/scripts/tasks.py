@@ -166,6 +166,11 @@ def audit(root, reg):
 
     for path in graph:
         visit(path)
+    for a, b, pa, pb in _overlaps(all_tickets, graph):
+        problems.append(f"{a}: pode rodar junto com {b} e os dois ocupam `{pa}` / `{pb}`; ponha a parte comum "
+                        f"num ticket anterior (ou no scaffold) e faça os dois dependerem dele, ou faça um "
+                        f"depender do outro")
+        plan_ok[a] = plan_ok[b] = False
     # Um ticket dependente só é concluído quando seus bloqueadores estão carimbados.
     changed = True
     while changed:
@@ -185,6 +190,46 @@ def audit(root, reg):
     if any("ciclo em `Blocked by:`" in problem for problem in problems):
         ready = []
     return problems, ready
+
+
+def _area(pattern):
+    """Prefixo fixo (em segmentos) de um padrão com curinga ou pasta; None para um arquivo exato."""
+    parts = pattern.strip().rstrip("/").split("/")
+    if not pattern.endswith("/") and not any(c in pattern for c in "*?["):
+        return None
+    fixed = []
+    for part in parts:
+        if any(c in part for c in "*?["):
+            break
+        fixed.append(part)
+    return fixed
+
+
+def _overlaps(all_tickets, graph):
+    """Pares de tickets abertos, sem dependência entre si, que reclamam a mesma área de código.
+
+    Dois executores na mesma área criam cada um a sua versão do mesmo módulo e a integração conflita.
+    ponytail: arquivo exato compartilhado (um `app.module.ts`, um `package.json`) não conta: é merge pequeno;
+    nomes diferentes para o mesmo conceito escapam e ficam com o planejamento."""
+    def ancestors(path, seen=None):
+        seen = set() if seen is None else seen
+        for blocker in graph.get(path, []):
+            if blocker not in seen:
+                seen.add(blocker)
+                ancestors(blocker, seen)
+        return seen
+
+    open_ = sorted(p for p, f in all_tickets.items() if f.get("status", "").lower() != "done")
+    areas = {p: [(pat, _area(pat)) for pat in (_names(all_tickets[p].get("files")) or [])] for p in open_}
+    above = {p: ancestors(p) for p in open_}
+    for i, a in enumerate(open_):
+        for b in open_[i + 1:]:
+            if a in above[b] or b in above[a]:
+                continue
+            hit = next(((pa, pb) for pa, x in areas[a] for pb, y in areas[b]
+                        if x is not None and y is not None and (x[:len(y)] == y or y[:len(x)] == x)), None)
+            if hit:
+                yield a, b, *hit
 
 
 def registry_satisfied(root, name, reg, ticket=None):

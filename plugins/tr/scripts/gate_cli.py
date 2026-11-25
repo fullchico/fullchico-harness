@@ -64,6 +64,28 @@ def run(command, root, *args):
     return subprocess.run(["bash", "-c", command, "_", *args], cwd=root).returncode
 
 
+def checkout_lock(root):
+    """Um portão de comando por vez em cada checkout: os verificadores do principal dividem o mesmo banco de
+    teste e as mesmas portas (os executores têm worktree, portas e banco próprios, e trava própria).
+    Arquivo no diretório temporário porque o verificador roda em sandbox. Devolve o arquivo travado ou None."""
+    import hashlib, tempfile
+    try:
+        import fcntl
+    except ImportError:  # Windows: sem trava
+        return None
+    key = hashlib.sha1(os.path.realpath(root).encode()).hexdigest()[:12]
+    try:
+        stream = open(os.path.join(tempfile.gettempdir(), f"tr-gate-{key}.lock"), "w")
+    except OSError:
+        return None
+    try:
+        fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        print("aguardando outro portão deste checkout terminar…", flush=True)
+        fcntl.flock(stream, fcntl.LOCK_EX)
+    return stream
+
+
 def verify(root, reg, name, ticket=None):
     gate = reg["gates"].get(name)
     if gate is None:
@@ -84,6 +106,7 @@ def verify(root, reg, name, ticket=None):
         print(f"gate {name}: FALHOU ({registry.howto(name, gate, root=root)})")
         return 2
     if gate["signs"] == "command":
+        lock = checkout_lock(root)  # noqa: F841 (solta quando o processo termina)
         code, reason_text = run(gate["command"], root), gate["command"]
     else:
         files = registry.artifact_files(root, gate)
