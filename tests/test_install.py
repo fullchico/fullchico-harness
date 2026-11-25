@@ -155,6 +155,16 @@ class TestInstall(unittest.TestCase):
         hooks = [h["command"] for g in settings["hooks"]["PreToolUse"] for h in g["hooks"]]
         self.assertEqual(sum("rtk hook claude" in c for c in hooks), 1)
 
+    def test_the_flow_is_written_where_the_agent_always_reads(self):
+        (self.repo / "CLAUDE.md").write_text("# Meu projeto\n\nRegras do dono.\n")
+        self.assertEqual(self.install().returncode, 0)
+        self.install()
+        for name in ("CLAUDE.md", "AGENTS.md"):
+            text = (self.repo / name).read_text()
+            self.assertEqual(text.count("<!-- fullchico-harness:begin -->"), 1, name)
+            self.assertIn("/tr:process-plan", text)
+        self.assertTrue((self.repo / "CLAUDE.md").read_text().startswith("# Meu projeto\n\nRegras do dono.\n\n"))
+
     def test_sandbox_profile_is_opt_in_and_keeps_docker_outside(self):
         self.assertEqual(self.install("--sandbox").returncode, 0)
         self.install("--sandbox")

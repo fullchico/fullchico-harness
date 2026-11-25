@@ -272,6 +272,13 @@ def main():
             ], ["  → corrija `.claude/harness.json` no terminal do dono antes de continuar"]))
         return 0
     if not reg:
+        # Plugin instalado e portões ainda não decididos: o fluxo começa pela configuração, não pelo código.
+        for t in targets_pre:
+            if registry.is_code(root, t, reg):
+                return deny(root, f"sem portões: {t}", panel("portões não configurados", [
+                    ("arquivo", registry.relative(root, t)),
+                    ("motivo", "o projeto usa o tr, mas ainda não tem portões; o código vem depois da entrada"),
+                ], ["  → rode /tr:configure: a entrevista propõe os portões e o dono grava no terminal"]))
         return 0
 
     if tool in ("Agent", "Task"):

@@ -82,7 +82,9 @@ if (command === "install-codex") {
       console.error("install: --migrate só se aplica à instalação do Claude Code.");
       process.exit(2);
     }
-    process.exit(installCodex(project, rest.includes("--default")));
+    const codexStatus = installCodex(project, rest.includes("--default"));
+    if (!codexStatus) writeFlowInstructions(project);
+    process.exit(codexStatus);
   }
   if (!fs.existsSync(project) || !fs.statSync(project).isDirectory()) {
     console.error(`install: ${project} não é uma pasta do projeto.`);
@@ -131,6 +133,7 @@ if (command === "install-codex") {
     ["claude-plugins-official", "anthropics/claude-plugins-official", "mattpocock-skills"],
   ]);
   addRtkHook(project);
+  writeFlowInstructions(project);
   writeLocalModels(project);
   // Instalar ferramentas não decide os portões do projeto. Só --default, pedido explícito do dono,
   // grava o modelo de exemplo; um registro existente nunca é reescrito.
@@ -417,6 +420,32 @@ function enableSandbox(project) {
   sandbox.excludedCommands = [...new Set([...(sandbox.excludedCommands || []), "docker", "fullchico-harness"])];
   writeSettings(project, data);
   console.log("\nSandbox nativo ligado (perfil isolado): `.claude/harness.json` protegido; `docker` e `fullchico-harness` rodam fora do sandbox.");
+}
+
+// O fluxo do projeto, dito onde o agente sempre lê: CLAUDE.md (Claude) e AGENTS.md (Codex). Proibir outras
+// skills não adianta; elas entram como ferramenta dentro do fluxo. Só o bloco entre os marcadores é do harness.
+function writeFlowInstructions(project) {
+  const begin = "<!-- fullchico-harness:begin -->";
+  const finish = "<!-- fullchico-harness:end -->";
+  const block = [begin,
+    "## FullChico harness",
+    "",
+    "This project follows the tr flow. Every request to build or change something starts with",
+    "`/tr:process-plan` (in Codex, `$tr-process-plan`): grill-me interview, spec, tickets, then the",
+    "orchestrator in the background. If the gates are not configured yet, run `/tr:configure` first.",
+    "Other skills (brainstorming, TDD, review) are tools inside this flow, not a replacement for it.",
+    "The main session plans and talks to the owner; executors write the code. Check the state with `gate`.",
+    finish].join("\n");
+  for (const name of ["CLAUDE.md", "AGENTS.md"]) {
+    const file = path.join(project, name);
+    const current = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
+    const at = current.indexOf(begin);
+    const stop = current.indexOf(finish);
+    const next = at >= 0 && stop > at
+      ? current.slice(0, at) + block + current.slice(stop + finish.length)
+      : (current.trim() ? current.replace(/\s*$/, "\n\n") : "") + block + "\n";
+    if (next !== current) fs.writeFileSync(file, next);
+  }
 }
 
 // O rtk comprime a saída dos comandos e economiza token. Não é plugin: é um programa da máquina. Entra

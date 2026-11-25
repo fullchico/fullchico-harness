@@ -335,7 +335,7 @@ claude                                      # abre a sessão normalmente
 
 No terminal interativo, escolha **1** para este fluxo do Claude Code; também pode usar
 `install --target claude` para escolher sem menu.
-O `install` traz `tr` (incluindo `grill-me`), `memory`, `ponytail`
+O `install` escreve o fluxo do projeto num bloco gerenciado do `CLAUDE.md` e do `AGENTS.md` (todo pedido começa por `/tr:process-plan`; outras skills são ferramentas dentro dele). Sem portões configurados, o hook barra escrita de código até o `/tr:configure`. O `install` traz `tr` (incluindo `grill-me`), `memory`, `ponytail`
 (código mínimo) e `mattpocock-skills` (processo e revisão: `grilling`, `domain-modeling`, `tdd`,
 `clean-code-guard`...), e liga o hook do `rtk`. O `install` não escolhe nem grava portões.
 O dono configura os portões com `/tr:configure`, que usa o diagnóstico do projeto e a entrevista
