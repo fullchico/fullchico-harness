@@ -227,9 +227,10 @@ resumos, notas, glossário e ADRs. Os dados gerados ficam fora dos arquivos vers
 
 | Plugin | O que faz | Estado |
 |---|---|---|
-| `tr` | os portões: registro, `portao`, aplicador único, validadores, passaporte, modelo por papel, modo puro | disponível |
+| `tr` | entrevista, orquestrador, grafo de tickets, portões, fiscais independentes, passaporte e modelos por papel | disponível |
 | `memoria` | mapa, grafo local e notas ancoradas, compartilhados entre Claude e Codex | disponível |
-| `orquestracao` | automação dedicada de worktrees e execução em segundo plano | a vir; o grafo, a fronteira e a conferência já estão no `tr` |
+
+O orquestrador é um subagente do `tr`. A automação dedicada de múltiplos worktrees ainda é uma evolução futura; não há plugin separado de orquestração.
 
 ## Core e ferramentas integradas
 
@@ -461,6 +462,10 @@ também põe `.claude/trilho.json` no `denyWrite`.
 - Sem o sandbox nativo, comandos arbitrários podem contornar hooks e alterar arquivos ou carimbos;
   os portões funcionam como guardrails de fluxo, não como isolamento do sistema.
 - O carimbo prova que a etapa aconteceu, não que o revisor foi bom.
+
+O [estudo dos guardrails com Docker e sem sandbox nativo](docs/arquitetura/guardrails-sem-sandbox.md)
+separa controle do fluxo e isolamento de segurança, com melhorias priorizadas para os hooks e
+para a validação independente da entrega.
 
 ## Licença
 
