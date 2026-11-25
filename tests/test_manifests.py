@@ -14,6 +14,12 @@ class TestManifests(unittest.TestCase):
             self.assertEqual(manifest["name"], entry["name"])
             self.assertRegex(manifest["version"], r"^\d+\.\d+\.\d+$")
 
+    def test_plugin_ledger_copies_match_the_shared_one(self):
+        # Cada plugin é instalado sozinho e leva sua cópia; a fonte é plugins/_shared/ledger.py.
+        shared = (ROOT / "plugins/_shared/ledger.py").read_text()
+        for plugin in ("tr", "memory"):
+            self.assertEqual((ROOT / f"plugins/{plugin}/scripts/ledger.py").read_text(), shared, plugin)
+
     def test_no_personal_paths_in_plugins(self):
         for f in (ROOT / "plugins").rglob("*"):
             if f.is_file() and "__pycache__" not in f.parts:

@@ -3,7 +3,7 @@
 Esta é a FONTE. Cada plugin é instalado sozinho, então o arquivo é copiado idêntico para
 `plugins/<plugin>/scripts/ledger.py`; um teste confere que as cópias não divergem.
 
-O carimbo mora fora do repositório (`~/.claude/trilho/<id>/stamps/<carimbo>/<sha>.json`), onde o
+O carimbo mora fora do repositório (`~/.claude/tr/<id>/stamps/<carimbo>/<sha>.json`), onde o
 agente com sandbox não grava: quem assina é um hook, não o agente. O `<id>` vem do repositório
 comum, então um worktree e o clone principal compartilham o mesmo livro.
 """
@@ -29,7 +29,7 @@ def state_dir(cwd):
     """Pasta do estado, identificada pelo projeto ou pelo Git comum dos worktrees."""
     common = _git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir")
     ident = hashlib.sha256(os.path.realpath(common or cwd).encode()).hexdigest()[:16]
-    return os.path.join(os.path.expanduser("~"), ".claude", "trilho", ident)
+    return os.path.join(os.path.expanduser("~"), ".claude", "tr", ident)
 
 
 def head(cwd):
@@ -101,7 +101,7 @@ def forget(cwd, stamp, commit):
 
 
 def log(cwd, plugin, what, detail):
-    """Uma linha JSON em log.jsonl: assinou, não assinou e por quê, barrou."""
+    """Uma linha JSON em log.jsonl: signed, not_signed e por quê, blocked."""
     d = state_dir(cwd)
     if not d:
         return

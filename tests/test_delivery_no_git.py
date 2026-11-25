@@ -20,9 +20,9 @@ class TestDeliveryWithoutGit(unittest.TestCase):
         self.home = tempfile.TemporaryDirectory()
         self.project = Path(self.tmp.name)
         (self.project / ".claude").mkdir()
-        (self.project / ".claude/trilho.json").write_text(json.dumps({"portoes": {
-            "plano": {"momento": "inicio", "assina": "artefato", "artefato": "docs/specs/*/spec.md"},
-            "qualidade": {"momento": "fim", "assina": "comando", "comando": "true"}}}))
+        (self.project / ".claude/harness.json").write_text(json.dumps({"gates": {
+            "plano": {"stage": "start", "signs": "artifact", "artifact": "docs/specs/*/spec.md"},
+            "quality": {"stage": "end", "signs": "command", "command": "true"}}}))
         (self.project / "docs/specs/a").mkdir(parents=True)
         (self.project / "docs/specs/a/spec.md").write_text("# Pedido\n")
         (self.project / "src.py").write_text("value = 1\n")
@@ -33,7 +33,7 @@ class TestDeliveryWithoutGit(unittest.TestCase):
         self.home.cleanup()
 
     def deliver(self):
-        return subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/portao.py"), "entrega"],
+        return subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/gate_cli.py"), "delivery"],
                               cwd=self.project, env=self.env, capture_output=True, text=True)
 
     def test_delivery_checks_current_snapshot(self):
@@ -43,8 +43,8 @@ class TestDeliveryWithoutGit(unittest.TestCase):
         try:
             root = str(self.project)
             reg = registry.load(root)
-            ledger.sign(root, "plano", registry.stamp_key(root, reg["portoes"]["plano"]), "tr", "1", "fiscal", "ok")
-            ledger.sign(root, "qualidade", ledger.head(root), "tr", "1", "fiscal", "ok")
+            ledger.sign(root, "plano", registry.stamp_key(root, reg["gates"]["plano"]), "tr", "1", "fiscal", "ok")
+            ledger.sign(root, "quality", ledger.head(root), "tr", "1", "fiscal", "ok")
             self.assertEqual(self.deliver().returncode, 0)
             (self.project / "src.py").write_text("value = 2\n")
             self.assertEqual(self.deliver().returncode, 1)
@@ -57,7 +57,7 @@ class TestDeliveryWithoutGit(unittest.TestCase):
     def test_push_is_not_the_delivery_gate(self):
         payload = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "cwd": str(self.project),
                    "tool_input": {"command": "git push"}}
-        run = subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/gate.py")],
+        run = subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/guard.py")],
                              input=json.dumps(payload), cwd=self.project, env=self.env,
                              capture_output=True, text=True)
         self.assertEqual(run.returncode, 0, run.stderr)
@@ -70,19 +70,19 @@ class TestDeliveryWithoutGit(unittest.TestCase):
                                   input=json.dumps({"cwd": str(self.project), "last_assistant_message": message}),
                                   capture_output=True, text=True)
         self.assertEqual(stop("Preciso esclarecer um requisito.").stdout, "")
-        blocked = stop("ENTREGA: concluída")
+        blocked = stop("DELIVERY: done")
         self.assertEqual(blocked.returncode, 0)
         self.assertEqual(json.loads(blocked.stdout)["decision"], "block")
 
     def test_active_demand_filters_old_tickets_and_subdirectory_resolves_project(self):
         old = self.project / "docs/specs/old/issues/01-old.md"
         old.parent.mkdir(parents=True)
-        old.write_text("Status: open\nBloqueado por: nenhum\nEntrada: nenhum\nPortões: nenhum\nArquivos: src.py\n")
-        (self.project / ".claude/demanda-atual").write_text("a\n")
+        old.write_text("Status: open\nBlocked by: none\nStart: none\nGates: none\nFiles: src.py\n")
+        (self.project / ".claude/current-demand").write_text("a\n")
         nested = self.project / "src"
         nested.mkdir()
         self.assertEqual(registry.toplevel(str(nested)), os.path.realpath(self.project))
-        result = subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/portao.py"), "entrega"],
+        result = subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/gate_cli.py"), "delivery"],
                                 cwd=nested, env=self.env, capture_output=True, text=True)
         self.assertNotIn("01-old.md", result.stdout)
 
@@ -97,7 +97,7 @@ class TestDeliveryWithoutGit(unittest.TestCase):
                                  cwd=self.project, env=self.env, capture_output=True, text=True, timeout=20)
         self.assertEqual(install.returncode, 0, install.stderr)
         self.assertTrue((self.project / ".git").is_dir())
-        memory = subprocess.run([str(ROOT / "plugins/memoria/bin/memoria"), "units"],
+        memory = subprocess.run([str(ROOT / "plugins/memory/bin/memory"), "units"],
                                 cwd=self.project, env=self.env, capture_output=True, text=True)
         self.assertEqual(memory.returncode, 0, memory.stderr)
         self.assertIn(".", memory.stdout)
@@ -106,17 +106,17 @@ class TestDeliveryWithoutGit(unittest.TestCase):
         subprocess.run(["git", "init", "-q", str(self.project)], check=True)
         subprocess.run(["git", "-C", str(self.project), "remote", "add", "review", "https://example.invalid/repo.git"],
                        check=True)
-        config = self.project / ".claude/trilho.json"
+        config = self.project / ".claude/harness.json"
         data = json.loads(config.read_text())
-        data["portoes"]["remoto"] = {"momento": "fim", "assina": "comando", "comando": "git remote get-url review"}
+        data["gates"]["remoto"] = {"stage": "end", "signs": "command", "command": "git remote get-url review"}
         config.write_text(json.dumps(data))
         old_home = os.environ.get("HOME")
         os.environ["HOME"] = self.home.name
         try:
             root = str(self.project)
             reg = registry.load(root)
-            ledger.sign(root, "plano", registry.stamp_key(root, reg["portoes"]["plano"]), "tr", "1", "fiscal", "ok")
-            for gate in ("qualidade", "remoto"):
+            ledger.sign(root, "plano", registry.stamp_key(root, reg["gates"]["plano"]), "tr", "1", "fiscal", "ok")
+            for gate in ("quality", "remoto"):
                 ledger.sign(root, gate, ledger.head(root), "tr", "1", "fiscal", "ok")
             self.assertEqual(self.deliver().returncode, 0)
             subprocess.run(["git", "-C", root, "remote", "remove", "review"], check=True)

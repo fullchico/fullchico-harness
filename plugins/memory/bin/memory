@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Memória do projeto ancorada em git: o mapa do código, as âncoras e as notas.
+# Uso: memory <units|check|record|show|slice|index|forget|anchor|anchors|note|notes> ...
+# Grava em <diretório git comum>/harness-memory/, que o agente com sandbox consegue gravar.
+set -uo pipefail
+dir=$(cd "$(dirname "$0")/.." && pwd -P)
+root=$(pwd -P)
+while [[ "$root" != "/" && ! -f "$root/.claude/harness.json" ]]; do root=$(dirname "$root"); done
+if [[ "$root" == "/" ]]; then root=$(git rev-parse --show-toplevel 2>/dev/null || pwd -P); fi
+exec python3 -I "$dir/scripts/memory.py" "$root" "$@"

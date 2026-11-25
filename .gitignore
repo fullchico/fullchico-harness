@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 .playwright-mcp/
 graphify-out/
+.DS_Store

@@ -29,7 +29,11 @@ jobs:
       - run: python3 -W error -m unittest discover -s tests
       # A publicação confiável exige npm 11.5 ou mais novo.
       - run: npm install -g npm@latest
-      - run: npm publish
-      - run: gh release create "$GITHUB_REF_NAME" --generate-notes
+      # Pré-lançamento (vX.Y.Z-rc.N) vai para a tag `next`: `npx @fullchico/harness@latest` continua na estável.
+      - run: |
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then npm publish --tag next; else npm publish; fi
+      - run: |
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then PRE=--prerelease; else PRE=; fi
+          gh release create "$GITHUB_REF_NAME" --generate-notes $PRE
         env:
           GH_TOKEN: ${{ github.token }}

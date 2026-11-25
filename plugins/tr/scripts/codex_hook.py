@@ -9,12 +9,14 @@ from contextlib import redirect_stdout
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(__file__))
-import gate
+import guard
 import sign
 import orchestrator_stop
+import write_watch
 
-AGENTS = {"tr-qualidade-verificador": "tr:qualidade-verificador",
-          "tr-bugs-cacador": "tr:bugs-cacador"}
+AGENTS = {"tr-quality-checker": "tr:quality-checker",
+          "tr-bug-hunter": "tr:bug-hunter",
+          "tr-scope-checker": "tr:scope-checker"}
 LAST_EVENT = None
 
 
@@ -35,13 +37,26 @@ def invoke(module, payload):
     return json.loads(value) if value else None
 
 
+def opaque(message):
+    """O Codex 0.171 entrega a mensagem do `spawn_agent` cifrada: sem texto, não há fronteira nem
+    pedido canônico a conferir, e reescrever quebraria o disparo. O disparo segue sem conferência."""
+    return isinstance(message, str) and message.startswith("gAAAA") and " " not in message
+
+
+def heartbeat():
+    """Sinal de que os hooks rodam: o `models run` recusa a execução Codex que não o deixou."""
+    folder = os.environ.get("FULLCHICO_RUN_DIR")
+    if folder and os.path.isdir(folder):
+        open(os.path.join(folder, "hooks-alive"), "a").close()
+
+
 def normalize(payload):
-    data = dict(payload)
+    data = dict(payload, harness_client="codex")
     tool = data.get("tool_name")
     ti = data.get("tool_input") or {}
     if tool == "apply_patch":
         data["tool_name"] = "Edit"
-    elif tool in ("spawn_agent", "collaboration.spawn_agent"):
+    elif tool in ("spawn_agent", "collaboration.spawn_agent", "collaborationspawn_agent") and not opaque(ti.get("message")):
         data["tool_name"] = "Agent"
         kind = ti.get("agent_type") or ti.get("task_name")
         data["tool_input"] = {"subagent_type": AGENTS.get(kind, kind),
@@ -50,9 +65,9 @@ def normalize(payload):
         data["agent_type"] = AGENTS[data["agent_type"]]
     if data.get("hook_event_name") == "PostToolUse":
         command = ti.get("command", "")
-        match = re.fullmatch(r"python3 -I \.codex/harness/tr/scripts/portao\.py ([\w.-]+)(?: --ticket ([^\s]+))?", command.strip())
+        match = re.fullmatch(r"python3 -I \.codex/harness/tr/scripts/gate_cli\.py ([\w.-]+)(?: --ticket ([^\s]+))?", command.strip())
         if match:
-            data["tool_input"] = {"command": "portao " + match.group(1) +
+            data["tool_input"] = {"command": "gate " + match.group(1) +
                                   (" --ticket " + match.group(2) if match.group(2) else "")}
         response = data.get("tool_response")
         if isinstance(response, dict):
@@ -64,18 +79,19 @@ def main():
     global LAST_EVENT
     payload = json.load(sys.stdin)
     LAST_EVENT = payload.get("hook_event_name")
+    heartbeat()
     data = normalize(payload)
     event = data.get("hook_event_name")
     if event == "PreToolUse":
         if payload.get("tool_name") == "apply_patch":
             for path in patch_paths((payload.get("tool_input") or {}).get("command", "")):
                 one = dict(data, tool_input={"file_path": path})
-                result = invoke(gate, one)
+                result = invoke(guard, one)
                 if result and result.get("hookSpecificOutput", {}).get("permissionDecision") == "deny":
                     print(json.dumps(result, ensure_ascii=False))
                     return
         elif data.get("tool_name") == "Agent":
-            result = invoke(gate, data)
+            result = invoke(guard, data)
             if result:
                 spec = result.get("hookSpecificOutput", {})
                 if spec.get("updatedInput"):
@@ -85,13 +101,15 @@ def main():
                 print(json.dumps(result, ensure_ascii=False))
             return
         else:
-            result = invoke(gate, data)
+            result = invoke(guard, data)
             if result:
                 print(json.dumps(result, ensure_ascii=False))
     elif event in ("PostToolUse", "SubagentStop"):
         if event == "PostToolUse" and data.get("tool_name") != "Bash":
             return
         result = invoke(sign, data)
+        if event == "PostToolUse" and not result:
+            result = invoke(write_watch, data)
         if result:
             print(json.dumps(result, ensure_ascii=False))
         elif event == "SubagentStop":

@@ -1,8 +1,8 @@
-"""Registro de portões do projeto (`.claude/trilho.json`, chave `portoes`).
+"""Registro de portões do projeto (`.claude/harness.json`, chave `gates`).
 
-Portão = etapa obrigatória do fluxo, com momento (`inicio` ou `fim`) e um modo de assinar. O
+Portão = etapa obrigatória do fluxo, com momento (`start` ou `end`) e um modo de assinar. O
 carimbo é a prova, gravada pelo hook fora do repositório (ver `ledger.py`). Este módulo só lê e
-decide; quem barra é o `gate.py`, quem assina é o `sign.py`.
+decide; quem barra é o `guard.py`, quem assina é o `sign.py`.
 """
 import fnmatch
 import hashlib
@@ -16,16 +16,17 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ledger  # noqa: E402
 import attempts  # noqa: E402
 
-MOMENTOS = ("inicio", "meio", "fim")
-MODOS = ("comando", "artefato", "agente")
-DEFINIR = "@definir"  # comando ainda sem dono: o portão barra até o dono definir
-VERIFICADOR = "tr:qualidade-verificador"  # quem valida os portões de comando, um disparo por portão
+STAGES = ("start", "middle", "end")
+MODES = ("command", "artifact", "agent")
+TO_DEFINE = "@define"  # comando ainda sem dono: o portão barra até o dono definir
+ORCHESTRATORS = {"tr:orchestrator", "tr-orchestrator", "orchestrator"}
+CHECKER = "tr:quality-checker"  # quem valida os portões de comando, um disparo por portão
 # O invoker de cada validador do tr (`/tr:<portão>-<ação>`), para a mensagem apontar o caminho.
-INVOKERS = {VERIFICADOR: "/tr:qualidade-verificar", "tr:bugs-cacador": "/tr:bugs-cacar"}
+INVOKERS = {CHECKER: "/tr:quality-check", "tr:bug-hunter": "/tr:bugs-hunt", "tr:scope-checker": "/tr:scope-check"}
 # Modelo por papel: a sessão principal planeja; o orquestrador coordena executores e fiscais.
-COMPLEXIDADE = {"simples": "haiku", "complexa": "sonnet"}
-MODELO_EXECUTOR = "sonnet"
-IGNORADOS = ("docs", ".claude", ".git")
+COMPLEXITY = {"simple": "haiku", "complex": "sonnet"}
+EXECUTOR_MODEL = "sonnet"
+IGNORED = ("docs", ".claude", ".git")
 
 
 class RegistryError(ValueError):
@@ -39,7 +40,7 @@ def _git(root, *args):
 def toplevel(cwd):
     folder = os.path.realpath(cwd)
     while True:
-        if os.path.isfile(os.path.join(folder, ".claude", "trilho.json")):
+        if os.path.isfile(os.path.join(folder, ".claude", "harness.json")):
             return folder
         parent = os.path.dirname(folder)
         if parent == folder:
@@ -49,32 +50,36 @@ def toplevel(cwd):
 
 
 def load(root):
-    """Devolve {"codigo": [...] | None, "portoes": {...}}, ou None se o projeto não tem portões."""
-    path = os.path.join(root, ".claude", "trilho.json")
+    """Devolve {"code": [...] | None, "gates": {...}}, ou None se o projeto não tem portões."""
+    path = os.path.join(root, ".claude", "harness.json")
     try:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
     except FileNotFoundError:
+        # Registro só no formato antigo: sem barrar, os portões do projeto sumiriam em silêncio.
+        if os.path.isfile(os.path.join(root, ".claude", "trilho.json")):
+            raise RegistryError("o registro está no formato antigo (.claude/trilho.json). "
+                                "Rode `npx @fullchico/harness install` no seu terminal para migrar.")
         return None
     except (OSError, ValueError) as e:
-        raise RegistryError(f".claude/trilho.json não pôde ser lido: {e}")
-    if not isinstance(data, dict) or "portoes" not in data:
+        raise RegistryError(f".claude/harness.json não pôde ser lido: {e}")
+    if not isinstance(data, dict) or "gates" not in data:
         return None
-    portoes = data["portoes"]
-    if not isinstance(portoes, dict) or not portoes:
-        raise RegistryError("`portoes` em .claude/trilho.json deve ser um objeto com ao menos um portão.")
-    codigo = data.get("codigo")
-    if codigo is not None and not (isinstance(codigo, list) and all(isinstance(c, str) and c for c in codigo)):
-        raise RegistryError("`codigo` em .claude/trilho.json deve ser uma lista de caminhos (texto).")
+    gates = data["gates"]
+    if not isinstance(gates, dict) or not gates:
+        raise RegistryError("`gates` em .claude/harness.json deve ser um objeto com ao menos um portão.")
+    code = data.get("code")
+    if code is not None and not (isinstance(code, list) and all(isinstance(c, str) and c for c in code)):
+        raise RegistryError("`code` em .claude/harness.json deve ser uma lista de caminhos (texto).")
     base_ref = data.get("base_ref")
     if base_ref is not None and (not isinstance(base_ref, str) or not re.fullmatch(r"[A-Za-z0-9_./-]+", base_ref)):
         raise RegistryError("`base_ref` deve ser uma referência Git válida em texto.")
-    for name, gate in portoes.items():
+    for name, gate in gates.items():
         _validate(name, gate)
-    modelos = data.get("modelos") or {}
-    if not isinstance(modelos, dict):
-        raise RegistryError("`modelos` em .claude/trilho.json deve ser um objeto.")
-    return {"codigo": codigo, "portoes": portoes, "base_ref": base_ref, "modelos": modelos}
+    models = data.get("models") or {}
+    if not isinstance(models, dict):
+        raise RegistryError("`models` em .claude/harness.json deve ser um objeto.")
+    return {"code": code, "gates": gates, "base_ref": base_ref, "models": models}
 
 
 def has_gates(root):
@@ -86,32 +91,32 @@ def has_gates(root):
 
 
 def _validate(name, gate):
-    where = f"portão `{name}` em .claude/trilho.json"
-    if name == "entrega":
-        raise RegistryError("`entrega` é reservado para a validação final (`portao entrega`).")
+    where = f"portão `{name}` em .claude/harness.json"
+    if name == "delivery":
+        raise RegistryError("`delivery` é reservado para a validação final (`gate delivery`).")
     if not re.fullmatch(r"[\w.-]+", name):
         raise RegistryError(f"{where}: o nome só pode ter letras, números, `_`, `.` e `-`.")
     if not isinstance(gate, dict):
         raise RegistryError(f"{where}: deve ser um objeto.")
-    if gate.get("momento") not in MOMENTOS:
-        raise RegistryError(f"{where}: `momento` deve ser `inicio`, `meio` ou `fim` (veio {gate.get('momento')!r}).")
-    mode = gate.get("assina")
-    if mode not in MODOS:
-        raise RegistryError(f"{where}: `assina` deve ser `comando`, `artefato` ou `agente` (veio {mode!r}).")
-    if gate["momento"] == "meio" and mode == "agente":
-        raise RegistryError(f"{where}: portão de meio aceita `comando` ou `artefato`; agente próprio ainda não é suportado.")
+    if gate.get("stage") not in STAGES:
+        raise RegistryError(f"{where}: `stage` deve ser `start`, `middle` ou `end` (veio {gate.get('stage')!r}).")
+    mode = gate.get("signs")
+    if mode not in MODES:
+        raise RegistryError(f"{where}: `signs` deve ser `command`, `artifact` ou `agent` (veio {mode!r}).")
+    if gate["stage"] == "middle" and mode == "agent":
+        raise RegistryError(f"{where}: portão de meio aceita `command` ou `artifact`; agente próprio ainda não é suportado.")
     if not isinstance(gate.get(mode), str) or not gate[mode].strip():
-        raise RegistryError(f"{where}: `assina: {mode}` exige o campo `{mode}` preenchido.")
-    for opt in ("valida", "descricao"):
+        raise RegistryError(f"{where}: `signs: {mode}` exige o campo `{mode}` preenchido.")
+    for opt in ("check", "description"):
         if opt in gate and not isinstance(gate[opt], str):
             raise RegistryError(f"{where}: `{opt}` deve ser texto.")
-    if "sempre" in gate and not isinstance(gate["sempre"], bool):
-        raise RegistryError(f"{where}: `sempre` deve ser true ou false.")
-    if "tentativas" in gate and (type(gate["tentativas"]) is not int or gate["tentativas"] < 0):
-        raise RegistryError(f"{where}: `tentativas` deve ser um inteiro não negativo.")
-    if gate.get("aprovacao", "auto") not in ("auto", "humana"):
-        raise RegistryError(f"{where}: `aprovacao` deve ser `auto` ou `humana`.")
-    if gate.get("aprovacao") == "humana" and gate["momento"] != "fim":
+    if "always" in gate and not isinstance(gate["always"], bool):
+        raise RegistryError(f"{where}: `always` deve ser true ou false.")
+    if "attempts" in gate and (type(gate["attempts"]) is not int or gate["attempts"] < 0):
+        raise RegistryError(f"{where}: `attempts` deve ser um inteiro não negativo.")
+    if gate.get("approval", "auto") not in ("auto", "human"):
+        raise RegistryError(f"{where}: `approval` deve ser `auto` ou `human`.")
+    if gate.get("approval") == "human" and gate["stage"] != "end":
         raise RegistryError(f"{where}: aprovação humana só se aplica a portões finais.")
 
 
@@ -127,16 +132,16 @@ def relative(root, path):
 
 
 def is_code(root, path, reg=None):
-    """O caminho é código do app? Com `codigo`, por prefixo; sem, tudo menos docs/, .claude/, .md e o ignorado."""
+    """O caminho é código do app? Com `code`, por prefixo; sem, tudo menos docs/, .claude/, .md e o ignorado."""
     rel = relative(root, path)
     if rel is None:
         return False
     if reg is None:
         reg = load(root)
-    codigo = (reg or {}).get("codigo")
-    if codigo is not None:
-        return any(rel == p.strip("/") or rel.startswith(p.strip("/") + "/") for p in codigo)
-    if rel == ".gitignore" or rel.split("/")[0] in IGNORADOS or rel.endswith(".md"):
+    code = (reg or {}).get("code")
+    if code is not None:
+        return any(rel == p.strip("/") or rel.startswith(p.strip("/") + "/") for p in code)
+    if rel == ".gitignore" or rel.split("/")[0] in IGNORED or rel.endswith(".md"):
         return False
     r = subprocess.run(["git", "check-ignore", "-q", "--", rel], cwd=root, capture_output=True)
     return r.returncode != 0
@@ -165,9 +170,9 @@ def artifact_files(root, gate):
     """Arquivos atuais que casam com o glob do portão."""
     import glob
     files = sorted(os.path.relpath(f, root).replace(os.sep, "/") for f in
-                   glob.glob(os.path.join(root, gate["artefato"]), recursive=True) if os.path.isfile(f))
-    active = os.path.join(root, ".claude", "demanda-atual")
-    if gate["artefato"].startswith("docs/specs/") and os.path.isfile(active):
+                   glob.glob(os.path.join(root, gate["artifact"]), recursive=True) if os.path.isfile(f))
+    active = os.path.join(root, ".claude", "current-demand")
+    if gate["artifact"].startswith("docs/specs/") and os.path.isfile(active):
         with open(active, encoding="utf-8") as stream:
             demand = stream.read().strip()
         files = [f for f in files if f.startswith(f"docs/specs/{demand}/")]
@@ -185,7 +190,7 @@ def _hash(*parts):
 
 def stamp_key(root, gate, ticket=None):
     """Chave do carimbo (40 hex). Fim: snapshot do código. Início: artefato ou definição do portão."""
-    if gate["momento"] == "meio":
+    if gate["stage"] == "middle":
         if not ticket:
             return None
         try:
@@ -196,9 +201,9 @@ def stamp_key(root, gate, ticket=None):
         content = re.sub(r"(?mi)^\s*Status:\s*(?:open|done)\s*$", "Status: <state>", content)
         version = hashlib.sha1(content.encode()).hexdigest()
         return _hash(ticket, version, ledger.head(root))
-    if gate["momento"] == "fim":
+    if gate["stage"] == "end":
         return ledger.head(root)
-    if gate["assina"] == "artefato":
+    if gate["signs"] == "artifact":
         files = artifact_files(root, gate)
         if not files:
             return None
@@ -239,115 +244,115 @@ def scoped_stamp(name, ticket):
 
 def satisfied(root, name, reg=None, ticket=None):
     reg = reg or load(root)
-    gate = reg["portoes"][name]
+    gate = reg["gates"][name]
     key = stamped_commit(root, name, gate, ticket)
     if key is None:
         return False
-    if gate["momento"] == "fim" and (gate.get("aprovacao") == "humana" or attempts.status(root, name).get("intervencao")):
-        return ledger.has(root, "aprovacao-" + name, key)
+    if gate["stage"] == "end" and (gate.get("approval") == "human" or attempts.status(root, name).get("intervention")):
+        return ledger.has(root, "approval-" + name, key)
     return True
 
 
-_PORTOES = re.compile(r"(?mi)^[\s>*_-]*port(?:õ|o)es[*_]*:[*_]*\s*(.+?)\s*$")
+_GATES_LINE = re.compile(r"(?mi)^[\s>*_-]*gates[*_]*:[*_]*\s*(.+?)\s*$")
 
 
-def passaporte(root, reg):
-    """Os portões que a demanda pede: a linha `Portões: a, b` da spec ativa (o artefato dos portões
+def passport(root, reg):
+    """Os portões que a demanda pede: a linha `Gates: a, b` da spec ativa (o artefato dos portões
     de início). None quando nenhuma spec traz a linha: aí valem todos os portões de fim."""
     found = None
-    active = os.path.join(root, ".claude", "demanda-atual")
+    active = os.path.join(root, ".claude", "current-demand")
     demand = None
     if os.path.isfile(active):
         with open(active, encoding="utf-8") as stream:
             demand = stream.read().strip()
-    for gate in reg["portoes"].values():
-        if gate["momento"] != "inicio" or gate["assina"] != "artefato":
+    for gate in reg["gates"].values():
+        if gate["stage"] != "start" or gate["signs"] != "artifact":
             continue
         for rel in artifact_files(root, gate):
             if demand and not rel.startswith(f"docs/specs/{demand}/"):
                 continue
             with open(os.path.join(root, rel), encoding="utf-8") as stream:
                 text = stream.read()
-            for m in _PORTOES.finditer(text):
+            for m in _GATES_LINE.finditer(text):
                 # nome como o registro escreve: sem crase, negrito ou pontuação em volta (`e2e`, **seo**, e2e.)
                 names = {re.sub(r"^[^\w]+|[^\w]+$", "", n) for n in re.split(r"[,;\s]+", m.group(1))}
                 found = (found or set()) | {n for n in names if n}
     return found
 
 
-def exigidos(root, momento, reg):
-    """Os portões do momento que valem para esta demanda: no fim, os `sempre` (padrão) e os do passaporte."""
-    names = [n for n, g in reg["portoes"].items() if g["momento"] == momento]
+def required(root, stage, reg):
+    """Os portões do momento que valem para esta demanda: no fim, os `always` (padrão) e os do passaporte."""
+    names = [n for n, g in reg["gates"].items() if g["stage"] == stage]
     import tasks  # tickets com passaporte próprio tornam portões opcionais locais à task
-    if momento == "meio":
+    if stage == "middle":
         return []  # meio é sempre escopado a ticket e conferido por tasks.audit
-    if momento != "fim":
-        return ([n for n in names if reg["portoes"][n].get("sempre", True)]
+    if stage != "end":
+        return ([n for n in names if reg["gates"][n].get("always", True)]
                 if tasks.tickets(root) else names)
-    pedido = passaporte(root, reg)
-    if pedido is None:
+    request = passport(root, reg)
+    if request is None:
         if tasks.tickets(root):
-            pedido = set()
-    if pedido is None:
+            request = set()
+    if request is None:
         return names
-    return [n for n in names if reg["portoes"][n].get("sempre", True) or n in pedido]
+    return [n for n in names if reg["gates"][n].get("always", True) or n in request]
 
 
-def missing(root, momento, reg=None):
+def missing(root, stage, reg=None):
     reg = reg or load(root)
-    return [n for n in exigidos(root, momento, reg) if not satisfied(root, n, reg)]
+    return [n for n in required(root, stage, reg) if not satisfied(root, n, reg)]
 
 
-def passos(name, gate, modelos=None):
+def steps(name, gate, models=None):
     """O que fazer para o portão assinar, um passo por item."""
-    mode = gate["assina"]
-    if mode == "comando" and gate["comando"] == DEFINIR:
+    mode = gate["signs"]
+    if mode == "command" and gate["command"] == TO_DEFINE:
         return [f"o comando do portão `{name}` ainda não foi definido: só o dono o define, no terminal, com "
-                f'`fullchico-harness portoes --definir {name} "<comando>"`']
-    if mode == "comando":
-        return [f"{INVOKERS[VERIFICADOR]} (o `{VERIFICADOR}` roda `{gate['comando']}` e o carimbo sai dele)"]
-    if mode == "artefato":
-        valida = f" e que passe em `{gate['valida']}`" if gate.get("valida") else ""
-        depois = f"depois {INVOKERS[VERIFICADOR]} (o carimbo sai do `{VERIFICADOR}`)"
-        return [f"produza `{gate['artefato']}` no projeto{valida}", depois]
-    choice = ((modelos or {}).get("portoes") or {}).get(name) or (modelos or {}).get("revisao")
-    if isinstance(choice, dict) and choice.get("cli") in ("claude", "codex") and choice.get("modelo"):
-        return [f"rode `fullchico-harness modelos validar-portao {name}` "
-                f"(fiscal {gate['agente']} em {choice['cli']}:{choice['modelo']})"]
-    if gate["agente"] in INVOKERS:
-        return [INVOKERS[gate["agente"]]]
-    return [f"dispare o agente `{gate['agente']}` sobre o estado atual do projeto", "só ele assina"]
+                f'`fullchico-harness gates --set {name} "<command>"`']
+    if mode == "command":
+        return [f"{INVOKERS[CHECKER]} (o `{CHECKER}` roda `{gate['command']}` e o carimbo sai dele)"]
+    if mode == "artifact":
+        check_cmd = f" e que passe em `{gate['check']}`" if gate.get("check") else ""
+        after_step = f"depois {INVOKERS[CHECKER]} (o carimbo sai do `{CHECKER}`)"
+        return [f"produza `{gate['artifact']}` no projeto{check_cmd}", after_step]
+    choice = ((models or {}).get("gates") or {}).get(name) or (models or {}).get("review")
+    if isinstance(choice, dict) and choice.get("cli") in ("claude", "codex") and choice.get("model"):
+        return [f"rode `fullchico-harness models validate-gate {name}` "
+                f"(fiscal {gate['agent']} em {choice['cli']}:{choice['model']})"]
+    if gate["agent"] in INVOKERS:
+        return [INVOKERS[gate["agent"]]]
+    return [f"dispare o agente `{gate['agent']}` sobre o estado atual do projeto", "só ele assina"]
 
 
-def howto(name, gate, modelos=None):
-    return "; ".join(passos(name, gate, modelos))
+def howto(name, gate, models=None):
+    return "; ".join(steps(name, gate, models))
 
 
-def validadores(reg):
+def validators(reg):
     """agent_type de cada validador -> os portões que ele valida (comando e artefato: o verificador)."""
     out = {}
-    for name, gate in reg["portoes"].items():
-        who = gate["agente"] if gate["assina"] == "agente" else VERIFICADOR
+    for name, gate in reg["gates"].items():
+        who = gate["agent"] if gate["signs"] == "agent" else CHECKER
         if who:
             out.setdefault(who, []).append(name)
     return out
 
 
 _MD = re.compile(r"[\w./-]+\.md\b")
-_COMPLEXIDADE = re.compile(r"(?mi)^\s*complexidade:\s*(\w+)")
+_COMPLEXITY = re.compile(r"(?mi)^\s*complexity:\s*(\w+)")
 
 
-def modelo_do_ticket(root, prompt):
-    """`haiku` ou `sonnet` pela linha `Complexidade:` do primeiro `.md` do repositório citado no pedido."""
+def ticket_model(root, prompt):
+    """`haiku` ou `sonnet` pela linha `Complexity:` do primeiro `.md` do repositório citado no pedido."""
     for ref in _MD.findall(prompt or ""):
         rel = relative(root, ref)
         if not rel:
             continue
         try:
             with open(os.path.join(root, rel), encoding="utf-8") as f:
-                m = _COMPLEXIDADE.search(f.read())
+                m = _COMPLEXITY.search(f.read())
         except OSError:
             continue
         if m:
-            return COMPLEXIDADE.get(m.group(1).lower())
+            return COMPLEXITY.get(m.group(1).lower())
     return None

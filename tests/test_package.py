@@ -6,7 +6,7 @@ import unittest
 
 from tests.helpers import ROOT
 
-PUBLIC_EXCLUDED = ("docs/", "interno/")
+PUBLIC_EXCLUDED = ("docs/", "internal/")
 
 
 def public_files():
@@ -17,7 +17,7 @@ def public_files():
 class TestPackage(unittest.TestCase):
     def test_one_version_everywhere(self):
         package = json.loads((ROOT / "package.json").read_text())
-        self.assertRegex(package["version"], r"^\d+\.\d+\.\d+$")
+        self.assertRegex(package["version"], r"^\d+\.\d+\.\d+(-rc\.\d+)?$")
         self.assertEqual(package["name"], "@fullchico/harness")
         self.assertEqual(package["publishConfig"]["access"], "public")
         # O npm compara este endereço, letra por letra, com o que o GitHub informa na procedência.
@@ -28,6 +28,9 @@ class TestPackage(unittest.TestCase):
         self.assertEqual(run("--version").stdout.strip(), json.loads((ROOT / "package.json").read_text())["version"])
         self.assertEqual(run().returncode, 2)
         self.assertEqual(run("publish").returncode, 2)
+        self.assertEqual(run("deliver", "/pasta/que/nao/existe").returncode, 2)
+        # Os scripts rodam com `python3 -I`: cada ponto de entrada acha os módulos vizinhos sozinho.
+        self.assertIn("uso:", run("models").stderr)
         self.assertEqual(run("update").returncode, 2, "o modelo antigo saiu")
         self.assertEqual(run("install", "--legado").returncode, 2, "o modelo antigo saiu")
         r = run("install", "/caminho/que/nao/existe")

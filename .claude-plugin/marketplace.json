@@ -1,6 +1,6 @@
 {
   "name": "fullchico",
-  "description": "Marketplace do FullChico Harness.",
+  "description": "FullChico Harness marketplace.",
   "owner": {
     "name": "FullChico"
   },
@@ -8,12 +8,12 @@
     {
       "name": "tr",
       "source": "./plugins/tr",
-      "description": "Portões do projeto: registro, carimbos assinados por hook, validadores em subagente limpo (/tr:qualidade-verificar, /tr:bugs-cacar), orquestrador (/tr:processo-planejar) e modo puro."
+      "description": "Project gates: registry, hook-signed stamps, validators in clean subagents (/tr:quality-check, /tr:bugs-hunt), orchestrator (/tr:process-plan)."
     },
     {
-      "name": "memoria",
-      "source": "./plugins/memoria",
-      "description": "Memória do projeto ancorada em git: mapa do código e notas das sessões, injetados no começo de cada sessão."
+      "name": "memory",
+      "source": "./plugins/memory",
+      "description": "Git-anchored project memory: code map and session notes, injected at the start of each session."
     }
   ]
 }
