@@ -15,6 +15,7 @@ import orchestrator_stop
 
 AGENTS = {"tr-qualidade-verificador": "tr:qualidade-verificador",
           "tr-bugs-cacador": "tr:bugs-cacador"}
+LAST_EVENT = None
 
 
 def patch_paths(command):
@@ -60,7 +61,9 @@ def normalize(payload):
 
 
 def main():
+    global LAST_EVENT
     payload = json.load(sys.stdin)
+    LAST_EVENT = payload.get("hook_event_name")
     data = normalize(payload)
     event = data.get("hook_event_name")
     if event == "PreToolUse":
@@ -99,5 +102,10 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except Exception:
-        pass
+    except Exception as error:
+        if LAST_EVENT == "PreToolUse":
+            print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse",
+                            "permissionDecision": "deny",
+                            "permissionDecisionReason": f"Hook do trilho falhou: {error}"}}, ensure_ascii=False))
+        elif LAST_EVENT == "SubagentStop":
+            print("{}")

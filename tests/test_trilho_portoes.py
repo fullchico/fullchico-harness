@@ -384,8 +384,15 @@ class TestProtectionAndInit(Case):
         self.assertIn("`momento`", r.stdout)
 
     def test_it_never_breaks_on_garbage(self):
-        for name in ("gate.py", "sign.py"):
-            self.assertEqual(self.script(name, None, raw="não é json").returncode, 0)
+        self.assertEqual(self.script("gate.py", None, raw="não é json").returncode, 1)
+        self.assertEqual(self.script("sign.py", None, raw="não é json").returncode, 0)
+
+    def test_invalid_registry_blocks_writes_until_owner_fixes_it(self):
+        (self.repo / ".claude").mkdir()
+        (self.repo / ".claude/trilho.json").write_text('{"portoes":{"a":{"momento":"inválido"}}}')
+        result = self.write("apps/a.ts")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("trilho indisponível", result.stderr)
 
     def test_the_ledger_copy_is_identical_to_the_source(self):
         self.assertEqual((PLUGIN / "scripts/ledger.py").read_bytes(), (ROOT / "plugins/_shared/ledger.py").read_bytes())
@@ -395,6 +402,8 @@ class TestProtectionAndInit(Case):
         self.assertIn("SessionStart", hooks)
         self.assertEqual({g["matcher"] for g in hooks["PreToolUse"]},
                          {"Bash", "Edit|Write|MultiEdit|NotebookEdit", "Agent|Task", "SubagentHandback"})
+        self.assertTrue(all(h.get("onFailure") == "block" for group in hooks["PreToolUse"][:3]
+                            for h in group["hooks"]))
         self.assertEqual(hooks["PostToolUse"][0]["matcher"], "Bash")
         self.assertNotIn("matcher", hooks["SubagentStop"][0])
         self.assertTrue(os.access(PLUGIN / "bin/portao", os.X_OK))

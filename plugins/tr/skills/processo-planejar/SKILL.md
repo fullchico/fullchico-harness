@@ -27,14 +27,17 @@ precisar mudar de escopo, faltar uma decisão que o plano não permite inferir o
 irreversível ainda não autorizada.
 
 Antes do handoff, confira que a spec registra o destino, critérios de aceite, portões aplicáveis,
-dependências, escolhas recomendadas e o que fica fora. A falta de um detalhe técnico reversível
+dependências, serviços e comandos previstos (Docker, localhost, navegador e rede quando
+aplicáveis), escolhas recomendadas e o que fica fora. A falta de um detalhe técnico reversível
 não reabre a entrevista: o orquestrador escolhe, implementa e valida. Se uma restrição da CLI
 ou do projeto negar uma ação, tente um caminho permitido para o mesmo objetivo; só interrompa
 por bloqueio real que não tenha alternativa autorizada.
 
 No handoff, diga explicitamente: "entrevista concluída; plano recomendado autorizado; execute
 até `portao entrega` passar; resolva reprovações e decisões técnicas reversíveis sem nova
-aprovação". Essa instrução também vale quando o orquestrador muda de CLI por limite de modelo.
+aprovação". Inclua os serviços previstos e diga que uma restrição de plataforma deve ser
+tratada com pedido de elevação para o comando específico. Essa instrução também vale quando o
+orquestrador muda de CLI por limite de modelo.
 O limite de intervenção humana fica no plano: só mudança de escopo ou destino, ação externa
 irreversível não autorizada, ou bloqueio técnico/político sem alternativa permitida após
 investigação. Reprovações dos portões geram correção e revalidação dentro do loop.

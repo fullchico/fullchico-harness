@@ -60,6 +60,10 @@ Quando a CLI oferece sinal confiável de limite iminente, o harness pode prepara
 - Portões de meio por ticket e validação na entrega: implementados.
 - `modelos executar` inicia um papel em Claude ou Codex, resolve os aliases Codex conhecidos,
   salva um manifesto fora do repositório e tenta o apoio quando a CLI retorna erro de limite.
+- O executor Codex CLI recebe `workspace-write` e revisão automática. Para Docker e serviços
+  locais bloqueados, pede elevação específica ao revisor automático; a política pode negá-la.
+  O fiscal mantém leitura; o Claude usa as configurações da sessão ou do projeto em que foi
+  aberto. Desligar o sandbox Claude não altera o Codex automaticamente.
 - `modelos validar-portao` abre o fiscal independente no modelo configurado para o portão;
   o subagente orquestrador coordena tickets liberados e revisões até a entrega ou intervenção.
 - Portões finais têm limite de reprovações e aprovação humana opcionais por projeto.

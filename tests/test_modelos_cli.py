@@ -163,6 +163,22 @@ class ModelosCliTest(unittest.TestCase):
         self.assertIn("harness-runs", summary["manifesto"])
         self.assertFalse((repo / "harness-runs").exists())
 
+    def test_codex_executor_keeps_auto_review_and_requests_targeted_escalation(self):
+        repo = make_repo()
+        self.assertEqual(self.run_cli(repo, "configurar", "execucao", "codex:luna").returncode, 0)
+        with tempfile.TemporaryDirectory() as bin_dir:
+            fake = pathlib.Path(bin_dir) / "codex"
+            fake.write_text("#!/bin/sh\n" +
+                            "case \" $* \" in *' --sandbox workspace-write '*);; *) exit 7;; esac\n" +
+                            "case \" $* \" in *' --approve-for-me '*);; *) exit 8;; esac\n" +
+                            "cat > prompt.txt\n" +
+                            "grep -q 'elevação específica' prompt.txt || exit 9\n" +
+                            "echo '{\"type\":\"turn.completed\"}'\n")
+            fake.chmod(0o755)
+            env = dict(os.environ, PATH=bin_dir + os.pathsep + os.environ.get("PATH", ""))
+            result = self.run_cli(repo, "executar", "execucao", "--pedido", "Suba a infra com Docker", env=env)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
