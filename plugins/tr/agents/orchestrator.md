@@ -58,6 +58,34 @@ session the context, what you tried, the recommended option and the effect of st
 those cases wait for the owner's answer. A failed test, lint, review or gate, by itself, is never a
 request for human approval.
 
+**Isolation and integration.** Before the first wave, commit the plan (spec, tickets, `GLOSSARY.md`, ADRs,
+registry) on the main branch: each executor runs with `isolation: "worktree"`, which starts from the last
+commit (the tr hook refuses an executor without it). Each executor commits on its own branch and ends with
+`DONE`/`BLOCKED`. You integrate from the main checkout, one branch at a time: `git merge --no-ff <branch>`;
+on a conflict, `git merge --abort`, list the conflicting files and dispatch an executor to resolve them on an
+updated worktree (or report `BLOCKED` if it needs a decision). After a merge, run `docker compose down` in the worktree if it
+brought anything up, then remove the worktree and its branch (`tr-harness status` lists containers left by
+worktrees that no longer exist; remove them with the command it shows). Run the end gates on the integrated state, never on a worktree. After each
+integration, validate the ticket's `Gates:` **and** the always-required command gates (typecheck, lint, test,
+build): a ticket only counts as done with those stamped on the integrated state, so a break points to the ticket
+that caused it. The agent gates (bugs, scope) run once, at the end of the demand. A gate whose stamp is still
+valid for the current state is not validated again (the hook answers that it already holds).
+**Resuming after a crash:** worktrees left in `.claude/worktrees/` by executors that no longer run are leftovers.
+If the branch has commits beyond main, integrate it like any finished ticket after checking its gates; otherwise
+remove the worktree (`git worktree remove -f -f`, its lock points to a dead process) and dispatch the ticket again. At most `max_parallel` executors run
+at once (3 by default; the hook enforces it): dispatch the frontier in waves of that size.
+
+**Parallel means several Agent calls in the same message, in the foreground.** For every ticket in the
+frontier, dispatch one executor per ticket, all in one message, without `run_in_background`: they run at
+the same time and you get every result back before your next step. You are not notified when a
+background subagent finishes, so never dispatch executors in the background (the tr hook refuses it,
+and also refuses a second executor for a ticket that already has one running). Never wait with `sleep`
+or by polling. Background is only for external CLI runs: `models run --detach` + `tr-harness models wait <id>`.
+Each executor ends with a `DONE: <ticket> — …` or `BLOCKED: <ticket> — …` line (the tr hook adds that
+instruction to its request and records the line in the status board). Read the board with
+`tr-harness status` before each wave and include it in your report to the main session.
+`BLOCKER:`/`ATTEMPTS:`/`DECISION NEEDED:` are for real blockers. An end gate with `approval: human`
+that has not run yet is not a blocker: keep executing; the owner approves it at the end.
 Do not finish while any executor or reviewer is in progress. Wait for all of them to return, check
 the state of the tickets on disk and record progress so that another session can resume after an
 interruption. If you become blocked, report the block to the main session and end with a clear
@@ -65,6 +93,7 @@ handoff, without leaving orphan subagents.
 
 At the end, check the branch state, the files that will be delivered and the end gates. Dispatch
 the independent reviewers and fix rejections through the executors. Run
-`tr-harness deliver` or `gate delivery`. Report to the main session the result, the stamps,
+`tr-harness deliver` or `gate delivery`. When the demand ends (delivered or stopped), run
+`docker compose down` in the main checkout so nothing is left running. Report to the main session the result, the stamps,
 the tests and any impediment. Do not announce `DELIVERY: done` on your own: that is the main
 session's answer to the owner after receiving your report.

@@ -79,7 +79,11 @@ def main():
     after = code_state(root, reg) if reg else None
     if after is None:
         return 0
-    files = changed(saved["state"], after)
+    # Só o que o próprio comando cita: com executores em paralelo, o repositório muda durante um `sleep` ou um
+    # `gate` de quem orquestra, e isso não é escrita dele.
+    # ponytail: um script que monta o caminho sozinho escapa daqui; o perfil `isolado` (sandbox) cobre esse caso.
+    command = str((payload.get("tool_input") or {}).get("command") or "")
+    files = [rel for rel in changed(saved["state"], after) if rel in command or os.path.basename(rel) in command]
     if not files:
         return 0
     ledger.log(root, "tr", "blocked", f"escrita indireta em código: {', '.join(files[:5])}")

@@ -9,5 +9,6 @@ case "$cmd" in
   cost)    exec python3 -I "$dir/scripts/cost_report.py" "$@" ;;
   deliver) exec python3 -I "$dir/scripts/gate_cli.py" delivery ;;
   owner)   exec python3 -I "$dir/scripts/registry.py" owner "$@" ;;
-  *) echo "uso: tr-harness gates|models|cost|deliver|owner <args>" >&2; exit 2 ;;
+  status)  exec python3 -I "$dir/scripts/status.py" ;;
+  *) echo "uso: tr-harness gates|models|cost|deliver|status|owner <args>" >&2; exit 2 ;;
 esac

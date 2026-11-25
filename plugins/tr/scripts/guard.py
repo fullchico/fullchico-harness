@@ -114,15 +114,40 @@ def dispatch(root, reg, ti, caller=None):
             return deny(root, f"ticket fora da fronteira: {kind_name}", panel("execução barrada", [
                 ("motivo", blocked),
             ], ["  → confira `gate` para ver a fronteira liberada"]))
+        if caller in registry.ORCHESTRATORS and kind_name not in tasks.READ_ONLY_AGENTS:
+            # Paralelo é várias chamadas de Agent na mesma mensagem, em primeiro plano: o orquestrador espera
+            # todas voltarem. Em segundo plano ele não é avisado do fim e acaba disparando o mesmo ticket de novo.
+            if ti.get("run_in_background"):
+                return deny(root, f"executor em segundo plano: {kind_name}", panel("execução barrada", [
+                    ("motivo", "o orquestrador dispara executores em primeiro plano"),
+                ], ["  → paralelo: um Agent por ticket da fronteira, todos na mesma mensagem, sem run_in_background"]))
+            if ti.get("isolation") != "worktree":
+                # Executores em paralelo na mesma pasta disputam package.json, lockfile e migrations.
+                return deny(root, f"executor sem worktree: {kind_name}", panel("execução barrada", [
+                    ("motivo", "cada executor roda no próprio worktree; o orquestrador integra depois"),
+                ], ['  → dispare com isolation: "worktree" (commite o plano antes, porque o worktree nasce do último commit)']))
+            limit = reg.get("max_parallel", registry.MAX_PARALLEL)
+            if len(tasks._in_flight(root)) >= limit:
+                return deny(root, f"limite de executores: {limit}", panel("execução barrada", [
+                    ("motivo", f"já há {limit} executores rodando, o limite do projeto (max_parallel)"),
+                ], ["  → espere um voltar e dispare a próxima onda; o dono muda com `tr-harness gates --parallel N`"]))
+            busy = tasks.start_executor(root, ti.get("prompt"))
+            if busy:
+                return deny(root, f"executor duplicado: {busy}", panel("execução barrada", [
+                    ("ticket", busy), ("motivo", "este ticket já tem um executor em andamento"),
+                ], ["  → espere o executor voltar; não dispare outro para o mesmo ticket"]))
+            refs = tasks.ticket_refs(root, ti.get("prompt"))
+            if refs and "DONE:" not in (ti.get("prompt") or ""):
+                new_item["prompt"] = ((ti.get("prompt") or "") + tasks.executor_env(refs[0])
+                                      + tasks.EXECUTOR_PROTOCOL.format(ticket=refs[0]))
         # ticket com `Complexity:` decide; sem ticket, só opus é trocado (o resto, a definição do agente
         # ou o CLAUDE_CODE_SUBAGENT_MODEL do settings.local resolvem)
         model_name = registry.ticket_model(root, ti.get("prompt"))
         if not model_name and ti.get("model") == "opus":
             model_name = registry.EXECUTOR_MODEL
-        if not model_name or ti.get("model") == model_name:
-            return 0
-        new_item["model"] = model_name
-        return allow(new_item)
+        if model_name and ti.get("model") != model_name:
+            new_item["model"] = model_name
+        return allow(new_item) if new_item != ti else 0
     config = reg.get("models") or {}
     per_gate = config.get("gates") or {}
     external_cli = [name for name in validators[kind_name]
@@ -144,14 +169,16 @@ def dispatch(root, reg, ti, caller=None):
         ticket_request = re.search(r"(?m)^\s*ticket:\s*([^\s]+)", ti.get("prompt") or "")
         ticket = ticket_request.group(1) if ticket_request else None
         gate = reg["gates"][gate_name]
+        if gate["stage"] != "middle" and registry.satisfied(root, gate_name, reg):
+            return deny(root, f"carimbo já vale: {gate_name}", panel("validação desnecessária", [
+                ("portão", gate_name), ("motivo", "já há carimbo deste portão para o estado atual do projeto"),
+            ], ["  → siga; valide de novo só depois de mudar o projeto"]))
         if gate["stage"] == "middle" and ticket not in tasks.tickets(root):
             return deny(root, f"verificador sem ticket: {gate_name}", panel("validação barrada", [
                 ("portão", gate_name), ("motivo", "portão de meio exige ticket válido na segunda linha"),
             ], ["  → peça `gate: <name>\\nticket: <path>`"]))
-        if gate["stage"] != "middle" and ticket:
-            return deny(root, f"ticket inesperado: {gate_name}", panel("validação barrada", [
-                ("portão", gate_name), ("motivo", "só portão de meio recebe ticket"),
-            ]))
+        if gate["stage"] != "middle":
+            ticket = None  # portão de entrada ou de fim vale para o projeto todo; o ticket citado não muda nada
         new_item["prompt"] = f"gate: {gate_name}\n" + (f"ticket: {ticket}\n" if ticket else "") + f"commit: {top}"
     else:
         new_item["prompt"] = f"snapshot: {top}\ncommit: {top}\nInspect the project's current files."
@@ -173,7 +200,7 @@ def dispatch(root, reg, ti, caller=None):
     return allow(new_item)
 
 
-OWNER_FLAGS = {"--write", "--set", "--register", "--approve"}
+OWNER_FLAGS = {"--write", "--set", "--register", "--approve", "--parallel"}
 
 
 def owner_write(command):
@@ -217,6 +244,40 @@ def ask_owner(root, payload, words):
     return 0
 
 
+def foreign_kill(root, command):
+    """Matar processo que não é deste projeto: outro projeto da máquina pode estar na mesma porta.
+
+    Devolve o motivo da recusa, ou None. `kill <pid>` só passa se a pasta do processo está dentro do projeto
+    (os worktrees dos executores ficam em `.claude/worktrees/`). Matar por nome (`pkill`, `killall`) ou por PID
+    calculado na hora (`$(...)`, `| xargs kill`) não deixa conferir de quem é: recusa."""
+    import subprocess
+    if not re.search(r"\b(kill|pkill|killall)\b", command):
+        return None
+    if re.search(r"\bxargs\b[^|;&]*\bkill\b", command) or re.search(r"\bkill\b[^|;&]*(\$\(|`)", command):
+        return "PID calculado na hora (`$(...)` ou `xargs kill`): não dá para conferir de quem é o processo"
+    try:
+        parts = ledger._split(ledger.strip_heredocs(command))
+    except ValueError:
+        return None
+    home = os.path.realpath(root)
+    for words in parts:
+        while words and (words[0] in WRAPPERS or re.fullmatch(r"\w+=.*", words[0])):
+            words = words[1:]
+        if not words:
+            continue
+        name = os.path.basename(words[0])
+        if name in ("pkill", "killall"):
+            return f"`{name}` mata por nome e pode atingir processos de outros projetos; use `kill <pid>` de um processo seu"
+        if name != "kill":
+            continue
+        for pid in (w for w in words[1:] if w.isdigit()):
+            out = subprocess.run(["lsof", "-a", "-p", pid, "-d", "cwd", "-Fn"], capture_output=True, text=True)
+            cwd = next((line[1:] for line in out.stdout.splitlines() if line.startswith("n")), "")
+            if cwd and not os.path.realpath(cwd).startswith(home + os.sep) and os.path.realpath(cwd) != home:
+                return f"o processo {pid} é de fora deste projeto ({cwd})"
+    return None
+
+
 def combined_gate(command):
     """`gate <name>` com pipe, encadeamento ou redirecionamento: roda, mas não carimba. Barra antes."""
     try:
@@ -238,6 +299,9 @@ def combined_gate(command):
 _GIT_MUTATES = {"add", "commit", "checkout", "switch", "reset", "restore", "apply", "stash", "merge", "rebase",
              "cherry-pick", "revert", "rm", "mv", "am", "pull", "push", "tag", "update-ref", "worktree", "clean"}
 
+_BRANCH_WRITES = {"-d", "-D", "--delete", "-m", "-M", "--move", "-c", "-C", "--copy", "-f", "--force",
+                  "-u", "--set-upstream-to", "--unset-upstream"}
+
 
 def git_mutates(command):
     """O comando muda o repositório pelo git (commit, checkout, reset...)? Para o validador, que só lê."""
@@ -252,7 +316,14 @@ def git_mutates(command):
             rest, i = words[1:], 0
             while i < len(rest) and rest[i].startswith("-"):
                 i += 2 if rest[i] in ("-C", "-c", "--git-dir", "--work-tree") else 1
-            if i < len(rest) and rest[i] in _GIT_MUTATES:
+            sub, args = (rest[i], rest[i + 1:]) if i < len(rest) else ("", [])
+            if sub == "worktree" and args[:1] == ["list"]:
+                continue  # listar worktrees só lê
+            if sub == "tag" and (not args or args[0] in ("-l", "--list")):
+                continue
+            if sub == "branch" and any(a in _BRANCH_WRITES for a in args):
+                return True
+            if sub in _GIT_MUTATES:
                 return True
     return False
 
@@ -273,6 +344,12 @@ def legacy_harness(command):
 def main():
     payload = json.load(sys.stdin)
     tool = payload.get("tool_name")
+    if payload.get("agent_id"):
+        try:  # batimento do subagente para o quadro de status; nunca decide nada
+            tasks.beat(registry.toplevel(payload.get("cwd") or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()),
+                       payload["agent_id"], payload.get("agent_type") or "")
+        except OSError:
+            pass
     ti = payload.get("tool_input") or {}
     root = registry.toplevel(payload.get("cwd") or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
     # O arquivo de portões é protegido sempre, mesmo sem registro ainda: o agente não cria um
@@ -362,6 +439,11 @@ def main():
                 ("comando", command.split()[0]), ("motivo", "os scripts de `.harness/` são do modelo antigo; os portões são do tr"),
             ], listing(reg, registry.missing(root, "end", reg), root) or ["  → valide a entrega com `gate delivery`"],
                 "estado: `gate`"))
+        foreign = foreign_kill(root, command)
+        if foreign:
+            return deny(root, f"kill alheio: {command[:100]}", panel("processo de outro projeto", [
+                ("comando", command[:80]), ("motivo", foreign),
+            ], ["  → use outra porta (a do seu ticket); só pare processos que você mesmo subiu, por `kill <pid>`"]))
         if combined_gate(command):
             return deny(root, f"gate combinado: {command[:100]}", panel("gate sozinho", [
                 ("comando", command[:80]), ("motivo", "com pipe, `&&` ou redirecionamento o portão roda mas não carimba"),

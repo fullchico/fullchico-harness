@@ -333,9 +333,10 @@ def validate_gate(root, name, ticket=None, request=""):
             context = f"Ticket: {ticket}\n{stream.read()}\n"
     prompt = (f"You are the independent reviewer of gate `{name}` ({gate['agent']}). "
               "Do not edit files. Examine the current state yourself; the executor's report is context, not proof. "
-              f"Expected snapshot: {snapshot}\n{context}Report: {request or '(none)'}\n"
+              f"Expected snapshot: {snapshot} (a tr content hash of the working files, not a Git commit: do not look "
+              f"it up in Git; copy it verbatim into COMMIT)\n{context}Report: {request or '(none)'}\n"
               "Answer with concrete findings and end with exactly three lines: "
-              "VERDICT: APPROVED or REJECTED, COMMIT: <full snapshot>, SUMMARY: <one sentence>.\n"
+              "VERDICT: APPROVED or REJECTED, COMMIT: <the expected snapshot, verbatim>, SUMMARY: <one sentence>.\n"
               + (f"Agent instructions:\n{instructions}\n" if instructions else ""))
     _, folder = _run_folder(root)
     with open(os.path.join(folder, "pedido.txt"), "w", encoding="utf-8") as stream:

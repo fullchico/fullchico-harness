@@ -32,27 +32,48 @@ def state_dir(cwd):
     return os.path.join(os.path.expanduser("~"), ".claude", "tr", ident)
 
 
+def _content_files(root, ignored):
+    """Arquivos que contam como conteúdo do projeto, em ordem estável.
+
+    Num repositório Git, os versionados e os novos que o `.gitignore` não exclui: o que build e testes geram
+    (`*.tsbuildinfo`, `next-env.d.ts`, relatórios) não muda o conteúdo, senão rodar um portão invalidaria o
+    carimbo do outro. Fora do Git, a árvore inteira. Nos dois casos ficam de fora as pastas de `ignored`, a
+    `.codex` da raiz e os worktrees dos executores (`.claude/worktrees/`, outros estados do projeto)."""
+    def kept(rel):
+        parts = rel.split("/")
+        return not (any(p in ignored for p in parts[:-1]) or parts[0] == ".codex"
+                    or parts[:2] == [".claude", "worktrees"])
+    try:
+        out = subprocess.run(["git", "ls-files", "-co", "--exclude-standard", "-z"], cwd=root,
+                             capture_output=True, timeout=60)
+        listed = out.stdout.decode("utf-8", "surrogateescape").split("\0") if out.returncode == 0 else None
+    except (OSError, subprocess.SubprocessError):
+        listed = None
+    if listed is not None:
+        return sorted({rel for rel in listed if rel and not rel.endswith("/") and kept(rel)})
+    found = []
+    for folder, dirs, files in os.walk(root):
+        dirs[:] = sorted(d for d in dirs if d not in ignored)
+        found += [os.path.relpath(os.path.join(folder, n), root).replace(os.sep, "/") for n in files]
+    return sorted(rel for rel in found if kept(rel))
+
+
 def head(cwd):
     """SHA do conteúdo atual do projeto, independente de Git."""
     digest = hashlib.sha1()
     ignored = {".git", ".harness-run", "node_modules", ".venv", "dist", "build", "coverage", ".next", ".turbo", ".cache", ".pytest_cache", "__pycache__", "docs"}
     root = os.path.realpath(cwd)
-    for folder, dirs, files in os.walk(root):
-        dirs[:] = sorted(d for d in dirs if d not in ignored and not (folder == root and d == ".codex"))
-        for name in sorted(files):
-            if name.endswith(".md"):
-                continue
-            path = os.path.join(folder, name)
-            if os.path.islink(path):
-                continue
-            rel = os.path.relpath(path, root).replace(os.sep, "/")
-            digest.update(rel.encode() + b"\0")
-            try:
-                with open(path, "rb") as stream:
-                    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-                        digest.update(chunk)
-            except OSError:
-                continue
+    for rel in _content_files(root, ignored):
+        path = os.path.join(root, rel)
+        if rel.endswith(".md") or os.path.islink(path) or not os.path.isfile(path):
+            continue
+        digest.update(rel.encode() + b"\0")
+        try:
+            with open(path, "rb") as stream:
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(chunk)
+        except OSError:
+            continue
     for rel in (".codex/config.toml", ".codex/hooks.json"):
         path = os.path.join(root, rel)
         if os.path.isfile(path) and not os.path.islink(path):

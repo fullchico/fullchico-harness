@@ -1,5 +1,6 @@
 """Tickets independentes carregam só os carimbos que seu trabalho exige."""
 import json
+import time
 import os
 import shlex
 import subprocess
@@ -113,8 +114,13 @@ class TestTaskPassports(unittest.TestCase):
         back.write_text(back.read_text().replace("Status: open", f"Status: done\nDelivery: {back_commit}"))
         commit_all(self.repo, "passports")
         current = ledger.head(str(self.repo))
-        signed = {("a11y", current)}
+        signed = {("a11y", current), ("api", current)}
         with mock.patch.object(ledger, "has", side_effect=lambda root, gate, commit: (gate, commit) in signed):
+            problems, _ = tasks.audit(str(self.repo), registry.load(str(self.repo)))
+            self.assertTrue(problems and all("falta carimbo `quality`" in p for p in problems),
+                            "o portão de comando sempre obrigatório vale a cada ticket integrado")
+            signed.discard(("api", current))
+            signed.add(("quality", current))
             problems, _ = tasks.audit(str(self.repo), registry.load(str(self.repo)))
             self.assertEqual(len(problems), 1)
             self.assertIn("falta carimbo `api`", problems[0])
@@ -126,6 +132,7 @@ class TestTaskPassports(unittest.TestCase):
             self.assertTrue(any("falta carimbo `a11y`" in p for p in stale))
             signed.add(("a11y", ledger.head(str(self.repo))))
             signed.add(("api", ledger.head(str(self.repo))))
+            signed.add(("quality", ledger.head(str(self.repo))))
             self.assertEqual(tasks.audit(str(self.repo), registry.load(str(self.repo)))[0], [])
 
     def test_cycle_blocks_frontier(self):
@@ -215,6 +222,10 @@ class TestTaskPassports(unittest.TestCase):
         self.assertIn("src/a.py", caught["reason"])
         self.assertEqual(bash("t2"), {})
         self.assertEqual(self.post("t2", "ls"), {}, "sem mudança nova, nada a dizer")
+        self._bash("t-sleep", "sleep 1", "tr:orchestrator")
+        (self.repo / "src/b.py").write_text("y = 1\n")
+        self.assertEqual(self.post("t-sleep", "sleep 1"), {},
+                         "o que um executor escreve em paralelo não é culpa de quem só esperou")
         self.assertEqual(bash("t3", "general-purpose"), {})
         (self.repo / "src/a.py").write_text("x = 2\n")
         self.assertEqual(self.post("t3", sneaky), {}, "o executor pode escrever")
@@ -300,6 +311,201 @@ class TestTaskPassports(unittest.TestCase):
             self.assertEqual(gates_cli.merge(str(self.repo), {"code": ["outro"]}), [], "code existente não muda")
         self.assertEqual(registry.load(str(self.repo))["code"], ["apps", "packages"])
 
+    def test_the_orchestrator_runs_executors_in_the_foreground_once_per_ticket(self):
+        ticket = self.ticket("01", "api")
+        commit_all(self.repo, "plan")
+        rel = str(ticket.relative_to(self.repo))
+        job = {"subagent_type": "general-purpose", "prompt": f"Implemente {rel}", "isolation": "worktree"}
+        background = self.hook("Agent", dict(job, run_in_background=True), "tr:orchestrator")
+        self.assertEqual(background.get("permissionDecision"), "deny")
+        self.assertIn("primeiro plano", background["permissionDecisionReason"])
+        self.assertNotEqual(self.hook("Agent", job, "tr:orchestrator").get("permissionDecision"), "deny")
+        twice = self.hook("Agent", job, "tr:orchestrator")
+        self.assertEqual(twice.get("permissionDecision"), "deny", "o mesmo ticket não ganha dois executores")
+        self.assertIn("já tem um executor", twice["permissionDecisionReason"])
+        done = subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/dispatch_done.py")],
+                              input=json.dumps({"tool_name": "Agent", "cwd": str(self.repo), "tool_input": job}),
+                              capture_output=True, text=True, env=dict(os.environ, CLAUDE_PROJECT_DIR=str(self.repo)))
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertNotEqual(self.hook("Agent", job, "tr:orchestrator").get("permissionDecision"), "deny",
+                            "depois que o executor volta, o ticket pode ser disparado de novo")
+
+    def test_status_board_comes_from_hooks(self):
+        first = self.ticket("01", "api")
+        second = self.ticket("02", "api", blockers="01")
+        commit_all(self.repo, "plan")
+        rel1, rel2 = str(first.relative_to(self.repo)), str(second.relative_to(self.repo))
+        dispatched = self.hook("Agent", {"subagent_type": "general-purpose", "prompt": f"Implemente {rel1}",
+                                         "isolation": "worktree"}, "tr:orchestrator")
+        self.assertIn(f"DONE: {rel1}", dispatched["updatedInput"]["prompt"], "o hook pede o aviso de fim ao executor")
+        self.assertIn("ports 3100–3199", dispatched["updatedInput"]["prompt"], "portas próprias pelo número do ticket")
+        self.assertIn("app_t01", dispatched["updatedInput"]["prompt"], "banco próprio pelo número do ticket")
+        beat = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "cwd": str(self.repo), "agent_id": "abc123",
+                "agent_type": "general-purpose", "tool_input": {"command": "ls"}}
+        subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/guard.py")], input=json.dumps(beat),
+                       capture_output=True, text=True, env=dict(os.environ, CLAUDE_PROJECT_DIR=str(self.repo)))
+        status = lambda: subprocess.run([str(ROOT / "plugins/tr/bin/tr-harness"), "status"], cwd=self.repo,
+                                        capture_output=True, text=True).stdout
+        out = status()
+        self.assertIn("01-task.md", out)
+        self.assertIn("em execução", out)
+        self.assertIn("na fila", out)
+        self.assertIn("general-purpose", out, "o subagente ativo aparece com o batimento")
+        import time
+        orch = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "cwd": str(self.repo), "agent_id": "orch01",
+                "agent_type": "tr:orchestrator", "tool_input": {"command": "ls"}}
+        subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/guard.py")], input=json.dumps(orch),
+                       capture_output=True, text=True, env=dict(os.environ, CLAUDE_PROJECT_DIR=str(self.repo)))
+        board = tasks.board(str(self.repo))
+        for agent_id in board["agents"]:
+            board["agents"][agent_id]["last"] = time.time() - 3600  # todos sem atividade há 1 h
+        tasks._save_board(str(self.repo), board)
+        out = status()
+        orchestrator_line = next(line for line in out.splitlines() if "tr:orchestrator" in line)
+        self.assertIn("aguardando 1 executor", orchestrator_line, "esperar o executor não é travamento")
+        executor_line = next(line for line in out.splitlines() if "abc123" in line)
+        self.assertIn("possivelmente parado", executor_line, "o executor sem atividade continua alarmado")
+        stop = {"hook_event_name": "SubagentStop", "cwd": str(self.repo), "agent_id": "abc123",
+                "last_assistant_message": f"Pronto.\nBLOCKED: {rel1} — falta a variável DATABASE_URL"}
+        subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/executor_report.py")], input=json.dumps(stop),
+                       capture_output=True, text=True, env=dict(os.environ, CLAUDE_PROJECT_DIR=str(self.repo)))
+        subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/dispatch_done.py")],
+                       input=json.dumps({"tool_name": "Agent", "cwd": str(self.repo), "tool_input": {"prompt": rel1}}),
+                       capture_output=True, text=True, env=dict(os.environ, CLAUDE_PROJECT_DIR=str(self.repo)))
+        out = status()
+        self.assertIn("bloqueado", out)
+        self.assertIn("DATABASE_URL", out)
+        self.assertNotIn("abc123", out, "o executor que terminou sai da lista de ativos")
+        self.assertIn(rel2.split("/")[-1], out)
+
+    def test_executors_run_in_worktrees_up_to_the_parallel_limit(self):
+        tickets = [self.ticket(f"0{n}", "api") for n in (1, 2, 3)]
+        commit_all(self.repo, "plan")
+        rels = [str(t.relative_to(self.repo)) for t in tickets]
+        shared = self.hook("Agent", {"subagent_type": "general-purpose", "prompt": f"Implemente {rels[0]}"}, "tr:orchestrator")
+        self.assertEqual(shared.get("permissionDecision"), "deny")
+        self.assertIn("worktree", shared["permissionDecisionReason"])
+        reg = json.loads((self.repo / ".claude/harness.json").read_text())
+        (self.repo / ".claude/harness.json").write_text(json.dumps(dict(reg, max_parallel=2)))
+        job = lambda rel: {"subagent_type": "general-purpose", "prompt": f"Implemente {rel}", "isolation": "worktree"}
+        for rel in rels[:2]:
+            self.assertNotEqual(self.hook("Agent", job(rel), "tr:orchestrator").get("permissionDecision"), "deny")
+        third = self.hook("Agent", job(rels[2]), "tr:orchestrator")
+        self.assertEqual(third.get("permissionDecision"), "deny")
+        self.assertIn("max_parallel", third["permissionDecisionReason"])
+        self.assertEqual(registry.load(str(self.repo))["max_parallel"], 2)
+        (self.repo / ".claude/harness.json").write_text(json.dumps(reg))
+        self.assertEqual(registry.load(str(self.repo))["max_parallel"], 3, "padrão: 3")
+
+    def test_the_owner_sets_the_parallel_limit(self):
+        import gates_cli
+        with mock.patch.dict(os.environ, {"CLAUDECODE": ""}):
+            self.assertEqual(gates_cli.main(["--parallel", "3", "--project", str(self.repo)]), 0)
+        self.assertEqual(registry.load(str(self.repo))["max_parallel"], 3)
+        self.assertEqual(self.owner_hook("tr-harness gates --parallel 8")["permissionDecision"], "ask")
+
+    def test_processes_of_other_projects_cannot_be_killed(self):
+        import tempfile
+        outside_dir = tempfile.mkdtemp()
+        outside = subprocess.Popen(["sleep", "30"], cwd=outside_dir)
+        mine = subprocess.Popen(["sleep", "30"], cwd=self.repo)
+        try:
+            other = self.hook("Bash", {"command": f"kill {outside.pid}"}, "general-purpose")
+            self.assertEqual(other.get("permissionDecision"), "deny")
+            self.assertIn("de fora deste projeto", other["permissionDecisionReason"])
+            self.assertEqual(self.hook("Bash", {"command": f"kill {mine.pid}"}, "general-purpose"), {})
+            for command in ("pkill node", "killall node", "lsof -ti:3000 | xargs kill", "kill $(lsof -ti:3000)"):
+                self.assertEqual(self.hook("Bash", {"command": command}, "general-purpose").get("permissionDecision"),
+                                 "deny", command)
+        finally:
+            outside.kill(); mine.kill(); outside.wait(); mine.wait()
+
+    def test_only_containers_of_removed_worktrees_of_this_project_are_orphans(self):
+        gone = str(self.repo.resolve() / ".claude/worktrees/agent-gone")
+        alive = self.repo / ".claude/worktrees/agent-alive"
+        alive.mkdir(parents=True)
+        rows = [{"Names": "gone-db", "Labels": f"com.docker.compose.project.working_dir={gone}"},
+                {"Names": "alive-db", "Labels": f"com.docker.compose.project.working_dir={alive.resolve()}"},
+                {"Names": "other-project-db", "Labels": "com.docker.compose.project.working_dir=/srv/other-project"}]
+        fake = subprocess.CompletedProcess([], 0, stdout="\n".join(json.dumps(r) for r in rows), stderr="")
+        with mock.patch("subprocess.run", return_value=fake):
+            self.assertEqual(tasks.orphan_containers(str(self.repo)), ["gone-db"])
+
+    def test_ignored_build_outputs_do_not_change_the_content(self):
+        (self.repo / ".gitignore").write_text("*.tsbuildinfo\n")
+        (self.repo / "src.py").write_text("x = 1\n")
+        before = ledger.head(str(self.repo))
+        (self.repo / "app.tsbuildinfo").write_text("gerado pelo typecheck")
+        self.assertEqual(ledger.head(str(self.repo)), before, "rodar um portão não invalida o carimbo de outro")
+        (self.repo / "novo.py").write_text("y = 2\n")
+        self.assertNotEqual(ledger.head(str(self.repo)), before, "arquivo novo não ignorado conta")
+
+    def test_done_with_a_prefix_and_a_short_ticket_number_is_recorded(self):
+        ticket = str(self.ticket("02", "api").relative_to(self.repo))
+        tasks.report(str(self.repo), "x", "texto\n\nresult: DONE: 02 — conta e sessão; commit 5d29013.")
+        self.assertEqual(tasks.board(str(self.repo))["tickets"][ticket]["state"], "done")
+
+    def test_a_stamp_that_still_holds_is_not_validated_again(self):
+        self.ticket("01", "api")
+        commit_all(self.repo, "plan")
+        request = {"subagent_type": registry.CHECKER, "description": "gate", "prompt": "gate: quality"}
+        self.assertNotEqual(self.hook("Agent", request, "tr:orchestrator").get("permissionDecision"), "deny",
+                            "sem carimbo, valida")
+        key = registry.stamp_key(str(self.repo), registry.load(str(self.repo))["gates"]["quality"])
+        ledger.sign(str(self.repo), "quality", key, "tr", "t", registry.CHECKER, "ok")
+        again = self.hook("Agent", request, "tr:orchestrator")
+        self.assertEqual(again.get("permissionDecision"), "deny")
+        self.assertIn("validação desnecessária", again["permissionDecisionReason"])
+
+    def test_executor_worktrees_do_not_change_the_main_state(self):
+        (self.repo / "src.py").write_text("x = 1\n")
+        before = ledger.head(str(self.repo))
+        work = self.repo / ".claude/worktrees/agent-x"
+        work.mkdir(parents=True)
+        (work / "novo.py").write_text("y = 2\n")
+        self.assertEqual(ledger.head(str(self.repo)), before, "o trabalho de um executor não invalida os carimbos do principal")
+
+    def test_other_demands_and_old_agents_do_not_count(self):
+        import time
+        ticket = self.ticket("01", "api")
+        tasks._save_in_flight(str(self.repo), {"docs/specs/antiga/issues/01-x.md": time.time(),
+                                               str(ticket.relative_to(self.repo)): time.time()})
+        self.assertEqual(list(tasks._in_flight(str(self.repo))), [str(ticket.relative_to(self.repo))])
+        tasks._save_board(str(self.repo), {"agents": {"velho": {"type": "general-purpose", "last": time.time() - 3 * 3600},
+                                                      "novo": {"type": "general-purpose", "last": time.time()}}})
+        self.assertEqual(list(tasks.board(str(self.repo))["agents"]), ["novo"])
+
+    def test_keep_awake_renews_only_when_needed_and_can_be_turned_off(self):
+        with mock.patch.object(tasks, "_spawn") as popen, mock.patch("shutil.which", return_value="/usr/bin/x"), \
+                mock.patch.dict(os.environ, {"FULLCHICO_KEEP_AWAKE": "1"}):
+            tasks.keep_awake(str(self.repo))
+            tasks.keep_awake(str(self.repo))
+            self.assertEqual(popen.call_count, 1, "dentro da janela não pede de novo")
+            self.assertGreater(tasks.awake_until(str(self.repo)), time.time())
+            os.remove(tasks._awake_path(str(self.repo)))
+            reg = json.loads((self.repo / ".claude/harness.json").read_text())
+            reg["keep_awake"] = False
+            (self.repo / ".claude/harness.json").write_text(json.dumps(reg))
+            tasks.keep_awake(str(self.repo))
+            self.assertEqual(popen.call_count, 1, "desligado no registro")
+
+    def test_reading_git_is_not_writing(self):
+        import guard
+        self.assertFalse(guard.git_mutates("git cat-file -t a6d; git log -5; git branch -a | head; git worktree list"))
+        for command in ("git worktree add x", "git branch -D x", "git tag v1", "git -C /x commit -m a"):
+            self.assertTrue(guard.git_mutates(command), command)
+
+    def test_a_new_session_releases_tickets_nobody_is_running(self):
+        import time
+        ticket = str(self.ticket("01", "api").relative_to(self.repo))
+        tasks._save_in_flight(str(self.repo), {ticket: time.time()})
+        tasks._save_board(str(self.repo), {"agents": {"vivo": {"type": "general-purpose", "last": time.time()}}})
+        self.assertEqual(tasks.release_if_idle(str(self.repo)), [], "alguém ainda trabalha: não libera")
+        tasks._save_board(str(self.repo), {"agents": {"morto": {"type": "general-purpose", "last": time.time() - 900}}})
+        self.assertEqual(tasks.release_if_idle(str(self.repo)), [ticket])
+        self.assertEqual(tasks._in_flight(str(self.repo)), {})
+        self.assertEqual(tasks.board(str(self.repo))["agents"], {}, "agentes da sessão que caiu saem do quadro")
+
     def test_session_start_points_to_the_flow(self):
         import flow_context
         root = str(self.repo)
@@ -318,8 +524,8 @@ class TestTaskPassports(unittest.TestCase):
         self.assertEqual(loose.get("permissionDecision"), "deny")
         self.assertIn("caminho do ticket", loose["permissionDecisionReason"])
         rel = str(ticket.relative_to(self.repo))
-        self.assertNotEqual(self.hook("Agent", {"subagent_type": "general-purpose", "prompt": f"Implemente {rel}"},
-                                      "tr:orchestrator").get("permissionDecision"), "deny")
+        self.assertNotEqual(self.hook("Agent", {"subagent_type": "general-purpose", "prompt": f"Implemente {rel}",
+                                       "isolation": "worktree"}, "tr:orchestrator").get("permissionDecision"), "deny")
         self.assertEqual(self.hook("Agent", {"subagent_type": "Explore", "prompt": "Ache a soma"}, "tr:orchestrator"), {})
         self.assertEqual(self.hook("Agent", {"subagent_type": "general-purpose", "prompt": "Pesquise"}), {},
                          "a sessão principal ainda explora sem ticket")

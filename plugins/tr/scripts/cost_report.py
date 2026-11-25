@@ -79,10 +79,52 @@ def window_start(root, since):
         if not t:
             raise SystemExit(f"custo: `{since}` não é data (AAAA-MM-DD[THH:MM]) nem commit deste repositório.")
         return t, base_t
+    roots = (registry._git(root, "rev-list", "--max-parents=0", "HEAD") or "").split()
+    if not mb or mb in roots:
+        # Projeto novo: a base é o primeiro commit (em geral, o do plano). A configuração e o planejamento vêm
+        # antes dele; a janela começa na primeira sessão aberta depois de o repositório existir.
+        first_session = oldest_session(root, after=repo_birth(root))
+        if first_session and (not mb or first_session <= commit_time(root, mb)):
+            return first_session, None
     first_items = (registry._git(root, "rev-list", "--reverse", f"{mb}..HEAD") or "").split() if mb else []
     if first_items:
         return commit_time(root, first_items[0]), base_t
-    return None, base_t
+    # Sem commit depois da base (projeto novo, em que o único commit costuma ser o do plano): a janela começa na
+    # sessão mais antiga do projeto e não é cortada na base, senão a configuração e o planejamento somem.
+    return oldest_session(root), None
+
+
+def repo_birth(root):
+    """Quando o repositório foi criado (a pasta `.git`); None se não der para saber."""
+    git_dir = os.path.join(root, ".git")
+    try:
+        info = os.stat(git_dir)
+    except OSError:
+        return None
+    stamp = getattr(info, "st_birthtime", None) or info.st_ctime
+    return datetime.datetime.fromtimestamp(stamp, datetime.timezone.utc)
+
+
+def oldest_session(root, after=None):
+    """O primeiro registro com horário entre as transcrições do projeto (abertas depois de `after`), ou None."""
+    found = []
+    for folder in folders(root):
+        if not os.path.isdir(folder):
+            continue
+        for name in os.listdir(folder):
+            if not name.endswith(".jsonl"):
+                continue
+            with open(os.path.join(folder, name), encoding="utf-8", errors="replace") as stream:
+                for line in stream:
+                    try:
+                        stamp = parse_ts(json.loads(line).get("timestamp"))
+                    except ValueError:
+                        continue
+                    if stamp:
+                        if not after or stamp >= after:
+                            found.append(stamp)
+                        break
+    return min(found) if found else None
 
 
 def folders(root):
