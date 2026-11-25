@@ -249,6 +249,13 @@ def main():
     try:
         reg = registry.load(root)
     except registry.RegistryError as e:
+        command = (ti.get("command") or "").strip() if tool == "Bash" else ""
+        if tool == "Bash" and re.fullmatch(r"cat[ \t]+[\w./-]+", command):
+            return 0  # permite ler o registro quebrado para diagnosticá-lo
+        if tool in EDICAO or tool in ("Bash", "Agent", "Task"):
+            return deny(root, "registro inválido", quadro("trilho indisponível", [
+                ("motivo", str(e)),
+            ], ["  → corrija `.claude/trilho.json` no terminal do dono antes de continuar"]))
         return 0
     if not reg:
         return 0
@@ -296,6 +303,7 @@ def main():
 if __name__ == "__main__":
     try:
         code = main()
-    except Exception:  # sem leitura confiável, não barra por engano
-        code = 0
+    except Exception as error:
+        print(f"gate.py falhou: {error}", file=sys.stderr)
+        code = 1  # onFailure:block impede a escrita se o verificador travar
     sys.exit(code)

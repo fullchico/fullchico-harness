@@ -34,6 +34,13 @@ iniciais Opus/Sol, Sonnet/Luna, Haiku/Terra e Fable/Astra. A configuração regi
 grava um manifesto fora do repositório e passa ao modelo de apoio se a primeira CLI retornar
 erro de limite. O subagente orquestrador usa esse comando para cada ticket liberado pelo grafo
 e devolve as reprovações ao executor antes de avançar.
+O executor aberto via Codex CLI usa `workspace-write` com revisão automática. Se Docker ou
+localhost forem bloqueados, ele deve solicitar elevação para o comando específico ao revisor
+automático antes de declarar bloqueio. A sessão Claude usa a configuração efetiva do projeto;
+o fiscal Codex continua em modo de revisão.
+O `/tr:grill-me` identifica os serviços e comandos necessários, como subir o Compose, acessar
+uma API local ou abrir o navegador. Quando a plataforma exigir permissão, o executor solicita
+liberação para a ação concreta; uma necessidade não prevista não reabre toda a entrevista.
 No Claude Code, `revisao claude:<modelo>` também define o modelo padrão dos fiscais. Para um
 portão de agente específico, use `portao:<nome> claude:<modelo>` ou `portao:<nome> codex:<modelo>`, por exemplo
 `npx @fullchico/harness modelos configurar revisao claude:sonnet portao:seguranca codex:sol

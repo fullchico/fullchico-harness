@@ -186,6 +186,11 @@ def _invoke(root, role, choice, prompt, folder, number, agent=None):
             # A nova CLI é uma sessão independente, não uma tentativa de aninhar a sessão atual.
             environment.pop("CLAUDECODE", None)
             environment.pop("CLAUDE_CODE_ENTRYPOINT", None)
+        if cli == "codex" and role != "revisao":
+            prompt = ("Se Docker, localhost ou outro recurso for bloqueado pelo sandbox, "
+                      "solicite a elevação específica desse comando ao revisor automático. "
+                      "Tente um caminho permitido antes de declarar bloqueio; não altere "
+                      "configurações de segurança do projeto.\n\n" + prompt)
         result = subprocess.run(command, cwd=root, input=prompt, capture_output=True,
                                 text=True, timeout=3600, env=environment)
         status, stdout, stderr = result.returncode, result.stdout, result.stderr

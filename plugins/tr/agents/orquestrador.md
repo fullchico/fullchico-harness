@@ -41,7 +41,11 @@ Use confiança baseada em evidência: decisão explícita no plano ou padrão ex
 direto; escolha técnica incerta mas reversível pede uma verificação extra ou fiscal independente,
 não uma pergunta ao dono. Não confunda dúvida técnica com mudança de objetivo.
 Se um fiscal reprovar, corrija e revalide sem devolver a decisão ao dono. Se uma ferramenta ou
-o modo automático negar uma ação, tente um caminho permitido; não desligue hooks nem contorne
+o modo automático negar uma ação, peça elevação para o comando específico quando o serviço
+e seu propósito estiverem previstos no plano (por exemplo, subir o Compose ou testar uma API
+local). Se o serviço não estiver previsto, apresente ao dono a ação concreta e o motivo da
+liberação. Tente também um
+caminho permitido; não desligue hooks nem contorne
 portões. Se houver uma decisão que muda o escopo aprovado, uma ação irreversível ainda não
 autorizada ou um bloqueio sem alternativa permitida depois de investigar e tentar a correção,
 comunique à sessão principal o contexto, o que tentou, a opção recomendada e o efeito de parar.

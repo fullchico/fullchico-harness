@@ -22,6 +22,13 @@ Para os portões finais escolhidos como critérios de aprovação, confirme `apr
 (padrão) ou `humana`, e o limite `tentativas` de reprovações automáticas (padrão 3;
 configurável por portão). A quarta reprovação com limite padrão pede intervenção humana.
 Deixe critérios, evidências e correções esperadas tão claros quanto a entrevista permitir.
+Identifique na entrevista os serviços e comandos necessários para executar e validar:
+por exemplo, qual Compose subir, quais serviços em localhost testar, qual navegador ou
+Playwright usar, quais destinos de rede acessar e se haverá escrita fora do projeto.
+Registre no plano o propósito dessas ações e o que continua fora do escopo. O plano não
+desliga o sandbox nem concede acesso automaticamente: quando a plataforma pedir permissão,
+o executor solicita liberação para a ação concreta. Se uma necessidade surgir depois,
+peça liberação só para ela, sem reabrir todo o planejamento.
 
 Para cada portão proposto, mostre a evidência, o momento (`inicio` ou `fim`), o modo de
 assinatura (`comando`, `artefato` ou `agente`) e o comando, caminho ou agente exato.
