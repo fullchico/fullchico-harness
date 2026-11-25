@@ -139,7 +139,11 @@ def audit(root, reg):
             continue
         import registry
         missing_stamp = []
-        for gate in gates:
+        # Além dos portões do ticket, os de comando sempre obrigatórios (typecheck, lint, test, build) valem a
+        # cada integração: são baratos e apontam o ticket que quebrou. Os de agente (caros) ficam para o fim.
+        cheap = [n for n, g in reg["gates"].items()
+                 if g["stage"] == "end" and g["signs"] == "command" and g.get("always", True) and n not in gates]
+        for gate in gates + cheap:
             if gate in reg["gates"] and reg["gates"][gate]["stage"] == "end" and not registry.satisfied(root, gate, reg):
                 problems.append(f"{path}: falta carimbo `{gate}` no estado atual do projeto")
                 missing_stamp.append(gate)
@@ -189,6 +193,233 @@ def registry_satisfied(root, name, reg, ticket=None):
 
 
 READ_ONLY_AGENTS = {"Explore", "Plan", "claude-code-guide"}
+IN_FLIGHT_TTL = 4 * 3600  # um executor que não voltou em 4 h não segura mais o ticket
+
+
+def _in_flight_path(root):
+    import ledger
+    return os.path.join(ledger.state_dir(root), "in-flight.json")
+
+
+def _in_flight(root):
+    import json, time
+    try:
+        with open(_in_flight_path(root), encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    now = time.time()
+    current = tickets(root)  # um ticket de outra demanda (ou rodada) não ocupa vaga
+    return {k: v for k, v in data.items() if isinstance(v, (int, float)) and now - v < IN_FLIGHT_TTL and k in current}
+
+
+def _save_in_flight(root, data):
+    import json
+    os.makedirs(os.path.dirname(_in_flight_path(root)), exist_ok=True)
+    with open(_in_flight_path(root), "w", encoding="utf-8") as f:
+        json.dump(data, f)
+
+
+STALE_AFTER = 600  # segundos sem nenhuma ferramenta: o subagente aparece como possivelmente parado
+# Aceita um prefixo curto que os agentes costumam pôr (`result: DONE: …`, `**DONE:** …`).
+REPORT_LINE = re.compile(r"(?m)^\s*(?:[*_`>]+\s*|\w+:\s*)?(DONE|BLOCKED):[*_`]*\s*(\S+)\s*(?:[—-]+\s*)?(.*)$")
+EXECUTOR_PROTOCOL = ("\n\nYou work in your own git worktree: commit your changes on its branch before finishing. "
+                     "End your final message with exactly one line: `DONE: {ticket} — <one-sentence summary>` "
+                     "when the ticket is finished, or `BLOCKED: {ticket} — <reason>` when you cannot finish it.")
+
+
+def _board_path(root):
+    import ledger
+    return os.path.join(ledger.state_dir(root), "board.json")
+
+
+BOARD_AGENT_TTL = 2 * 3600  # subagente sem atividade há mais que isso já acabou (sessão encerrada)
+
+
+def board(root):
+    import json, time
+    try:
+        with open(_board_path(root), encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    now = time.time()
+    agents = data.get("agents") or {}
+    data["agents"] = {k: v for k, v in agents.items() if now - v.get("last", 0) < BOARD_AGENT_TTL}
+    return data
+
+
+def _save_board(root, data):
+    import json
+    os.makedirs(os.path.dirname(_board_path(root)), exist_ok=True)
+    with open(_board_path(root), "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
+
+
+def beat(root, agent_id, agent_type):
+    """Batimento: o subagente acabou de usar uma ferramenta."""
+    import time
+    data = board(root)
+    data.setdefault("agents", {})[agent_id] = {"type": agent_type, "last": time.time()}
+    _save_board(root, data)
+    keep_awake(root)
+
+
+AWAKE_FOR = 30 * 60   # cada pedido mantém a máquina acordada por 30 min
+AWAKE_RENEW = 10 * 60  # renovado no batimento depois de 10 min; sem atividade, solta sozinho
+
+
+def _awake_path(root):
+    import ledger
+    return os.path.join(ledger.state_dir(root), "awake.json")
+
+
+def awake_until(root):
+    import json
+    try:
+        with open(_awake_path(root), encoding="utf-8") as f:
+            return float(json.load(f).get("until", 0))
+    except (OSError, ValueError, AttributeError):
+        return 0.0
+
+
+def _spawn(command):
+    import subprocess
+    subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                     start_new_session=True)
+
+
+def keep_awake(root):
+    """Cafeína: enquanto há subagente trabalhando, a máquina não dorme por ociosidade (tela pode apagar).
+
+    Cada batimento renova um pedido de 30 min ao sistema (`caffeinate` no macOS, `systemd-inhibit` no Linux);
+    quando a entrega para, o último pedido expira e a máquina volta ao normal. Desliga com `"keep_awake": false`
+    em `.claude/harness.json`. Limite: com a tampa fechada na bateria, o macOS dorme mesmo assim."""
+    import json, shutil, sys, time
+    if os.environ.get("FULLCHICO_KEEP_AWAKE") == "0":
+        return
+    try:
+        with open(os.path.join(root, ".claude", "harness.json"), encoding="utf-8") as f:
+            if json.load(f).get("keep_awake") is False:
+                return
+    except (OSError, ValueError, AttributeError):
+        pass
+    now = time.time()
+    if awake_until(root) - now > AWAKE_FOR - AWAKE_RENEW:
+        return
+    if sys.platform == "darwin" and shutil.which("caffeinate"):
+        command = ["caffeinate", "-i", "-s", "-t", str(AWAKE_FOR)]
+    elif sys.platform.startswith("linux") and shutil.which("systemd-inhibit"):
+        command = ["systemd-inhibit", "--what=idle:sleep", "--who=fullchico-harness", "--why=entrega em andamento",
+                   "sleep", str(AWAKE_FOR)]
+    else:
+        return
+    try:
+        _spawn(command)
+    except OSError:
+        return
+    path = _awake_path(root)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"until": now + AWAKE_FOR}, f)
+
+
+def report(root, agent_id, message):
+    """Fim do subagente: grava `DONE:`/`BLOCKED:` do ticket e tira o subagente da lista de ativos."""
+    import time
+    data = board(root)
+    data.get("agents", {}).pop(agent_id, None)
+    known = tickets(root)
+    for kind, ref, note in REPORT_LINE.findall(message or ""):
+        number = ref.strip("`*#").split("-", 1)[0]
+        rel = next((p for p in known if p == ref or p.endswith(ref) or ref.endswith(p)
+                    or (number.isdigit() and os.path.basename(p).split("-", 1)[0] == number)), None)
+        if rel:
+            data.setdefault("tickets", {})[rel] = {"state": kind.lower(), "at": time.time(), "note": note.strip()[:200]}
+    _save_board(root, data)
+
+
+def executor_env(ticket):
+    """Portas e banco do executor, derivados do número do ticket: executores em paralelo (e outros projetos da
+    máquina) não disputam a mesma porta nem o mesmo banco. Ticket 07 → portas 3700–3799, banco `app_t07`."""
+    number = os.path.basename(ticket).split("-", 1)[0]
+    slot = int(number) if number.isdigit() else 99
+    base = 3000 + 100 * slot
+    return (f"\n\nYour environment for this ticket: use only ports {base}–{base + 99} (web on {base}, API on "
+            f"{base + 1}, test servers inside that range) and the database `app_t{slot:02d}` on the project's "
+            f"database server (create it if missing). Read them from environment variables (PORT, API_PORT, "
+            f"DATABASE_URL), never hard-code them, and never reuse a server already listening on another port: "
+            f"it may belong to another executor or another project. Never stop a process you did not start (the tr hook "
+            f"refuses killing processes from outside this project). Before finishing, stop every server you started "
+            f"and run `docker compose down` for any compose project you brought up in your worktree.")
+
+
+def orphan_containers(root):
+    """Contêineres de compose cujo diretório é um worktree deste projeto que já não existe.
+
+    Só lê (`docker ps`), e só quando alguém roda `tr-harness status`; quem remove é o dono ou o orquestrador."""
+    import json, subprocess
+    try:
+        out = subprocess.run(["docker", "ps", "-a", "--format", "{{json .}}"], capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+    prefix = os.path.join(os.path.realpath(root), ".claude", "worktrees") + os.sep
+    found = []
+    for line in out.stdout.splitlines():
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        labels = dict(item.split("=", 1) for item in (row.get("Labels") or "").split(",") if "=" in item)
+        folder = labels.get("com.docker.compose.project.working_dir", "")
+        if folder.startswith(prefix) and not os.path.isdir(folder):
+            found.append(row.get("Names") or row.get("ID"))
+    return found
+
+
+def ticket_refs(root, prompt):
+    return [path for path in tickets(root) if path in (prompt or "")]
+
+
+def start_executor(root, prompt):
+    """Marca os tickets do pedido como em execução. Devolve o primeiro que já tinha executor, ou None."""
+    import time
+    data = _in_flight(root)
+    refs = ticket_refs(root, prompt)
+    busy = next((ref for ref in refs if ref in data), None)
+    if busy:
+        return busy
+    for ref in refs:
+        data[ref] = time.time()
+    _save_in_flight(root, data)
+    return None
+
+
+def release_if_idle(root):
+    """Sessão nova depois de uma queda: se nenhum subagente usou ferramenta há `STALE_AFTER`, ninguém está
+    executando; os tickets marcados como em execução são liberados para a retomada. Devolve os liberados."""
+    import time
+    data = _in_flight(root)
+    current = board(root)
+    last = max((a.get("last", 0) for a in (current.get("agents") or {}).values()), default=0)
+    if time.time() - last < STALE_AFTER:
+        return []
+    if current.get("agents"):  # os subagentes da sessão que caiu também saem do quadro
+        current["agents"] = {}
+        _save_board(root, current)
+    if data:
+        _save_in_flight(root, {})
+    return sorted(data)
+
+
+def finish_executor(root, prompt):
+    """O executor voltou: os tickets do pedido dele ficam livres de novo."""
+    data = _in_flight(root)
+    for ref in ticket_refs(root, prompt):
+        data.pop(ref, None)
+    _save_in_flight(root, data)
 
 
 def dispatch_problem(root, reg, prompt, caller=None, kind=None):

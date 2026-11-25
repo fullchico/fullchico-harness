@@ -20,6 +20,7 @@ STAGES = ("start", "middle", "end")
 MODES = ("command", "artifact", "agent")
 TO_DEFINE = "@define"  # comando ainda sem dono: o portão barra até o dono definir
 ORCHESTRATORS = {"tr:orchestrator", "tr-orchestrator", "orchestrator"}
+MAX_PARALLEL = 3  # executores simultâneos quando o registro não define `max_parallel`
 CHECKER = "tr:quality-checker"  # quem valida os portões de comando, um disparo por portão
 # O invoker de cada validador do tr (`/tr:<portão>-<ação>`), para a mensagem apontar o caminho.
 INVOKERS = {CHECKER: "/tr:quality-check", "tr:bug-hunter": "/tr:bugs-hunt", "tr:scope-checker": "/tr:scope-check"}
@@ -36,9 +37,13 @@ def owner_command(root, args):
     import shlex
     try:
         with open(os.path.join(root, ".claude", "settings.json"), encoding="utf-8") as f:
-            ref = (json.load(f).get("extraKnownMarketplaces") or {}).get("fullchico", {}).get("source", {}).get("ref", "")
+            source = (json.load(f).get("extraKnownMarketplaces") or {}).get("fullchico", {}).get("source", {})
     except (OSError, ValueError, AttributeError):
-        ref = ""
+        source = {}
+    ref = source.get("ref", "") if isinstance(source, dict) else ""
+    if isinstance(source, dict) and source.get("source") == "directory" and source.get("path"):
+        text = args if isinstance(args, str) else shlex.join(args)
+        return f"node {shlex.quote(os.path.join(source['path'], 'bin', 'harness.js'))} {text}".rstrip()
     spec = "@fullchico/harness" + ("@" + ref[1:] if isinstance(ref, str) and ref.startswith("v") else "")
     text = args if isinstance(args, str) else shlex.join(args)
     return f"npx {spec} {text}".rstrip()
@@ -148,7 +153,14 @@ def load(root):
     models = data.get("models") or {}
     if not isinstance(models, dict):
         raise RegistryError("`models` em .claude/harness.json deve ser um objeto.")
-    return {"code": code, "gates": gates, "base_ref": base_ref, "models": models}
+    max_parallel = data.get("max_parallel", MAX_PARALLEL)
+    if type(max_parallel) is not int or max_parallel < 1:
+        raise RegistryError("`max_parallel` em .claude/harness.json deve ser um inteiro a partir de 1.")
+    keep_awake = data.get("keep_awake", True)
+    if type(keep_awake) is not bool:
+        raise RegistryError("`keep_awake` em .claude/harness.json deve ser true ou false.")
+    return {"code": code, "gates": gates, "base_ref": base_ref, "models": models, "max_parallel": max_parallel,
+            "keep_awake": keep_awake}
 
 
 def has_gates(root):

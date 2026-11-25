@@ -55,6 +55,19 @@ O harness exige veredito, hash do estado examinado e processo bem sucedido antes
 Se o modelo do portão for Codex, o hook impede que um Agent Claude assine no lugar dele.
 As execuções e seus manifestos ficam fora do repositório.
 
+## Execução em paralelo
+
+O orquestrador despacha a fronteira de tickets em ondas, cada executor no próprio worktree, com portas e
+banco próprios (derivados do número do ticket). O hook garante o resto:
+
+- **até `max_parallel` executores ao mesmo tempo** (3 por padrão; cada um sobe servidores, banco e navegador);
+- **cada integração carimba os portões baratos** (`typecheck`, `lint`, `test`, `build`), então uma quebra
+  aponta o ticket que a causou; os revisores por agente rodam uma vez, no fim;
+- **a máquina não dorme** enquanto há subagente trabalhando (`caffeinate` no macOS, `systemd-inhibit` no
+  Linux); o pedido expira sozinho quando a entrega para. Desligue com `"keep_awake": false`;
+- **retomada depois de queda**: a sessão nova libera os tickets presos e retoma pelo quadro;
+- `tr-harness status` mostra tickets, executores ativos, contêineres esquecidos e até quando a máquina fica acordada.
+
 ## Exemplo: dois trilhos, uma entrega
 
 ![Duas locomotivas puxam vagões independentes até a conferência do passaporte](site/img/locomotivas-cartoon.png)

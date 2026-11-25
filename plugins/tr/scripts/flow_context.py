@@ -15,7 +15,7 @@ import tasks  # noqa: E402
 RULE = ("Other skills (brainstorming, TDD, review) are tools inside this flow, not a replacement for it.")
 
 
-def context(root):
+def context(root, source=None):
     try:
         reg = registry.load(root)
     except registry.RegistryError as error:
@@ -25,6 +25,13 @@ def context(root):
                 "planning or writing any code, run /tr:configure (diagnosis, grilling interview (Matt Pocock), proposed gates "
                 "that the owner writes in the terminal). Code writes are blocked until then. " + RULE)
     open_tickets = tasks.open_tickets(root)
+    released = tasks.release_if_idle(root) if source in ("startup", "resume") else []
+    if open_tickets and released:
+        names = ", ".join(os.path.basename(r) for r in released)
+        return (f"FullChico harness: the delivery stopped mid-way ({len(open_tickets)} open tickets; nothing has run for "
+                f"10 min, so {names} were released). Resume it: dispatch the tr:orchestrator in the background to "
+                "continue from the board (`tr-harness status`). Leftover worktrees in `.claude/worktrees/` whose branch "
+                "has commits are integrated; the rest are discarded and their tickets rerun. " + RULE)
     if open_tickets:
         return (f"FullChico harness: a demand is in progress ({len(open_tickets)} open tickets). The main session "
                 "plans and talks to the owner; the tr:orchestrator and its executors write the code. Check the "
@@ -38,7 +45,7 @@ def main():
     payload = json.load(sys.stdin)
     cwd = payload.get("cwd") if isinstance(payload, dict) else None
     root = registry.toplevel(cwd or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
-    print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": context(root)}},
+    print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": context(root, payload.get("source"))}},
                      ensure_ascii=False))
 
 

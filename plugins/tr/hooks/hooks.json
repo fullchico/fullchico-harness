@@ -76,6 +76,16 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I \"${CLAUDE_PLUGIN_ROOT}/scripts/dispatch_done.py\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "Stop": [
@@ -101,6 +111,11 @@
             "type": "command",
             "command": "python3 -I \"${CLAUDE_PLUGIN_ROOT}/scripts/orchestrator_stop.py\"",
             "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "python3 -I \"${CLAUDE_PLUGIN_ROOT}/scripts/executor_report.py\"",
+            "timeout": 10
           }
         ]
       }

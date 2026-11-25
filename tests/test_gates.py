@@ -540,6 +540,24 @@ class TestGatesCli(Case):
         self.assertEqual(gates["seo"]["command"], "pnpm gate:seo")
         self.assertEqual(gates["quality"]["command"], "true", "o que já existe não muda")
 
+    def test_register_accepts_a_whole_registry_and_refuses_an_invalid_one(self):
+        self.registry({"quality": QUALITY})
+        draft = self.home / "inteiro.json"
+        draft.write_text(json.dumps({"code": ["apps"], "gates": {"seo": {"stage": "end", "signs": "command",
+                                                                         "command": "pnpm gate:seo"}}}))
+        out = self.cli("--register", str(draft), "--project", str(self.repo))
+        self.assertEqual(out.returncode, 0, out.stderr)
+        data = json.loads((self.repo / ".claude/harness.json").read_text())
+        self.assertIn("seo", data["gates"])
+        self.assertNotIn("gates", data["gates"])
+        self.assertEqual(data["code"], ["apps"])
+        before = (self.repo / ".claude/harness.json").read_text()
+        draft.write_text(json.dumps({"ruim": {"stage": "meio-dia"}}))
+        out = self.cli("--register", str(draft), "--project", str(self.repo))
+        self.assertEqual(out.returncode, 2)
+        self.assertIn("nada foi gravado", out.stderr)
+        self.assertEqual((self.repo / ".claude/harness.json").read_text(), before)
+
     def test_without_permission_nothing_is_written_and_the_owner_is_told(self):
         # na sessão com sandbox o registro é protegido: o CLI para antes, sem deixar nada pela metade
         r = self.project()

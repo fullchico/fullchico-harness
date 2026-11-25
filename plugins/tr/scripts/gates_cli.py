@@ -96,7 +96,7 @@ def merge(project, entries_in):
     return list(new_items) + (["code"] if new_code else [])
 
 
-USAGE_TEXT = ('uso: fullchico-harness gates [--analyze] [--write] [--default] [--approve <portão>] [--set <portão> "<comando>"] '
+USAGE_TEXT = ('uso: fullchico-harness gates [--analyze] [--write] [--default] [--approve <portão>] [--parallel <n>] [--set <portão> "<comando>"] '
        "[--register <esboço.json>] [--project <pasta>]")
 
 
@@ -253,7 +253,7 @@ OWNER_COMMAND = [""]  # o comando desta execução, como o hook o aprovou
 
 def main(argv):
     OWNER_COMMAND[0] = registry.owner_canonical(["gates", *argv])
-    project, flags, i, setting, register, approving = ".", set(), 0, None, None, None
+    project, flags, i, setting, register, approving, parallel = ".", set(), 0, None, None, None, None
     while i < len(argv):
         if argv[i] == "--project":
             i += 1
@@ -267,6 +267,9 @@ def main(argv):
         elif argv[i] == "--approve" and i + 1 < len(argv):
             i += 1
             approving = argv[i]
+        elif argv[i] == "--parallel" and i + 1 < len(argv) and argv[i + 1].isdigit() and int(argv[i + 1]) >= 1:
+            i += 1
+            parallel = int(argv[i])
         elif argv[i] in ("--analyze", "--write", "--default"):
             flags.add(argv[i])
         else:
@@ -276,11 +279,27 @@ def main(argv):
     try:
         if approving:
             return approve(os.path.abspath(project), approving)
+        if parallel:
+            return set_parallel(os.path.abspath(project), parallel)
         return execute(os.path.abspath(project), flags, setting, register)
     except NoPermission as e:
         print(e, file=sys.stderr)
         print(f"No seu terminal: {registry.owner_command(os.path.abspath(project), ['gates', *argv])}", file=sys.stderr)
         return 1
+
+
+def set_parallel(project, value):
+    """Quantos executores rodam ao mesmo tempo. É do dono."""
+    path = os.path.join(project, ".claude", "harness.json")
+    data = read_json(path)
+    if not isinstance(data.get("gates"), dict):
+        print("o projeto ainda não tem registro de portões; rode /tr:configure.", file=sys.stderr)
+        return 2
+    check_writable(project)
+    data["max_parallel"] = value
+    write_json(path, data)
+    print(f"executores simultâneos: até {value}")
+    return 0
 
 
 def default_registry(project):
@@ -298,7 +317,22 @@ def execute(project, flags, setting, register):
         if not draft_file:
             print(f"esboço vazio ou inválido: {register}", file=sys.stderr)
             return 2
-        for gate_name in merge(project, draft_file):
+        if isinstance(draft_file.get("gates"), dict):  # esboço no formato do registro inteiro
+            draft_file = {**draft_file["gates"], **({"code": draft_file["code"]} if "code" in draft_file else {})}
+        target = os.path.join(project, ".claude", "harness.json")
+        before = open(target, encoding="utf-8").read() if os.path.isfile(target) else None
+        names = merge(project, draft_file)
+        try:
+            registry.load(project)
+        except registry.RegistryError as error:  # nada inválido fica gravado
+            if before is None:
+                os.remove(target)
+            else:
+                with open(target, "w", encoding="utf-8") as stream:
+                    stream.write(before)
+            print(f"esboço recusado, nada foi gravado: {error}", file=sys.stderr)
+            return 2
+        for gate_name in names:
             if gate_name == "code":
                 print(f"pastas de código registradas: {', '.join(draft_file['code'])}")
                 continue

@@ -238,6 +238,15 @@ class TestInstall(unittest.TestCase):
         ref = json.loads(settings.read_text())["extraKnownMarketplaces"]["fullchico"]["source"]["ref"]
         self.assertEqual(ref, f"v{version}")
 
+    def test_a_local_source_is_installed_before_publishing(self):
+        env = dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}", FULLCHICO_HARNESS_SOURCE=str(ROOT))
+        r = subprocess.run([shutil.which("node"), str(ROOT / "bin/harness.js"), "install", str(self.repo)],
+                           capture_output=True, text=True, env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        source = json.loads((self.repo / ".claude/settings.json").read_text())["extraKnownMarketplaces"]["fullchico"]["source"]
+        self.assertEqual(source, {"source": "directory", "path": str(ROOT)})
+        self.assertIn(f"plugin marketplace add {ROOT}", self.calls())
+
     def legacy_settings(self):
         settings = self.repo / ".claude/settings.json"
         settings.parent.mkdir(exist_ok=True)

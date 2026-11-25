@@ -13,6 +13,7 @@ import guard
 import sign
 import orchestrator_stop
 import write_watch
+import executor_report
 
 AGENTS = {"tr-quality-checker": "tr:quality-checker",
           "tr-bug-hunter": "tr:bug-hunter",
@@ -113,6 +114,7 @@ def main():
         if result:
             print(json.dumps(result, ensure_ascii=False))
         elif event == "SubagentStop":
+            invoke(executor_report, data)
             continuation = invoke(orchestrator_stop, data)
             print(json.dumps(continuation or {}, ensure_ascii=False))
 

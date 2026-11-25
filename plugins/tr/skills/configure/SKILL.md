@@ -45,12 +45,16 @@ a gate.
 ## 3. Interview with Matt Pocock's flow
 
 Invoke `mattpocock-skills:grilling` with the Skill tool. Invoke it; do not reproduce its format from memory.
-Show first what the doctors and the project revealed. Follow its flow: one question at a time, each with
-your recommended answer, until the owner confirms the design. The interview defines:
+Show first what the doctors and the project revealed. Follow its flow: rounds over the frontier of decisions,
+each question with your recommended answer, until the frontier is empty and the owner confirms the design. The interview defines:
 
 - which **entry** gates prevent starting code: spec, spec validation, architecture
   review, the domain glossary (`domain` gate, checks `GLOSSARY.md`), approval or another
   verifiable artifact/command/agent;
+- how many **executors run at once** (`max_parallel`, 3 by default; each executor runs its own servers, database and browser, so more than 3 can exhaust a 16 GB machine): fewer on a modest machine, more when
+  the executors are external Codex runs. To change it, run `tr-harness gates --parallel <n>` (owner approval).
+- the machine stays awake while subagents work (`keep_awake`, on by default; the screen may still turn off). Mention it;
+  only an owner who wants it off sets `"keep_awake": false`.
 - the **environment profile**: `fluxo` (default, no native sandbox, so the project's Docker works;
   hooks steer the flow but stamps are not tamper-proof) or `isolado` (native sandbox with the
   registry write-protected and only `docker` and `fullchico-harness` outside it). For `isolado`,
@@ -80,11 +84,19 @@ uses `Start: none` and `Gates: api`. Gates without `always: false` remain global
 Do not limit the configuration to the names `process`, `domain`, `quality`, `bugs` and `scope`: they are only
 default proposals. You can create any number of entry and exit gates. A
 doctor warning is an environment improvement; it only becomes a gate if there is a verifiable
-project check and the owner chooses it. With no known command, leave `@define` and
-explain how to define it later.
+project check and the owner chooses it.
+
+**New project (no code yet): register the real commands now, not `@define`.** The stack is decided in this
+interview, so decide the script names too (`pnpm typecheck`, `pnpm test:e2e`...) and register them as the
+gates' commands. They fail until the scaffold ticket creates them, which is expected; `/tr:process-plan` makes
+the scaffold ticket create exactly those scripts. `@define` stops the delivery mid-way waiting for the owner to
+run `gates --set`, so keep it only for a check nobody can name yet, and say how to define it later.
 
 ## How to write it, with the owner's approval
 
+0. **Reviewer agents first.** Create every reviewer agent a gate will use (`.claude/agents/<agent>.md` and,
+   with Codex, `.codex/agents/<agent>.toml`) **before** registering that gate: once the gate is registered, its
+   agent files are protected and only the owner can change them.
 0. **Code paths.** Add a top-level `"code": [...]` to the sketch with the folders that will hold the app's
    code (for a planned monorepo, `apps` and `packages`), even before they exist. Without it, everything
    outside `docs/`, `.claude/`, `.codex/`, `.agents/` and Markdown counts as code, which is too broad.

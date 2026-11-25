@@ -47,10 +47,11 @@ investigation. Gate rejections produce a fix and revalidation inside the loop.
 Invoke `mattpocock-skills:grilling` and `mattpocock-skills:domain-modeling` with the Skill tool (the same
 as Matt's grill-with-docs). Invoke them; do not reproduce their format from memory.
 
-The product interview follows Matt: one question at a time on each decision that changes the domain
-(roles, booking rules, cancellation, subscription, auth...), each with your recommended answer. An owner
-reply like "go with the recommendation" answers only the current question; it does not close the
-interview. The interview ends when no decision that changes what will be built is left.
+The product interview follows `grilling` as it is: rounds over the **frontier** of the design tree
+(every decision whose prerequisites are settled: roles, booking rules, cancellation, subscription, auth...),
+numbered, each with your recommended answer. An owner reply like "go with the recommendation" settles
+**that round** only: recompute the frontier and ask the next round. The interview ends only when the
+frontier is empty and the owner confirms the shared understanding; do not write the spec before that.
 
 `domain-modeling` is mandatory, not optional, and runs during the interview, not after it. If it is not
 installed, write the files yourself in the same format. It must produce or update:
@@ -61,6 +62,10 @@ installed, write the files yourself in the same format. It must produce or updat
 
 The spec's decisions section links to the ADRs instead of holding the decisions. The `domain`
 start gate checks that `GLOSSARY.md` exists, so planning does not pass without it.
+
+**Status is read, not remembered.** Whenever the owner asks how the delivery is going, or the
+orchestrator returns, run `tr-harness status` and answer from it: done, blocked (with the reason), running
+(and any subagent flagged as possibly stopped), ready and queued tickets. Never state progress from memory.
 
 ## 2. Spec with passport
 
@@ -91,6 +96,19 @@ Start: design | none
 Gates: e2e, accessibility | api | none
 Files: apps/web/**, packages/ui/**
 ```
+
+**Environment per executor.** Executors run in parallel worktrees, and other projects may be running on the
+same machine. The first (scaffold) ticket creates the exact scripts the registered command gates run (read them in
+`.claude/harness.json`), so no gate needs the owner in the middle of the delivery. It also makes every server and test read its ports and database from
+environment variables (`PORT`, `API_PORT`, `DATABASE_URL`), with no hard-coded `3000`, and Playwright must not
+reuse a server it did not start. The tr hook gives each executor its own port range and database name.
+
+**Open the frontier.** A ticket is blocked only by tickets whose code it actually uses, not by the order you
+thought of them. Split each feature so independent work can run together (for example the API and the
+screen of a feature once the contract exists; screens that only share the base layout; read-only views
+after the write path). A plan where every ticket blocks the next one runs one executor at a time: avoid it
+unless each step truly consumes the previous one. In the plan you show the owner, list the waves: which
+tickets run together in each one.
 
 `simple`: mechanical and local (text, style, a field, one more test). `complex`: business rule,
 contract, data, concurrency, or more than one layer. When in doubt, `complex`.

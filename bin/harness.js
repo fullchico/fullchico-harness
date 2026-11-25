@@ -11,6 +11,9 @@ const [command, ...originalArgs] = process.argv.slice(2);
 let rest = originalArgs;
 let environment = "both";
 const version = require(path.join(root, "package.json")).version;
+// Teste de uma versão local antes de publicar: o marketplace vem desta pasta, não do GitHub.
+// O registro de marketplace é global por nome; num teste assim, o `fullchico` aponta para a pasta local.
+const LOCAL_SOURCE = process.env.FULLCHICO_HARNESS_SOURCE ? path.resolve(process.env.FULLCHICO_HARNESS_SOURCE) : "";
 const LEGACY = /\.harness\//;
 // Plugins de portão que o tr absorveu na 3.0: o agente mudou de nome junto.
 const ABSORBED = { "bugs@fullchico": true, "qualidade@fullchico": true };
@@ -21,6 +24,7 @@ const usage = "uso: fullchico-harness install [pasta do projeto] [--target claud
   "     fullchico-harness models configure [role cli:model ...] | show | run <role> [--prompt <texto>] [--ticket <caminho>] [--detach] | validate-gate <gate> [--ticket <caminho>] [--prompt <texto>] [--detach] | wait <id> [--timeout <s>] [--project <pasta>]\n" +
   "     fullchico-harness deliver [pasta do projeto]   (valida portões e passaportes na entrega)\n" +
   "     fullchico-harness add <plugin> [<plugin>...] [--project <pasta>]   (tr, memory)\n" +
+  "     fullchico-harness status [pasta do projeto]   (tickets e subagentes da demanda, com quem parou)\n" +
   "     fullchico-harness cost [pasta do projeto] [--since <commit|AAAA-MM-DD[THH:MM]>] [--json]   (o que a entrega custou)\n" +
   "     fullchico-harness --version\n" +
   "  (pelo npx: npx @fullchico/harness <comando>)";
@@ -71,6 +75,9 @@ if (command === "install-codex") {
   process.exit(added);
 } else if (command === "--version"|| command === "-v") {
   console.log(version);
+} else if (command === "status") {
+  // O quadro da demanda, gravado pelos hooks: tickets e subagentes ativos.
+  process.exit(python("plugins/tr/scripts/status.py", [], { cwd: path.resolve(rest[0] || ".") }));
 } else if (command === "cost") {
   // Só lê: transcrições do Claude Code e o livro de carimbos. Não grava nada no projeto.
   process.exit(python("plugins/tr/scripts/cost_report.py", rest));
@@ -246,7 +253,7 @@ async function selectEnvironment(args) {
 // Instala plugins do marketplace do FullChico no escopo do projeto, pelo `claude`. Devolve o status.
 // Os nomes são do marketplace do FullChico; `extras` são [marketplace, repositório, plugin] de outros.
 function addPlugins(names, project, extras = []) {
-  const commands = [["plugin", "marketplace", "add", "FullChico/fullchico-harness"],
+  const commands = [["plugin", "marketplace", "add", LOCAL_SOURCE || "FullChico/fullchico-harness"],
     ["plugin", "marketplace", "update", "fullchico"],
     ...names.flatMap((n) => [["plugin", "install", `${n}@fullchico`, "--scope", "project"],
                             ["plugin", "update", `${n}@fullchico`, "--scope", "project"]])];
@@ -415,8 +422,10 @@ function pinMarketplace(project) {
   data.extraKnownMarketplaces = data.extraKnownMarketplaces || {};
   const current = data.extraKnownMarketplaces.fullchico;
   const ref = `v${version}`;
-  if (current && current.source && current.source.ref === ref) return;
-  data.extraKnownMarketplaces.fullchico = { source: { source: "github", repo: "FullChico/fullchico-harness", ref } };
+  if (!LOCAL_SOURCE && current && current.source && current.source.ref === ref) return;
+  data.extraKnownMarketplaces.fullchico = LOCAL_SOURCE
+    ? { source: { source: "directory", path: LOCAL_SOURCE } }
+    : { source: { source: "github", repo: "FullChico/fullchico-harness", ref } };
   writeSettings(project, data);
 }
 

@@ -42,6 +42,10 @@ def _forget_state(repo) -> None:
         atexit.register(shutil.rmtree, state, True)
 
 
+# Os hooks rodados nos testes não pedem cafeína de verdade ao sistema.
+os.environ["FULLCHICO_KEEP_AWAKE"] = "0"
+
+
 def make_repo(name="proj dir") -> pathlib.Path:
     repo = _tmpdir() / name
     repo.mkdir()
