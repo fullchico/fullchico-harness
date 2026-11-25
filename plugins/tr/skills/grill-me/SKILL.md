@@ -18,10 +18,18 @@ respostas. Formule cada pergunta de modo que “sim” aceite sua recomendação
 Descobrir fatos é trabalho seu: confira arquivos, comandos e diagnósticos antes de
 perguntar. Pergunte ao dono apenas por decisões, por exemplo o nível de rigor no envio,
 quais verificações são obrigatórias e quais são opcionais por tipo de entrega.
+Para os portões finais escolhidos como critérios de aprovação, confirme `aprovacao: auto`
+(padrão) ou `humana`, e o limite `tentativas` de reprovações automáticas (padrão 3;
+configurável por portão). A quarta reprovação com limite padrão pede intervenção humana.
+Deixe critérios, evidências e correções esperadas tão claros quanto a entrevista permitir.
 
 Para cada portão proposto, mostre a evidência, o momento (`inicio` ou `fim`), o modo de
 assinatura (`comando`, `artefato` ou `agente`) e o comando, caminho ou agente exato.
 Se não houver evidência para um comando, não invente: deixe a decisão aberta.
 
-Termine quando não houver decisão pendente. Resuma o acordo e peça ao dono que confirme
-que o entendimento está correto antes de preparar o esboço do registro.
+Termine quando não houver decisão pendente. Resuma o acordo, a recomendação para cada escolha
+e o que o plano autoriza entregar. Peça ao dono uma confirmação final desse entendimento.
+Essa confirmação autoriza a execução do plano recomendado até os portões de fim; não peça
+outra aprovação do mesmo plano antes de implementar. Se houver registro protegido a gravar,
+inclua o comando do terminal como último passo da configuração e confira que foi aplicado.
+Só então anuncie a entrevista encerrada e faça o handoff ao orquestrador.

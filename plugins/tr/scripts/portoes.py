@@ -13,6 +13,10 @@ import json
 import os
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import ledger  # noqa: E402
+import registry  # noqa: E402
+
 PADRAO = {
     "portoes": {
         "processo": {"momento": "inicio", "assina": "artefato", "artefato": "docs/specs/*/spec.md",
@@ -82,7 +86,7 @@ def mesclar(project, entradas):
     return list(novos)
 
 
-USO = ('uso: fullchico-harness portoes [--analisar] [--gravar] [--padrao] [--definir <portão> "<comando>"] '
+USO = ('uso: fullchico-harness portoes [--analisar] [--gravar] [--padrao] [--aprovar <portão>] [--definir <portão> "<comando>"] '
        "[--registrar <esboço.json>] [--projeto <pasta>]")
 
 
@@ -162,6 +166,24 @@ def definir(project, nome, comando):
     return 0
 
 
+def aprovar(project, nome):
+    """Aprovação explícita do dono, vinculada ao mesmo estado que o fiscal validou."""
+    if os.environ.get("CLAUDECODE") == "1" or os.environ.get("CODEX_THREAD_ID"):
+        raise SemPermissao("A aprovação humana deve ser executada pelo dono no terminal, fora da sessão do agente.")
+    reg = registry.load(project)
+    gate = (reg or {}).get("portoes", {}).get(nome)
+    if not gate or gate["momento"] != "fim":
+        print(f"portão final `{nome}` não encontrado.", file=sys.stderr)
+        return 2
+    key = registry.stamped_commit(project, nome, gate)
+    if not key:
+        print(f"portão `{nome}` ainda não passou pela validação técnica.", file=sys.stderr)
+        return 1
+    ledger.sign(project, "aprovacao-" + nome, key, "trilho", "local", "dono", "aprovação humana explícita")
+    print(f"portão `{nome}` aprovado pelo dono no estado {key[:10]}.")
+    return 0
+
+
 def analisar(project):
     """Devolve (registro, [(portão, porquê)])."""
     p = lambda *a: os.path.join(project, *a)  # noqa: E731
@@ -209,7 +231,7 @@ def gravar(project, reg):
 
 
 def main(argv):
-    project, flags, i, definindo, registrar = ".", set(), 0, None, None
+    project, flags, i, definindo, registrar, aprovando = ".", set(), 0, None, None, None
     while i < len(argv):
         if argv[i] == "--projeto":
             i += 1
@@ -220,6 +242,9 @@ def main(argv):
         elif argv[i] == "--registrar" and i + 1 < len(argv):
             i += 1
             registrar = argv[i]
+        elif argv[i] == "--aprovar" and i + 1 < len(argv):
+            i += 1
+            aprovando = argv[i]
         elif argv[i] in ("--analisar", "--gravar", "--padrao"):
             flags.add(argv[i])
         else:
@@ -227,6 +252,8 @@ def main(argv):
             return 2
         i += 1
     try:
+        if aprovando:
+            return aprovar(os.path.abspath(project), aprovando)
         return executar(os.path.abspath(project), flags, definindo, registrar)
     except SemPermissao as e:
         print(e, file=sys.stderr)

@@ -6,7 +6,8 @@ description: Abre e conduz uma demanda até a entrega validada — entrevista o 
 # Planejar e conduzir a demanda
 
 Você é a sessão principal que entrevista, planeja e acompanha o dono (modelo de planejamento).
-Depois da aprovação do plano e dos portões de entrada, dispare `tr:orquestrador` como subagente
+Depois da confirmação final de `/tr:grill-me`, com o registro configurado e os portões de
+entrada carimbados, dispare `tr:orquestrador` como subagente
 em segundo plano (`run_in_background: true` no Agent do Claude). No Codex, use `spawn_agent`
 com `tr-orquestrador` e continue disponível para mensagens do dono. Não conduza cada ticket
 na sessão principal. O orquestrador dispara executores e fiscais como subagentes dele; o hook
@@ -14,14 +15,29 @@ do trilho escolhe o modelo deles pela `Complexidade:` do ticket (`simples` → h
 sonnet). Quem valida são os validadores dos portões, em contexto limpo. O meio é do orquestrador; o começo e o fim
 são barrados por hook até as etapas acontecerem.
 
-Depois que o dono aprovar o planejamento e os portões de entrada passarem, entregue ao orquestrador
-o caminho da spec, os tickets, o resultado dos portões de entrada e as decisões aprovadas. Ele conduz a demanda até a
+A confirmação que fecha a entrevista é a aprovação do planejamento; não abra uma segunda
+rodada de aprovação da spec ou dos tickets quando eles traduzirem as decisões confirmadas.
+Entregue ao orquestrador o caminho da spec, os tickets, o resultado dos portões de entrada,
+as decisões aprovadas e a recomendação escolhida para cada ponto. Ele conduz a demanda até a
 entrega sem pedir confirmação para escolhas rotineiras de implementação. Use a recomendação do plano,
 as convenções do projeto e o resultado dos verificadores. Uma mudança de formatação sem alteração de
 conteúdo, como linhas em branco em `PRODUCT.md`, é uma decisão de engenharia: mantenha-a se for
 inofensiva, ou corrija-a de forma segura, e registre a escolha. Volte ao dono apenas se o pedido
 precisar mudar de escopo, faltar uma decisão que o plano não permite inferir ou houver uma ação
 irreversível ainda não autorizada.
+
+Antes do handoff, confira que a spec registra o destino, critérios de aceite, portões aplicáveis,
+dependências, escolhas recomendadas e o que fica fora. A falta de um detalhe técnico reversível
+não reabre a entrevista: o orquestrador escolhe, implementa e valida. Se uma restrição da CLI
+ou do projeto negar uma ação, tente um caminho permitido para o mesmo objetivo; só interrompa
+por bloqueio real que não tenha alternativa autorizada.
+
+No handoff, diga explicitamente: "entrevista concluída; plano recomendado autorizado; execute
+até `portao entrega` passar; resolva reprovações e decisões técnicas reversíveis sem nova
+aprovação". Essa instrução também vale quando o orquestrador muda de CLI por limite de modelo.
+O limite de intervenção humana fica no plano: só mudança de escopo ou destino, ação externa
+irreversível não autorizada, ou bloqueio técnico/político sem alternativa permitida após
+investigação. Reprovações dos portões geram correção e revalidação dentro do loop.
 
 ## 1. Entrevista
 
@@ -109,8 +125,8 @@ Quando o executor declarar a implementação pronta, o orquestrador roda `portao
 fronteira ainda aberta. Ele dispara os verificadores de `/tr:qualidade-verificar` (um por portão global
 de comando ou artefato) e, para cada portão de agente exigido, o fiscal cadastrado ou
 `fullchico-harness modelos validar-portao <nome>` conforme o modelo configurado.
-Falhou ou reprovou: um implementador corrige e o fiscal
-revalida o que mudou. Por fim, rode `fullchico-harness entregar` ou `portao entrega`.
+Falhou ou reprovou: um implementador corrige e o fiscal revalida o que mudou, sem pedir
+aprovação intermediária ao dono. Por fim, rode `fullchico-harness entregar` ou `portao entrega`.
 O orquestrador reporta o resultado à sessão principal; ela só declara a entrega concluída quando esse comando passar. No início da resposta final escreva
 `ENTREGA: concluída`; o hook Stop confere novamente os carimbos. Respostas intermediárias e perguntas
 não usam essa marca. Git é iniciado pelo instalador; push e PR são ações separadas.

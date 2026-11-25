@@ -178,6 +178,7 @@ def _invoke(root, role, choice, prompt, folder, number, agent=None):
     else:
         command = [executable, "exec", "--model", model, "--json", "-o",
                    os.path.join(folder, f"{number}-last.txt"), "-"]
+        command += ["--approve-for-me"]
         command += ["--sandbox", "read-only" if role == "revisao" else "workspace-write"]
     try:
         environment = dict(os.environ)
@@ -308,6 +309,8 @@ def validar_portao(root, name, ticket=None, pedido=""):
             accepted = False
     elif accepted and verdict == "REJECTED":
         ledger.forget(root, name, key)
+        import attempts
+        attempts.reject(root, name, gate)
     manifest = {"portao": name, "agente": gate["agente"], "snapshot": snapshot,
                 "tentativas": attempts, "veredito": verdict if accepted else None,
                 "carimbado": accepted and verdict == "APPROVED"}

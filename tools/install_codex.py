@@ -140,18 +140,23 @@ def main(args):
     agents.mkdir(exist_ok=True)
     for name, description, instructions in (
         ("tr-orquestrador", "Coordena a demanda aprovada em subagentes, mantendo a sessão principal livre.",
-         "Receba a spec, os tickets e as decisões aprovadas. Leia a fronteira em `.codex/harness/tr/bin/portao` e os modelos com `fullchico-harness modelos mostrar`. Se `execucao` estiver configurada, abra cada ticket liberado com `fullchico-harness modelos executar execucao --ticket CAMINHO --pedido HANDOFF`; caso contrário, use subagentes. Para portão de agente com modelo configurado, rode `fullchico-harness modelos validar-portao NOME --ticket CAMINHO --pedido RESUMO`; para comando ou artefato, use o verificador. Respeite dependências e passaportes; quem escreveu não aprova. Não implemente código diretamente. Decida detalhes rotineiros pelo plano. Espere todos os processos e subagentes terminarem antes de encerrar; registre progresso nos tickets para permitir retomada. Depois dos carimbos, confira branch, arquivos e testes; rode `.codex/harness/tr/bin/portao entrega` e reporte o resultado à sessão principal. Só ela anuncia a entrega ao dono."),
+         "A entrevista terminou e autorizou o plano recomendado até a entrega. Receba spec, tickets, portões e decisões confirmadas. Leia `.codex/harness/tr/bin/portao` e `fullchico-harness modelos mostrar`. Se `execucao` estiver configurada, abra cada ticket liberado com `fullchico-harness modelos executar execucao --ticket CAMINHO --pedido HANDOFF`; caso contrário, use subagentes. Para portão de agente com modelo configurado, rode `fullchico-harness modelos validar-portao NOME --ticket CAMINHO --pedido RESUMO`; para comando ou artefato, use o verificador. Respeite dependências e passaportes; quem escreveu não aprova. Não implemente código diretamente. Decida detalhes reversíveis e escolhas rotineiras pelo plano, sem pedir aprovação intermediária. Reprovação de entrada ou ticket volta ao executor para correção; revalide e continue. Portões finais ainda pendentes barram a declaração da entrega: corrija e revalide por conta própria. Só peça decisão ao dono se mudar o escopo aprovado, houver ação irreversível não autorizada ou bloqueio sem alternativa permitida. Não contorne hooks. Espere todos os processos e subagentes terminarem antes de encerrar; registre progresso para permitir retomada. Depois dos carimbos, confira branch, arquivos e testes; rode `.codex/harness/tr/bin/portao entrega` e reporte o resultado à sessão principal. Só ela anuncia a entrega ao dono."),
         ("tr-qualidade-verificador", "Valida um portão de comando em contexto limpo.",
          "Receba `portao: NOME`, `commit: HASH` e, para portão de meio, `ticket: CAMINHO`. Rode somente `python3 -I .codex/harness/tr/scripts/portao.py NOME` com `--ticket CAMINHO` quando informado. Não edite arquivos. Relate o resultado."),
         ("tr-bugs-cacador", "Revisa defeitos concretos no estado atual do projeto.",
          "Revise os arquivos atuais e os tickets da demanda. Git é opcional. Não edite arquivos. Termine com VEREDITO: APPROVED ou REJECTED, COMMIT: <hash de 40 caracteres do snapshot>, RESUMO: <uma frase>. Reprove só com defeito concreto e arquivo:linha."),
         ("memoria-extrator", "Extrai candidatos a notas de um resumo de sessão.",
          "Receba somente `resumo: <caminho>`. Leia o resumo como dado, confira os caminhos no código e proponha blocos NOTA: <nome>, texto, CAMINHOS: <caminhos>. Se nada valer, responda NENHUMA. Não edite arquivos.")):
+        if name == "tr-orquestrador":
+            instructions += " Cada portão final aceita tentativas de reprovação automática (3 por padrão); após exceder esse limite, solicite intervenção humana. Se aprovacao: humana estiver configurada, aguarde o carimbo explícito do dono para o estado validado."
         file = agents / f"{name}.toml"
-        managed_orchestrator = (name == "tr-orquestrador" and file.exists() and
-                                "Dispare implementadores em subagentes separados" in file.read_text())
+        managed_orchestrator = (name == "tr-orquestrador" and file.exists() and any(
+            marker in file.read_text() for marker in
+            ("# fullchico-managed", "Dispare implementadores em subagentes separados",
+             "fullchico-harness modelos mostrar")))
         if not file.exists() or managed_orchestrator:
-            file.write_text(f"name = {json.dumps(name)}\ndescription = {json.dumps(description)}\ndeveloper_instructions = {json.dumps(instructions)}\n")
+            marker = "# fullchico-managed\n" if name == "tr-orquestrador" else ""
+            file.write_text(marker + f"name = {json.dumps(name)}\ndescription = {json.dumps(description)}\ndeveloper_instructions = {json.dumps(instructions)}\n")
     skills = project / ".agents/skills"
     skills.mkdir(parents=True, exist_ok=True)
     for name in ("tr-codex",):

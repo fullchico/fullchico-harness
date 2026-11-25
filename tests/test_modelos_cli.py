@@ -74,10 +74,13 @@ class ModelosCliTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as bin_dir:
             fake = pathlib.Path(bin_dir) / "codex"
             fake.write_text("#!/bin/sh\n" +
+                            "approved=no\n" +
                             "while [ \"$#\" -gt 0 ]; do\n" +
+                            "  if [ \"$1\" = --approve-for-me ]; then approved=yes; fi\n" +
                             "  if [ \"$1\" = -o ]; then shift; output=$1; fi\n" +
                             "  shift\n" +
                             "done\n" +
+                            "[ \"$approved\" = yes ] || exit 9\n" +
                             "cat >/dev/null\n" +
                             f"printf 'VEREDITO: APPROVED\\nCOMMIT: {snapshot}\\nRESUMO: sem falhas\\n' > \"$output\"\n")
             fake.chmod(0o755)
