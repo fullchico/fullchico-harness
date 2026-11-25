@@ -49,7 +49,7 @@ class TestCodex(unittest.TestCase):
         self.assertIn("tr-orchestrator", planner)
         discovery = self.repo / ".codex/harness/tr/codex-skills/tr-skills-discover/SKILL.md"
         self.assertTrue(discovery.exists())
-        self.assertIn("$tr-grill-me", discovery.read_text())
+        self.assertIn("$grilling", discovery.read_text())
         self.assertTrue((self.repo / ".claude/harness.json").exists())
         market = json.loads((self.repo / ".agents/plugins/marketplace.json").read_text())
         self.assertEqual([p["name"] for p in market["plugins"]], ["tr", "memory"])
@@ -154,7 +154,7 @@ class TestCodex(unittest.TestCase):
 
     def test_all_project_skills_and_memory_extractor_are_installed(self):
         self.assertEqual(self.install().returncode, 0)
-        for plugin, names in (("tr", ("process-plan", "configure", "gates", "quality-check", "bugs-hunt", "grill-me",
+        for plugin, names in (("tr", ("process-plan", "configure", "gates", "quality-check", "bugs-hunt",
                                       "memory-map", "memory-dream", "memory-learn")),):
             for name in names:
                 file = self.repo / f".codex/harness/{plugin}/codex-skills/{plugin}-{name}/SKILL.md"

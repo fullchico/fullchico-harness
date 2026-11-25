@@ -27,6 +27,8 @@ INVOKERS = {CHECKER: "/tr:quality-check", "tr:bug-hunter": "/tr:bugs-hunt", "tr:
 COMPLEXITY = {"simple": "haiku", "complex": "sonnet"}
 EXECUTOR_MODEL = "sonnet"
 IGNORED = ("docs", ".claude", ".git", ".codex", ".agents")  # configuração e plano, não código do app
+# Arquivos de ferramentas na raiz, escritos por instaladores (o `npx skills add` grava o skills-lock.json).
+TOOL_FILES = (".gitignore", "skills-lock.json")
 
 
 def owner_command(root, args):
@@ -208,7 +210,7 @@ def is_code(root, path, reg=None):
     code = (reg or {}).get("code")
     if code is not None:
         return any(rel == p.strip("/") or rel.startswith(p.strip("/") + "/") for p in code)
-    if rel == ".gitignore" or rel.split("/")[0] in IGNORED or rel.endswith(".md"):
+    if rel in TOOL_FILES or rel.split("/")[0] in IGNORED or rel.endswith(".md"):
         return False
     r = subprocess.run(["git", "check-ignore", "-q", "--", rel], cwd=root, capture_output=True)
     return r.returncode != 0
@@ -320,7 +322,10 @@ def satisfied(root, name, reg=None, ticket=None):
     return True
 
 
-_GATES_LINE = re.compile(r"(?mi)^[\s>*_-]*gates[*_]*:[*_]*\s*(.+?)\s*$")
+# linha de passaporte: só `>` e marcas de negrito/itálico antes do rótulo; item de lista (`- Gates: ...`) não conta
+_GATES_LINE = re.compile(r"(?mi)^[ \t>]*[*_]*gates[*_]*:[*_]*[ \t]*(.+?)[ \t]*$")
+# bloco de código cercado (```): o que há dentro é exemplo, não passaporte
+_FENCE = re.compile(r"(?ms)^[ \t]*```.*?^[ \t]*```[^\n]*$")
 
 
 def passport(root, reg):
@@ -340,7 +345,7 @@ def passport(root, reg):
                 continue
             with open(os.path.join(root, rel), encoding="utf-8") as stream:
                 text = stream.read()
-            for m in _GATES_LINE.finditer(text):
+            for m in _GATES_LINE.finditer(_FENCE.sub("", text)):
                 # nome como o registro escreve: sem crase, negrito ou pontuação em volta (`e2e`, **seo**, e2e.)
                 names = {re.sub(r"^[^\w]+|[^\w]+$", "", n) for n in re.split(r"[,;\s]+", m.group(1))}
                 found = (found or set()) | {n for n in names if n}

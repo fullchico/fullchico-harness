@@ -46,6 +46,18 @@ class TestPassport(unittest.TestCase):
         self.spec("# Spec\n\n**Gates:** `e2e`, **seo**.\n")
         self.assertEqual(self.missing(), ["quality", "e2e", "seo"])
 
+    def test_a_bullet_in_another_section_is_not_the_passport(self):
+        self.spec("# Spec\n\n## Comandos\n- Gates: pnpm lint && pnpm test\n* Gates: e2e\n")
+        self.assertEqual(self.missing(), ["quality", "e2e", "seo"], "sem passaporte: valem todos")
+
+    def test_a_line_inside_a_fenced_block_is_not_the_passport(self):
+        self.spec("# Spec\n\n```\nGates: e2e\n```\n")
+        self.assertEqual(self.missing(), ["quality", "e2e", "seo"], "sem passaporte: valem todos")
+
+    def test_blockquote_and_bold_label_still_count(self):
+        self.spec("# Spec\n\n> **Gates:** seo\n")
+        self.assertEqual(self.missing(), ["quality", "seo"])
+
     def test_an_end_gate_by_artifact_is_validated_by_the_verifier(self):
         gates = dict(GATES, report={"stage": "end", "signs": "artifact", "artifact": "docs/report.md"})
         reg = {"gates": gates}

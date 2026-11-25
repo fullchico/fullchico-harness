@@ -22,7 +22,7 @@ def context(root):
         return f"FullChico harness: the gate registry is invalid ({error}). Ask the owner to fix it before any work."
     if not reg:
         return ("FullChico harness is installed in this project, but its gates are not configured yet. Before "
-                "planning or writing any code, run /tr:configure (diagnosis, grill-me interview, proposed gates "
+                "planning or writing any code, run /tr:configure (diagnosis, grilling interview (Matt Pocock), proposed gates "
                 "that the owner writes in the terminal). Code writes are blocked until then. " + RULE)
     open_tickets = tasks.open_tickets(root)
     if open_tickets:
@@ -30,7 +30,7 @@ def context(root):
                 "plans and talks to the owner; the tr:orchestrator and its executors write the code. Check the "
                 "state with `gate`. " + RULE)
     return ("FullChico harness: every change request in this project starts with /tr:process-plan "
-            "(grill-me interview, spec, tickets, then the orchestrator in the background). Run it before "
+            "(grilling interview (Matt Pocock), spec, tickets, then the orchestrator in the background). Run it before "
             "answering a request to build or change something. " + RULE)
 
 

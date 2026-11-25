@@ -6,7 +6,7 @@ description: Opens and drives a demand through to validated delivery — intervi
 # Plan and drive the demand
 
 You are the main session that interviews, plans and keeps the owner informed (planning model).
-After the final confirmation of `/tr:grill-me`, with the registry configured and the entry gates
+After the interview's final confirmation, with the registry configured and the entry gates
 stamped, dispatch `tr:orchestrator` as a background subagent
 (`run_in_background: true` on Claude's Agent). In Codex, use `spawn_agent`
 with `tr-orchestrator` and stay available for messages from the owner. Do not drive each ticket
@@ -44,10 +44,23 @@ investigation. Gate rejections produce a fix and revalidation inside the loop.
 
 ## 1. Interview
 
-Call `/tr:grill-me`, included in the plugin from Matt Pocock's `grilling` flow, and, when
-available, `domain-modeling` (from `mattpocock-skills`). The interview proceeds in rounds until no
-decision is left that changes what will be done. The glossary and ADRs that come up stay where
-`domain-modeling` writes them.
+Invoke `mattpocock-skills:grilling` and `mattpocock-skills:domain-modeling` with the Skill tool (the same
+as Matt's grill-with-docs). Invoke them; do not reproduce their format from memory.
+
+The product interview follows Matt: one question at a time on each decision that changes the domain
+(roles, booking rules, cancellation, subscription, auth...), each with your recommended answer. An owner
+reply like "go with the recommendation" answers only the current question; it does not close the
+interview. The interview ends when no decision that changes what will be built is left.
+
+`domain-modeling` is mandatory, not optional, and runs during the interview, not after it. If it is not
+installed, write the files yourself in the same format. It must produce or update:
+
+- `GLOSSARY.md` with the demand's domain terms.
+- One ADR in `docs/adr/NNNN-<slug>.md` for each hard-to-reverse decision (stack, auth,
+  payments/subscriptions, data model, queues...).
+
+The spec's decisions section links to the ADRs instead of holding the decisions. The `domain`
+start gate checks that `GLOSSARY.md` exists, so planning does not pass without it.
 
 ## 2. Spec with passport
 

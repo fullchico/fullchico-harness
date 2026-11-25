@@ -284,6 +284,22 @@ class TestTaskPassports(unittest.TestCase):
         self.assertEqual(pin["permissionDecision"], "ask", "fixar plugin no projeto é decisão do dono")
         self.assertEqual(subprocess.run(models, cwd=self.repo, capture_output=True, env=in_session).returncode, 0)
 
+    def test_tool_files_are_not_code_and_listing_gates_may_be_piped(self):
+        self.assertFalse(registry.is_code(str(self.repo), "skills-lock.json"))
+        self.assertTrue(registry.is_code(str(self.repo), "package.json"))
+        listing = self.hook("Bash", {"command": "gate 2>&1 | tail -30"})
+        self.assertEqual(listing, {}, "listar portões não carimba")
+        stamped = self.hook("Bash", {"command": "gate quality 2>&1 | tail -30"})
+        self.assertEqual(stamped.get("permissionDecision"), "deny", "rodar um portão com pipe continua barrado")
+
+    def test_register_accepts_the_code_paths(self):
+        import gates_cli
+        draft = {"code": ["apps", "packages"], "e2e": {"stage": "end", "signs": "command", "command": "true"}}
+        with mock.patch.dict(os.environ, {"CLAUDECODE": ""}):
+            self.assertEqual(gates_cli.merge(str(self.repo), draft), ["e2e", "code"])
+            self.assertEqual(gates_cli.merge(str(self.repo), {"code": ["outro"]}), [], "code existente não muda")
+        self.assertEqual(registry.load(str(self.repo))["code"], ["apps", "packages"])
+
     def test_session_start_points_to_the_flow(self):
         import flow_context
         root = str(self.repo)

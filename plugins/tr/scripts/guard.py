@@ -226,6 +226,8 @@ def combined_gate(command):
     for words in parts:
         while words and (words[0] in WRAPPERS or re.fullmatch(r"\w+=.*", words[0])):
             words = words[1:]
+        # Redirecionamento não é argumento: `gate 2>&1 | tail` só lista, e listar não carimba.
+        words = [w for w in words if not re.fullmatch(r"\d*[<>]{1,2}&?\S*|&>\S*", w)]
         if words and os.path.basename(words[0]) == "gate" and len(words) > 1:
             valid = len(words) == 2 or (len(words) == 4 and words[2] == "--ticket")
             if len(parts) > 1 or not valid:

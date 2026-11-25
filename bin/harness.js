@@ -442,7 +442,7 @@ function writeFlowInstructions(project) {
     "## FullChico harness",
     "",
     "This project follows the tr flow. Every request to build or change something starts with",
-    "`/tr:process-plan` (in Codex, `$tr-process-plan`): grill-me interview, spec, tickets, then the",
+    "`/tr:process-plan` (in Codex, `$tr-process-plan`): grilling interview (Matt Pocock), spec, tickets, then the",
     "orchestrator in the background. If the gates are not configured yet, run `/tr:configure` first.",
     "Other skills (brainstorming, TDD, review) are tools inside this flow, not a replacement for it.",
     "The main session plans and talks to the owner; executors write the code. Check the state with `gate`.",

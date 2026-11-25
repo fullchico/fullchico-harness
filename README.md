@@ -41,7 +41,7 @@ O executor aberto via Codex CLI usa `workspace-write` com revisão automática. 
 localhost forem bloqueados, ele deve solicitar elevação para o comando específico ao revisor
 automático antes de declarar bloqueio. A sessão Claude usa a configuração efetiva do projeto;
 o fiscal Codex continua em modo de revisão.
-O `/tr:grill-me` identifica os serviços e comandos necessários, como subir o Compose, acessar
+A entrevista (`grilling`) identifica os serviços e comandos necessários, como subir o Compose, acessar
 uma API local ou abrir o navegador. Quando a plataforma exigir permissão, o executor solicita
 liberação para a ação concreta; uma necessidade não prevista não reabre toda a entrevista.
 No Claude Code, `review claude:<model>` também define o modelo padrão dos fiscais. Para um
@@ -114,6 +114,11 @@ os papéis ainda é conduzido pelas skills do `tr`.
 
 ## A divisão
 
+**O plugin invoca as skills por você.** Você faz o pedido, responde à entrevista e aprova o que grava
+portões, modelos e plugins; o `tr` escolhe e chama, na hora certa, as skills maduras da comunidade
+(como `grilling` e `domain-modeling`, de Matt Pocock) em vez de manter cópias adaptadas. Se for
+preciso lembrar de chamar uma skill de processo, é falha do `tr`.
+
 **O plugin garante o caminho (orquestração) e a aprendizagem (memória). Começo e fim ficam com as
 ferramentas do seu projeto, ligadas pelos portões.**
 
@@ -133,16 +138,14 @@ O portão de começo, assinado por um artefato (OpenSpec, `docs/specs/*/spec.md`
 plugin não entrevista produto nem força uma stack de processo: ele liga a etapa à ferramenta que o
 projeto já usa.
 
-Cada demanda começa por `/tr:process-plan`: a entrevista (`/tr:grill-me`, incluída a partir do
-fluxo de Matt Pocock, e `domain-modeling` do `mattpocock-skills`), a spec com o **passaporte** (a linha `Gates:` diz os portões opcionais que a
+Cada demanda começa por `/tr:process-plan`: a entrevista (as skills `grilling` e `domain-modeling` de Matt Pocock, do `mattpocock-skills`, invocadas pelo `tr`, sem cópia adaptada; o glossário `GLOSSARY.md` e os ADRs em `docs/adr/` são saídas do planejamento, e o portão `domain` confere o glossário na entrada), a spec com o **passaporte** (a linha `Gates:` diz os portões opcionais que a
 demanda pede) e os tickets, cada um com a `Complexity:` que decide o modelo de quem o executa.
 
 *Status: disponível. O portão vem no `tr`; `/tr:configure` entrevista o dono e propõe o registro.*
 
 `/tr:configure` começa pelos diagnósticos disponíveis (`claude doctor` e `codex doctor --json`),
-analisa scripts, CI e ferramentas do projeto e usa `/tr:grill-me` para decidir com o dono os
-portões de entrada e saída. O fluxo de entrevista de Matt Pocock está incluído no plugin `tr`,
-com atribuição em `plugins/tr/THIRD_PARTY_NOTICES.md`. O install não cadastra portões;
+analisa scripts, CI e ferramentas do projeto e usa a entrevista (`grilling`, de Matt Pocock) para decidir com o dono os
+portões de entrada e saída. O install não cadastra portões;
 o projeto pode criar portões com nomes e verificadores próprios. A IA entrega o
 esboço e os comandos; quem grava o registro protegido é o dono.
 
@@ -156,7 +159,7 @@ pelo orquestrador; o código é dos executores (subagentes ou `models run`). Tic
 independentes podem avançar em contextos isolados. Após o planejamento aprovado, a sessão
 principal lança o subagente `tr:orchestrator` em segundo plano. Ele coordena executores,
 fiscais e integração; a sessão principal continua disponível para o dono. A confirmação final
-do `grill-me` autoriza o plano recomendado até a entrega. Reprovações voltam ao executor para
+da entrevista autoriza o plano recomendado até a entrega. Reprovações voltam ao executor para
 correção e nova validação. Cada portão final aceita `"attempts": 3` por padrão; na quarta
 reprovação, o orquestrador solicita intervenção humana. O limite pode ser aumentado por portão.
 `"approval": "auto"` é o padrão; `"human"` exige aprovação explícita do estado já validado com
@@ -251,7 +254,7 @@ As **ferramentas integradas** têm papéis separados:
 
 | Ferramenta | Papel | Instalação |
 |---|---|---|
-| [Matt Pocock skills](https://www.skills.sh/mattpocock/skills) | entrevista, modelagem e práticas de implementação; `grill-me` é adaptada e incluída no `tr` | skills CLI na instalação |
+| [Matt Pocock skills](https://www.skills.sh/mattpocock/skills) | entrevista, modelagem e práticas de implementação; o `tr` invoca `grilling` e `domain-modeling` em vez de manter cópia | skills CLI na instalação |
 | [Ponytail](https://www.skills.sh/dietrichgebert/ponytail) | mudanças pequenas e revisão | skills CLI na instalação |
 | [Graphify](https://github.com/Graphify-Labs/graphify) | grafo AST opcional para busca na memória; skill incluída no pacote | CLI `graphifyy` opcional |
 | [rtk](https://github.com/rtk-ai/rtk) | compacta a saída dos comandos quando já existe no ambiente | opcional |
@@ -271,8 +274,8 @@ Toda skill própria é acionada pelo `tr`, inclusive as de memória, com invoker
 | `/tr:memory-map` | subagentes de leitura | mapa do código |
 | `/tr:memory-dream` | `memory:extractor` (haiku) | notas de sessões conferidas com o código |
 | `/tr:memory-learn` | (a sessão que fecha a entrega) | retrospectiva e consolidação |
-| `/tr:grill-me` | (a sessão que entrevista) | decisões em rodadas para planejar e configurar trilhos e portões |
-| `/tr:skills-discover` | catálogo skills.sh + `grill-me` | compara skills para a demanda, instala a escolhida nos ambientes e propõe portão só com evidência verificável |
+| `mattpocock-skills:grilling` | (a sessão que entrevista, invocada pelo `tr`) | decisões em rodadas para planejar e configurar trilhos e portões |
+| `/tr:skills-discover` | catálogo skills.sh + entrevista `grilling` | compara skills para a demanda, instala a escolhida nos ambientes e propõe portão só com evidência verificável |
 
 Os plugins `bugs` e `quality` da 2.x foram absorvidos pelo `tr` na 3.0. Em Claude Code, cada
 plugin usa `--scope project`. Em Codex, o marketplace local `.agents/plugins/marketplace.json`
@@ -293,7 +296,7 @@ padrão é **ambos**, inclusive sem terminal interativo. Em automações, use
 
 O instalador monta os plugins `tr` e `memory` em `.codex/harness/`, registra o marketplace local
 em `.agents/plugins/marketplace.json`, habilita ambos em `.codex/config.toml` e cria quatro agentes
-em `.codex/agents/`. As nove skills próprias e o fluxo `grill-me` incluído ficam em `tr`; o prompt auxiliar fica
+em `.codex/agents/`. As dez skills próprias ficam em `tr`; o prompt auxiliar fica
 em `.agents/skills/`. Instala também todas as skills de
 [Ponytail](https://www.skills.sh/dietrichgebert/ponytail) e
 [Matt Pocock](https://www.skills.sh/mattpocock/skills) pelo skills CLI, direcionadas ao Codex.
@@ -302,7 +305,7 @@ Para habilitar o motor AST local, instale a CLI oficial com `uv tool install --w
 O registro de portões fica em
 `.claude/harness.json` e é compartilhado com Claude Code quando os dois estão instalados.
 O install não cria portões; o dono os escolhe em `$tr-configurar` e os registra pelo CLI.
-O grill-me também define os critérios de aprovação e o limite de correções automáticas de cada
+A entrevista também define os critérios de aprovação e o limite de correções automáticas de cada
 portão final. Exemplo: `"quality": {"stage":"end","signs":"command","command":"pnpm test","attempts":5,"approval":"auto"}`.
 `install --target codex --default` é uma opção explícita para o modelo de exemplo. Rodar o
 instalador novamente preserva a configuração de outros plugins, hooks e registro existentes.
@@ -335,11 +338,11 @@ claude                                      # abre a sessão normalmente
 
 No terminal interativo, escolha **1** para este fluxo do Claude Code; também pode usar
 `install --target claude` para escolher sem menu.
-O `install` escreve o fluxo do projeto num bloco gerenciado do `CLAUDE.md` e do `AGENTS.md` (todo pedido começa por `/tr:process-plan`; outras skills são ferramentas dentro dele). Sem portões configurados, o hook barra escrita de código até o `/tr:configure`. O `install` traz `tr` (incluindo `grill-me`), `memory`, `ponytail`
+O `install` escreve o fluxo do projeto num bloco gerenciado do `CLAUDE.md` e do `AGENTS.md` (todo pedido começa por `/tr:process-plan`; outras skills são ferramentas dentro dele). Sem portões configurados, o hook barra escrita de código até o `/tr:configure`. O `install` traz `tr` `memory`, `ponytail`
 (código mínimo) e `mattpocock-skills` (processo e revisão: `grilling`, `domain-modeling`, `tdd`,
 `clean-code-guard`...), e liga o hook do `rtk`. O `install` não escolhe nem grava portões.
 Com a stack decidida, o `/tr:configure` procura skills de boas práticas para cada tecnologia e separa o que é do projeto do que existe só na máquina do dono, propondo fixar no projeto o que importa (a instalação é aprovada pelo dono). O dono configura os portões com `/tr:configure`, que usa o diagnóstico do projeto e a entrevista
-`/tr:grill-me`. Para ver sugestões sem gravar, ou mudá-las depois: `npx @fullchico/harness gates --analyze` e
+`grilling`. Para ver sugestões sem gravar, ou mudá-las depois: `npx @fullchico/harness gates --analyze` e
 `gates --write`. O modelo de exemplo `gates --default` só grava se o dono o pedir
 explicitamente. Um registro que já existe não é reescrito por um `install` de novo. O
 marketplace fica preso a esta versão do plugin, e o `install` grava o modelo por papel em
@@ -395,7 +398,7 @@ ticket pelo campo `Middle:` e usam `gate <name> --ticket <path>`; nesta versão,
       "stage": "start",
       "signs": "artifact",
       "artifact": "docs/specs/*/spec.md",
-      "description": "spec da mudança, saída da entrevista (grill-me)"
+      "description": "spec da mudança, saída da entrevista (grilling)"
     },
     "quality": {
       "stage": "end",
