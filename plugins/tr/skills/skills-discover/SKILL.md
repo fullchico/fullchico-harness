@@ -9,8 +9,19 @@ Use this flow when configuring the harness or when a demand needs a capability t
 installed skills do not cover. `/tr:grill-me` remains responsible for the entry and exit decisions;
 if you came from `/tr:configure`, bring the options to the same interview, without opening another.
 
-1. Read the stack, the current spec/ticket, `skills-lock.json` and `npx skills list --json`. Look for a
-   concrete gap. Do not install another skill just because it showed up in the search.
+1. **Inventory, by scope.** Read the stack, the current spec/ticket, `skills-lock.json` and
+   `npx skills list --json`. Split what the session can use into two lists:
+   - **in the project** (every clone gets it): `.claude/skills/`, `.agents/skills/`, `skills-lock.json` and
+     the plugins enabled in the project's `.claude/settings.json`;
+   - **only on this machine**: `~/.claude/skills/` and the plugins enabled in `~/.claude/settings.json`
+     (for example `vercel@claude-plugins-official`, which brings `vercel:nextjs`). A skill in your list of
+     available skills that is in neither project location is a machine-only one.
+   A machine-only skill does not cover the stack for the project: another clone, another person or Codex
+   will not have it. For each one that matters to the stack, propose **pinning it to the project**:
+   a Claude plugin with `claude plugin install <plugin>@<marketplace> --scope project` (alone in a terminal
+   call; the owner approves it in the permission dialog), and, when Codex is present, the equivalent
+   skill with `npx --yes skills add <source> --skill <name> -a codex -y` if one exists.
+   Then look for a concrete gap. Do not install another skill just because it showed up in the search.
 2. Run `npx skills find "<specific task>"`; try a second phrasing if the first
    is vague. For each plausible candidate, read its `SKILL.md` and the scripts/hooks it ships,
    check its origin and compare it with the already installed skills. Choose the one that best covers the real

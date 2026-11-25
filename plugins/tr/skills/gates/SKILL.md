@@ -25,12 +25,13 @@ not change the registry (`.claude/harness.json`), which belongs to the owner.
    for command or artifact; the registered agent or `models validate-gate <name>` for agent
    review. The hook or the review executor checks the current state before stamping; changed
    code requires a new validation. The `Gates:` line of the spec chooses the optional ones.
-5. **Deliver** after `fullchico-harness deliver` passes (`[fora]` (out) is a gate this demand does not require).
+5. **Deliver** after `tr-harness deliver` passes (`[fora]` (out) is a gate this demand does not require).
 
 Each end gate accepts `attempts` (3 by default) and `approval` (`auto` by default or
 `human`). After exceeding the demand's rejection limit, or if `approval: human` was
-configured, the owner approves the already validated state in their own terminal with
-`fullchico-harness gates --approve <name>`. A change in the state invalidates that stamp.
+configured, the owner approves the already validated state: run `tr-harness gates --approve <name>`
+alone in a terminal call, and the owner approves it in Claude Code's permission dialog. A change in the
+state invalidates that stamp.
 
 A new demand starts with `/tr:process-plan`.
 

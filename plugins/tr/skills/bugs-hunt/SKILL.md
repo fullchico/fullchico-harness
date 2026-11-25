@@ -11,7 +11,7 @@ whoever wrote the code. Without Git, it inspects the current files.
 
 1. **State ready.** The implementer finished the code to validate; there is no need to open a PR.
 2. **Dispatch the `tr:bug-hunter` agent.** If `gate:bugs` or the `review` role uses a
-   model from another CLI, run `fullchico-harness models validate-gate bugs`. The harness opens the
+   model from another CLI, run `tr-harness models validate-gate bugs`. The harness opens the
    independent reviewer, checks the snapshot and stamps. With the native agent, any short request
    works; the hook swaps it for the canonical one.
 3. **The verdict** comes in three lines (`VERDICT`, `COMMIT`, `SUMMARY`).

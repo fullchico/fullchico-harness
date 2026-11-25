@@ -117,7 +117,7 @@ def check_writable(project):
     """Antes de gravar: o registro e o settings (quando há sandbox a proteger) precisam aceitar escrita.
 
     Assim nada fica pela metade (registro gravado e settings sem a proteção)."""
-    if os.environ.get("CLAUDECODE") == "1":
+    if os.environ.get("CLAUDECODE") == "1" and not registry.owner_approved(project, OWNER_COMMAND[0]):
         raise NoPermission(
             "Sem permissão para gravar .claude/harness.json nesta sessão do Claude Code.\n"
             "O registro de portões é do dono. Rode este comando no seu terminal, fora da sessão. Nada foi gravado.")
@@ -170,7 +170,8 @@ def set_command(project, gate_name, command_text):
 
 def approve(project, gate_name):
     """Aprovação explícita do dono, vinculada ao mesmo estado que o fiscal validou."""
-    if os.environ.get("CLAUDECODE") == "1" or os.environ.get("CODEX_THREAD_ID"):
+    if (os.environ.get("CLAUDECODE") == "1" and not registry.owner_approved(project, OWNER_COMMAND[0])) \
+            or os.environ.get("CODEX_THREAD_ID"):
         raise NoPermission("A aprovação humana deve ser executada pelo dono no terminal, fora da sessão do agente.")
     reg = registry.load(project)
     gate = (reg or {}).get("gates", {}).get(gate_name)
@@ -235,7 +236,11 @@ def write_registry(project, reg):
     protect_sandbox(project)
 
 
+OWNER_COMMAND = [""]  # o comando desta execução, como o hook o aprovou
+
+
 def main(argv):
+    OWNER_COMMAND[0] = registry.owner_canonical(["gates", *argv])
     project, flags, i, setting, register, approving = ".", set(), 0, None, None, None
     while i < len(argv):
         if argv[i] == "--project":
@@ -262,6 +267,7 @@ def main(argv):
         return execute(os.path.abspath(project), flags, setting, register)
     except NoPermission as e:
         print(e, file=sys.stderr)
+        print(f"No seu terminal: {registry.owner_command(os.path.abspath(project), ['gates', *argv])}", file=sys.stderr)
         return 1
 
 

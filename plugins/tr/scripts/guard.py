@@ -15,6 +15,7 @@ Sem `.claude/harness.json` ou sem `gates`, não faz nada.
 import json
 import os
 import re
+import shlex
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -34,12 +35,12 @@ def deny(root, what, message):
     return render.block_with(message)
 
 
-def listing(reg, names):
+def listing(reg, names, root=None):
     row_lines = []
     for n in names:
         gate = reg["gates"][n]
         row_lines.append(f"  ✗ {n} · {gate.get('description') or '(sem descrição)'}")
-        row_lines += [f"    → {p}" for p in registry.steps(n, gate, reg.get('models'))]
+        row_lines += [f"    → {p}" for p in registry.steps(n, gate, reg.get('models'), root)]
     return row_lines
 
 
@@ -131,7 +132,7 @@ def dispatch(root, reg, ti, caller=None):
         return deny(root, f"revisor Codex externo: {kind_name}", panel("modelo do portão", [
             ("portões", ", ".join(external_cli)),
             ("motivo", "este portão usa Codex CLI; o Agent do Claude não pode assinar no lugar dele"),
-        ], [f"  → rode `fullchico-harness models validate-gate {name}`" for name in external_cli]))
+        ], [f"  → rode `tr-harness models validate-gate {name} --detach`" for name in external_cli]))
     top = ledger.head(root) or ""
     if kind_name == registry.CHECKER:
         m = re.search(r"(?m)^\s*gate:\s*([\w.-]+)", ti.get("prompt") or "")
@@ -170,6 +171,50 @@ def dispatch(root, reg, ti, caller=None):
         new_item.pop("model", None)  # vale o `model` da definição do validador
     ledger.log(root, "tr", "requested", f"{kind_name}: {new_item['prompt'].splitlines()[0]}")
     return allow(new_item)
+
+
+OWNER_FLAGS = {"--write", "--set", "--register", "--approve"}
+
+
+def owner_write(command):
+    """`tr-harness gates --write|--set|--register|--approve …` ou `tr-harness models configure …`, sozinho
+    na chamada: o comando que grava o que é do dono. Devolve as palavras depois de `tr-harness`."""
+    try:
+        parts = ledger._split(ledger.strip_heredocs(command))
+    except ValueError:
+        return None
+    if len(parts) != 1:
+        return None
+    words = parts[0]
+    while words and (words[0] in WRAPPERS or re.fullmatch(r"\w+=.*", words[0])):
+        words = words[1:]
+    if words[:2] == ["claude", "plugin"] and "--scope" in words and words[words.index("--scope") + 1:][:1] == ["project"] \
+            and words[2:3] in (["install"], ["uninstall"], ["enable"], ["disable"]):
+        return words  # muda os plugins do projeto (.claude/settings.json): também é decisão do dono
+    if not words or os.path.basename(words[0]) != "tr-harness":
+        return None
+    rest = words[1:]
+    if rest[:1] == ["gates"] and OWNER_FLAGS & set(rest) or rest[:2] == ["models", "configure"]:
+        return rest
+    return None
+
+
+def ask_owner(root, payload, words):
+    """O dono aprova no diálogo do Claude Code o comando exato; sem diálogo possível, vai para o terminal."""
+    canonical = registry.owner_canonical(words)
+    terminal_line = shlex.join(words) if words[:1] == ["claude"] else registry.owner_command(root, words)
+    if payload.get("permission_mode") in ("bypassPermissions", "dontAsk") or payload.get("harness_client") == "codex":
+        return deny(root, f"gravação do dono: {canonical}", panel("aprovação do dono", [
+            ("comando", canonical[:80]),
+            ("motivo", "neste modo não há diálogo de permissão para o dono aprovar"),
+        ], [f"  → no seu terminal: {terminal_line}"]))
+    registry.grant_owner(root, canonical)
+    ledger.log(root, "tr", "asked", canonical[:160])
+    print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask",
+                                             "permissionDecisionReason": "Aprovação do dono: este comando grava os portões, os "
+                                             f"modelos ou os plugins do projeto ({canonical[:120]}). Aprove só se for a sua decisão."}},
+                     ensure_ascii=False))
+    return 0
 
 
 def combined_gate(command):
@@ -242,7 +287,7 @@ def main():
         if rel == ".claude/harness.json":
             return deny(root, f"registro: {t}", panel("registro protegido", [
                 ("arquivo", ".claude/harness.json"),
-                ("motivo", "só o dono altera, por `fullchico-harness gates` no terminal"),
+                ("motivo", f"só o dono altera, por `{registry.owner_command(root, 'gates')}` no terminal"),
             ], footer="o plugin tr escreve ali; o agente não"))
         if rel in (".claude/settings.json", ".claude/settings.local.json"):
             return deny(root, f"configuração: {t}", panel("configuração protegida", [
@@ -259,6 +304,11 @@ def main():
             return deny(root, f"configuração Codex: {t}", panel("harness protegido", [
                 ("arquivo", rel), ("motivo", "contém os hooks ou validadores que aplicam os portões"),
             ], footer="o dono atualiza com `fullchico-harness install-codex` no terminal"))
+
+    if tool == "Bash" and isinstance(ti.get("command"), str):
+        words = owner_write(ti["command"])
+        if words:
+            return ask_owner(root, payload, words)
 
     try:
         reg = registry.load(root)
@@ -281,6 +331,16 @@ def main():
                 ], ["  → rode /tr:configure: a entrevista propõe os portões e o dono grava no terminal"]))
         return 0
 
+    # O agente que assina um portão é parte do portão: afrouxar a instrução dele é afrouxar o portão.
+    gate_agents = {g["agent"].split(":")[-1] for g in reg["gates"].values() if g["signs"] == "agent"}
+    for t in targets_pre:
+        rel = registry.relative(root, t) or ""
+        stem = os.path.splitext(os.path.basename(rel))[0]
+        if stem in gate_agents and (rel.startswith(".claude/agents/") or rel.startswith(".codex/agents/")):
+            return deny(root, f"agente de portão: {t}", panel("agente de portão protegido", [
+                ("arquivo", rel), ("motivo", "este agente assina um portão registrado; mudar a instrução dele muda o portão"),
+            ], footer="o dono altera no terminal, fora da sessão"))
+
     if tool in ("Agent", "Task"):
         return dispatch(root, reg, ti, payload.get("agent_type"))
     agent_name = payload.get("agent_type")
@@ -298,7 +358,7 @@ def main():
         if legacy_harness(command):
             return deny(root, f"harness antigo: {command[:100]}", panel("harness antigo", [
                 ("comando", command.split()[0]), ("motivo", "os scripts de `.harness/` são do modelo antigo; os portões são do tr"),
-            ], listing(reg, registry.missing(root, "end", reg)) or ["  → valide a entrega com `gate delivery`"],
+            ], listing(reg, registry.missing(root, "end", reg), root) or ["  → valide a entrega com `gate delivery`"],
                 "estado: `gate`"))
         if combined_gate(command):
             return deny(root, f"gate combinado: {command[:100]}", panel("gate sozinho", [
@@ -317,7 +377,7 @@ def main():
             if missing_gates:
                 return deny(root, f"escrita em código: {t}", panel("escrita barrada", [
                     ("arquivo", registry.relative(root, t)), ("motivo", "falta a etapa de início"),
-                ], listing(reg, missing_gates), "estado: `gate`"))
+                ], listing(reg, missing_gates, root), "estado: `gate`"))
             reason = planner_writes(root, agent_name, payload.get("harness_client"))
             if reason:
                 return deny(root, f"planejador escreveu código: {t}", panel("quem planeja não executa", [

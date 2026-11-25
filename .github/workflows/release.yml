@@ -25,6 +25,7 @@ jobs:
           TAG="${GITHUB_REF_NAME#v}"
           PKG="$(node -p "require('./package.json').version")"
           [ "$TAG" = "$PKG" ] || { echo "tag $TAG, pacote $PKG: precisam ser iguais"; exit 1; }
+      - run: npm ci
       - run: git config --global user.name ci && git config --global user.email ci@example.invalid
       - run: python3 -W error -m unittest discover -s tests
       # A publicação confiável exige npm 11.5 ou mais novo.

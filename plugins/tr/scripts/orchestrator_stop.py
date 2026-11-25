@@ -67,7 +67,7 @@ def decision(payload):
         return {"decision": "block", "reason":
                 f"End gate `{names}` requires human intervention. Hand off to the main session "
                 "with BLOCKER:, ATTEMPTS: and DECISION NEEDED:; point to the technical validation and to the command "
-                "`fullchico-harness gates --approve <name>` once it has passed."}
+                f"`{registry.owner_command(root, 'gates --approve <name>')}` once it has passed."}
     if handoff:
         return None  # handoff explícito à sessão principal para uma decisão fora do plano
     details = [f"gate {name}" for name in missing] + problems

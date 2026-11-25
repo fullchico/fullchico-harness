@@ -131,7 +131,7 @@ class TestSetCommand(Base):
         r = subprocess.run([str(TR_PLUGIN / "bin/gate"), "quality"], capture_output=True, text=True,
                            env=self.env, cwd=self.repo)
         self.assertNotEqual(r.returncode, 0)
-        self.assertIn('fullchico-harness gates --set quality "<command>"', r.stdout)
+        self.assertIn("npx @fullchico/harness gates --set quality '<command>'", r.stdout)
         self.assertNotIn("quality: passou", r.stdout)
 
     def test_delivery_gate_lists_it_as_missing(self):

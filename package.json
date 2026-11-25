@@ -1,6 +1,6 @@
 {
   "name": "@fullchico/harness",
-  "version": "4.0.0-rc.2",
+  "version": "4.0.0-rc.3",
   "description": "Per-project harness plugin for Claude Code and Codex: orchestration, guardrails, memory and validations.",
   "license": "MIT",
   "author": "FullChico",
@@ -43,5 +43,8 @@
   },
   "scripts": {
     "test": "python3 -W error -m unittest discover -s tests"
+  },
+  "dependencies": {
+    "@clack/prompts": "1.8.1"
   }
 }

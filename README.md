@@ -338,15 +338,18 @@ No terminal interativo, escolha **1** para este fluxo do Claude Code; também po
 O `install` escreve o fluxo do projeto num bloco gerenciado do `CLAUDE.md` e do `AGENTS.md` (todo pedido começa por `/tr:process-plan`; outras skills são ferramentas dentro dele). Sem portões configurados, o hook barra escrita de código até o `/tr:configure`. O `install` traz `tr` (incluindo `grill-me`), `memory`, `ponytail`
 (código mínimo) e `mattpocock-skills` (processo e revisão: `grilling`, `domain-modeling`, `tdd`,
 `clean-code-guard`...), e liga o hook do `rtk`. O `install` não escolhe nem grava portões.
-O dono configura os portões com `/tr:configure`, que usa o diagnóstico do projeto e a entrevista
+Com a stack decidida, o `/tr:configure` procura skills de boas práticas para cada tecnologia e separa o que é do projeto do que existe só na máquina do dono, propondo fixar no projeto o que importa (a instalação é aprovada pelo dono). O dono configura os portões com `/tr:configure`, que usa o diagnóstico do projeto e a entrevista
 `/tr:grill-me`. Para ver sugestões sem gravar, ou mudá-las depois: `npx @fullchico/harness gates --analyze` e
 `gates --write`. O modelo de exemplo `gates --default` só grava se o dono o pedir
 explicitamente. Um registro que já existe não é reescrito por um `install` de novo. O
 marketplace fica preso a esta versão do plugin, e o `install` grava o modelo por papel em
 `.claude/settings.local.json` (`"model": "opus"`, `CLAUDE_CODE_SUBAGENT_MODEL=sonnet`), sem tocar no resto.
 
-Instalar e gravar portões são passos **do dono, no terminal**: o CLI recusa gravar o registro
-quando é chamado pelo shell do Claude. O instalador não liga o sandbox nativo por padrão (perfil
+Instalar é passo do dono, no terminal. Gravar portões e modelos é decisão do dono, mas não exige
+terminal: a sessão roda `tr-harness gates --register …` (o CLI do plugin, na mesma versão dele) e o
+hook transforma a chamada num diálogo de permissão do Claude Code com o comando exato. A aprovação vale
+uma vez, para aquele comando, por 2 minutos; sem ela, o CLI recusa gravar. Em `bypassPermissions`, onde
+não há diálogo, a gravação volta para o terminal, com a linha pronta de `tr-harness owner <args>`. O instalador não liga o sandbox nativo por padrão (perfil
 `fluxo`, para o Docker do projeto funcionar); `install --sandbox` liga o perfil `isolado`, com o
 registro protegido e só `docker` e `fullchico-harness` fora do sandbox. Se você já o usa, preserva a configuração. Depois de instalar, revise esses dois arquivos. Se a pasta ainda não
 tinha Git, o instalador já executou `git init`.

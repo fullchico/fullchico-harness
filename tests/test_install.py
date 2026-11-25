@@ -5,7 +5,10 @@ e os plugins que o tr absorveu.
 """
 import json
 import os
+import fcntl
 import pty
+import struct
+import termios
 import select
 import time
 import shutil
@@ -89,13 +92,18 @@ class TestInstall(unittest.TestCase):
 
     def test_interactive_menu_selects_codex(self):
         master, slave = pty.openpty()
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 100, 0, 0))  # terminal de verdade, com largura
         env = dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}")
         try:
             proc = subprocess.Popen([shutil.which("node"), str(ROOT / "bin/harness.js"), "install",
                                      str(self.repo), "--default"], stdin=slave, stdout=slave,
                                     stderr=subprocess.PIPE, env=env)
             os.close(slave)
-            os.write(master, b"2\n")
+            output, deadline = b"", time.monotonic() + 10
+            while b"qual ambiente" not in output and time.monotonic() < deadline:
+                if select.select([master], [], [], 0.1)[0]:
+                    output += os.read(master, 4096)
+            os.write(master, b"\x1b[B\x1b[B\r")  # duas setas para baixo: Codex
             deadline = time.monotonic() + 15
             while proc.poll() is None and time.monotonic() < deadline:
                 if select.select([master], [], [], 0.1)[0]:
@@ -114,6 +122,7 @@ class TestInstall(unittest.TestCase):
 
     def test_interactive_menu_waits_for_input_on_nonblocking_tty(self):
         master, slave = pty.openpty()
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 100, 0, 0))  # terminal de verdade, com largura
         os.set_blocking(slave, False)
         env = dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}")
         try:
@@ -123,16 +132,16 @@ class TestInstall(unittest.TestCase):
             os.close(slave)
             output = b""
             deadline = time.monotonic() + 5
-            while b"Escolha [3]:" not in output and proc.poll() is None and time.monotonic() < deadline:
+            while b"qual ambiente" not in output and proc.poll() is None and time.monotonic() < deadline:
                 if select.select([master], [], [], 0.1)[0]:
                     try:
                         output += os.read(master, 4096)
                     except OSError:
                         break
-            self.assertIn(b"Escolha [3]:", output)
+            self.assertIn(b"qual ambiente", output)
             time.sleep(0.2)
-            self.assertIsNone(proc.poll(), "o menu deve esperar a resposta mesmo com EAGAIN")
-            os.write(master, b"2\n")
+            self.assertIsNone(proc.poll(), "o menu deve esperar a resposta mesmo com stdin não bloqueante")
+            os.write(master, b"\x1b[B\x1b[B\r")
             deadline = time.monotonic() + 15
             while proc.poll() is None and time.monotonic() < deadline:
                 if select.select([master], [], [], 0.1)[0]:

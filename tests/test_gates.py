@@ -365,7 +365,7 @@ class TestProtectionAndInit(Case):
             for tool in ("Write", "Edit"):
                 r = self.write(path, tool)
                 self.assertEqual(r.returncode, 2, path)
-                self.assertIn("fullchico-harness gates" if path.endswith("harness.json") else "configuração protegida",
+                self.assertIn("npx @fullchico/harness gates" if path.endswith("harness.json") else "configuração protegida",
                               r.stderr)
         self.assertEqual(self.bash("echo {} > .claude/harness.json").returncode, 2)
         self.assertEqual(self.write(".claude/outra.json").returncode, 0)
