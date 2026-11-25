@@ -91,6 +91,10 @@ interview, so decide the script names too (`pnpm typecheck`, `pnpm test:e2e`...)
 gates' commands. They fail until the scaffold ticket creates them, which is expected; `/tr:process-plan` makes
 the scaffold ticket create exactly those scripts. `@define` stops the delivery mid-way waiting for the owner to
 run `gates --set`, so keep it only for a check nobody can name yet, and say how to define it later.
+The `lint` gate uses the recommended rule set of **every framework in the stack**, not only the language's
+(TypeScript plus React and React hooks for a React app, the framework's own config such as Next's, and
+`jsx-a11y` when accessibility is a decision of the interview). A lint that only knows the language passes
+code the framework would reject.
 
 ## How to write it, with the owner's approval
 

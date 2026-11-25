@@ -39,6 +39,10 @@ read the plan and the current files yourself, without depending on the account o
 - A criterion of the spec or of a ticket with no implementation, or implemented differently from
   what was asked (state the criterion, what was expected and what the code does).
 - A ticket marked `Status: done` whose criteria are not met.
+- A new runtime dependency (`dependencies`, not dev tooling) that no spec, ticket or ADR names: report it
+  as `OUT OF SCOPE` with the package.
+- An element of a stamped design proposal (`Start:` gate artifact, such as tabs, a filter, a component)
+  delivered as something else: that criterion is `different`, even if the result works.
 - A code change outside every ticket's `Files:`, unless it is a direct consequence of a ticket
   (a test, a generated file, a shared type it had to touch) — then report it as an observation.
 

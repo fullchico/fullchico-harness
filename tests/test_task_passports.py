@@ -145,6 +145,46 @@ class TestTaskPassports(unittest.TestCase):
         problems, _ = tasks.audit(str(self.repo), registry.load(str(self.repo)))
         self.assertTrue(any("ciclo" in p for p in problems))
 
+    def test_same_wave_tickets_cannot_claim_the_same_area(self):
+        self.ticket("01", "api", paths="apps/api/src/availability/**, apps/api/src/app.module.ts")
+        self.ticket("02", "api", paths="apps/api/**")
+        self.ticket("03", "api", paths="apps/api/src/search/**, apps/api/src/app.module.ts")
+        self.ticket("04", "api", "02", paths="apps/api/src/availability/x.ts")
+        commit_all(self.repo, "plan")
+        problems, ready = tasks.audit(str(self.repo), registry.load(str(self.repo)))
+        overlaps = [p for p in problems if "ocupam" in p]
+        # 02 (a API inteira) colide com 01 e 03; 01 e 03 só dividem um arquivo exato; 04 depende do 02.
+        self.assertEqual(len(overlaps), 2, overlaps)
+        self.assertTrue(all("02-task.md" in p for p in overlaps))
+        self.assertEqual(ready, [])
+        two = self.repo / "docs/specs/a/issues/02-task.md"
+        two.write_text(two.read_text().replace("Blocked by: none", "Blocked by: 01, 03"))
+        commit_all(self.repo, "chain")
+        problems, ready = tasks.audit(str(self.repo), registry.load(str(self.repo)))
+        self.assertFalse([p for p in problems if "ocupam" in p])
+        self.assertEqual(len(ready), 2)
+
+    def test_command_gates_run_one_at_a_time_per_checkout(self):
+        sys.path.insert(0, str(ROOT / "plugins/tr/scripts"))
+        import gate_cli
+        first = gate_cli.checkout_lock(str(self.repo))
+        self.assertIsNotNone(first)
+        probe = subprocess.run([sys.executable, "-c", (
+            "import sys, fcntl; sys.path.insert(0, sys.argv[2]); import gate_cli\n"
+            "fcntl_flock = fcntl.flock\n"
+            "def nb(f, op): return fcntl_flock(f, op | fcntl.LOCK_NB)\n"
+            "fcntl.flock = nb\n"
+            "try:\n gate_cli.checkout_lock(sys.argv[1]); print('livre')\n"
+            "except OSError: print('ocupado')"), str(self.repo), str(ROOT / "plugins/tr/scripts")],
+            capture_output=True, text=True)
+        self.assertIn("ocupado", probe.stdout)
+        first.close()
+        probe = subprocess.run([sys.executable, "-c", (
+            "import sys; sys.path.insert(0, sys.argv[2]); import gate_cli\n"
+            "gate_cli.checkout_lock(sys.argv[1]); print('livre')"), str(self.repo), str(ROOT / "plugins/tr/scripts")],
+            capture_output=True, text=True)
+        self.assertIn("livre", probe.stdout)
+
     def test_invalid_status_does_not_enter_the_frontier(self):
         ticket = self.ticket("01", "api")
         ticket.write_text(ticket.read_text().replace("Status: open", "Status: cancelled"))
@@ -379,7 +419,7 @@ class TestTaskPassports(unittest.TestCase):
         self.assertIn(rel2.split("/")[-1], out)
 
     def test_executors_run_in_worktrees_up_to_the_parallel_limit(self):
-        tickets = [self.ticket(f"0{n}", "api") for n in (1, 2, 3)]
+        tickets = [self.ticket(f"0{n}", "api", paths=f"src/m{n}/**") for n in (1, 2, 3)]
         commit_all(self.repo, "plan")
         rels = [str(t.relative_to(self.repo)) for t in tickets]
         shared = self.hook("Agent", {"subagent_type": "general-purpose", "prompt": f"Implemente {rels[0]}"}, "tr:orchestrator")

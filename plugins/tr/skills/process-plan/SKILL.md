@@ -110,6 +110,13 @@ after the write path). A plan where every ticket blocks the next one runs one ex
 unless each step truly consumes the previous one. In the plan you show the owner, list the waves: which
 tickets run together in each one.
 
+**One owner per area.** Two tickets of the same wave must not build the same capability (each would create
+its own version of the module and the integration conflicts). What two tickets of a wave both use (a
+calculation, a shared module, a client) goes into an earlier ticket or the scaffold, and both depend on it.
+`gate` refuses the plan when two tickets that can run together claim the same area in `Files:` (a folder or
+glob; one exact file both edit, such as a module registry, is allowed). Keep `Files:` narrow: `apps/api/**`
+claims the whole API.
+
 `simple`: mechanical and local (text, style, a field, one more test). `complex`: business rule,
 contract, data, concurrency, or more than one layer. When in doubt, `complex`.
 `Gates:` lists the end gates specific to this ticket. A backend task does not get
