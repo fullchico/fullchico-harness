@@ -133,6 +133,24 @@ class ModelsCliTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertTrue(json.loads(result.stdout)["stamped"])
 
+    def test_rejected_gate_review_prints_the_verdict_instead_of_a_traceback(self):
+        repo = make_repo()
+        (repo / ".claude").mkdir()
+        (repo / ".claude/harness.json").write_text(json.dumps({"gates": {
+            "scope": {"stage": "end", "signs": "agent", "agent": "tr:scope-checker"}}}))
+        self.assertEqual(self.run_cli(repo, "configure", "gate:scope", "claude:sonnet").returncode, 0)
+        snapshot = ledger.head(str(repo))
+        with tempfile.TemporaryDirectory() as bin_dir:
+            fake = pathlib.Path(bin_dir) / "claude"
+            fake.write_text("#!/usr/bin/env python3\nimport json, sys\nsys.stdin.read()\n" +
+                            f"print(json.dumps({{'result': 'VERDICT: REJECTED\\nCOMMIT: {snapshot}\\nSUMMARY: falta o ticket 06'}}))\n")
+            fake.chmod(0o755)
+            env = dict(os.environ, PATH=bin_dir + os.pathsep + os.environ.get("PATH", ""), HOME=bin_dir,
+                       CLAUDECODE="1")
+            result = self.run_cli(repo, "validate-gate", "scope", env=env)
+            self.assertNotIn("Traceback", result.stderr)
+            self.assertEqual(json.loads(result.stdout)["verdict"], "REJECTED")
+
     def test_invalid_registry_is_preserved(self):
         repo = make_repo()
         (repo / ".claude").mkdir()

@@ -371,8 +371,8 @@ def validate_gate(root, name, ticket=None, request=""):
             accepted = False
     elif accepted and verdict == "REJECTED":
         ledger.forget(root, name, key)
-        import attempts
-        attempts.reject(root, name, gate)
+        import attempts as rejections  # `attempts` aqui é a lista de chamadas ao modelo
+        rejections.reject(root, name, gate)
     manifest = {"gate": name, "agent": gate["agent"], "snapshot": snapshot,
                 "attempts": attempts, "verdict": verdict if accepted else None,
                 "stamped": accepted and verdict == "APPROVED"}

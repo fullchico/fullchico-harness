@@ -100,7 +100,10 @@ code the framework would reject.
 
 0. **Reviewer agents first.** Create every reviewer agent a gate will use (`.claude/agents/<agent>.md` and,
    with Codex, `.codex/agents/<agent>.toml`) **before** registering that gate: once the gate is registered, its
-   agent files are protected and only the owner can change them.
+   agent files are protected and only the owner can change them. Reusing an agent the project already has
+   counts as creating it: adapt it first so it reviews the whole delivery against the base branch and ends with
+   `VERDICT: APPROVED|REJECTED`, `COMMIT: <sha>` and `SUMMARY: …`; an agent that reviews only the staged diff
+   or answers in another format fails the gate even on correct code.
 0. **Code paths.** Add a top-level `"code": [...]` to the sketch with the folders that will hold the app's
    code (for a planned monorepo, `apps` and `packages`), even before they exist. Without it, everything
    outside `docs/`, `.claude/`, `.codex/`, `.agents/` and Markdown counts as code, which is too broad.
