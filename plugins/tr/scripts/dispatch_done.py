@@ -21,11 +21,14 @@ def main():
         kind = payload.get("agent_type") or ""
         if kind not in tasks.READ_ONLY_AGENTS and kind not in registry.ORCHESTRATORS \
                 and kind not in registry.validators(registry.load(root)):
-            tasks.executor_opened(root)
+            tasks.executor_opened(root, payload.get("agent_id"))
         return
     if payload.get("tool_name") not in ("Agent", "Task"):
         return
-    tasks.finish_executor(root, (payload.get("tool_input") or {}).get("prompt"))
+    ti = payload.get("tool_input") or {}
+    if ti.get("run_in_background") and payload.get("hook_event_name") == "PostToolUse":
+        return  # só lançou; a vaga fica até o executor terminar (SubagentStop) ou o disparo falhar
+    tasks.finish_executor(root, ti.get("prompt"))
 
 
 if __name__ == "__main__":

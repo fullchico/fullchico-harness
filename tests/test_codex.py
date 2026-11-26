@@ -34,7 +34,8 @@ class TestCodex(unittest.TestCase):
         self.assertEqual(self.install().returncode, 0)
         self.assertEqual(self.install().returncode, 0)
         data = json.loads(hooks.read_text())["hooks"]
-        self.assertNotIn("PreToolUse", data, "os hooks do trilho vêm do plugin Codex")
+        pre = [h["command"] for g in data["PreToolUse"] for h in g["hooks"]]
+        self.assertEqual(pre, ["if command -v rtk >/dev/null 2>&1; then rtk hook codex; fi"], "só o rtk (obrigatório), uma vez; os hooks do trilho vêm do plugin Codex")
         self.assertEqual(data["SessionStart"][0]["hooks"][0]["command"], "echo hi")
         self.assertTrue((self.repo / ".agents/skills/tr-codex/SKILL.md").exists())
         self.assertTrue((self.repo / ".agents/skills/graphify/SKILL.md").exists())
@@ -108,7 +109,7 @@ class TestCodex(unittest.TestCase):
         self.assertIn('[plugins."other@my-team"]\nenabled = false', config.read_text())
         self.assertIn('[plugins."tr@my-team"]\nenabled = true', config.read_text())
         commands = [h["command"] for g in json.loads(hooks.read_text())["hooks"]["PreToolUse"] for h in g["hooks"]]
-        self.assertEqual(commands, ["echo keep"])
+        self.assertEqual(commands, ["echo keep", "if command -v rtk >/dev/null 2>&1; then rtk hook codex; fi"])
 
     def test_explicit_permission_settings_are_preserved(self):
         config = self.repo / ".codex/config.toml"

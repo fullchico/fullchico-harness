@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Instala o porte local do harness para Codex em uma pasta de projeto."""
 import json
+import os
 import pathlib
 import shutil
 import subprocess
@@ -143,6 +144,13 @@ def main(args):
             else:
                 del groups[event]
         hooks.write_text(json.dumps(current, indent=2, ensure_ascii=False) + "\n")
+    # O rtk é obrigatório também no Codex: o hook dele comprime a saída dos comandos.
+    rtk = "if command -v rtk >/dev/null 2>&1; then rtk hook codex; fi"
+    pre = current.setdefault("hooks", {}).setdefault("PreToolUse", [])
+    if not any("rtk hook codex" in str(h.get("command", "")) for g in pre if isinstance(g, dict)
+               for h in g.get("hooks", []) if isinstance(h, dict)):
+        pre.append({"matcher": "^Bash$", "hooks": [{"type": "command", "command": rtk, "timeout": 10}]})
+        hooks.write_text(json.dumps(current, indent=2, ensure_ascii=False) + "\n")
     agents = codex / "agents"
     agents.mkdir(exist_ok=True)
     for name, description, instructions in (
@@ -217,13 +225,19 @@ def main(args):
         if run.returncode:
             return run.returncode
     # Só as skills que o fluxo do tr usa: o repositório do Matt tem dezenas, a maioria fora do processo.
-    for source, wanted in (("DietrichGebert/ponytail", ["*"]), ("mattpocock/skills", MATT_SKILLS)):
+    skill_sources = () if os.environ.get("FULLCHICO_SKIP_SKILLS") == "1" else (  # dev-sync: só o código do harness
+        ("DietrichGebert/ponytail", ["*"]), ("mattpocock/skills", MATT_SKILLS))
+    for source, wanted in skill_sources:
         args = ["npx", "--yes", "skills", "add", source, "--skill", *wanted, "-a", "codex", "-y"]
         print("$ " + " ".join(args), flush=True)
         run = subprocess.run(args, cwd=project)
         if run.returncode:
             print(f"install-codex: falhou a instalação das skills de {source}.", file=sys.stderr)
             return run.returncode
+    if not shutil.which("rtk"):
+        print("install-codex: o `rtk` é obrigatório e não está instalado nesta máquina. Instale (`brew install rtk`, "
+              "ou https://github.com/rtk-ai/rtk) e rode de novo.", file=sys.stderr)
+        return 1
     print("Plugins tr e memory habilitados no Codex. Abra uma nova sessão e confie nos hooks quando solicitado.")
     print("Portões: .claude/harness.json (compartilhado com Claude); estado: python3 -I .codex/harness/tr/scripts/gate_cli.py")
     return 0

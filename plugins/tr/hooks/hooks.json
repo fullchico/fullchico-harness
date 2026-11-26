@@ -59,6 +59,16 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I \"${CLAUDE_PLUGIN_ROOT}/scripts/guard.py\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -92,6 +102,16 @@
           {
             "type": "command",
             "command": "python3 -I \"${CLAUDE_PLUGIN_ROOT}/scripts/stale_session.py\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I \"${CLAUDE_PLUGIN_ROOT}/scripts/owner_answer.py\"",
             "timeout": 10
           }
         ]
@@ -137,6 +157,16 @@
             "type": "command",
             "command": "python3 -I \"${CLAUDE_PLUGIN_ROOT}/scripts/dispatch_done.py\"",
             "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I \"${CLAUDE_PLUGIN_ROOT}/scripts/sign.py\"",
+            "timeout": 30
           }
         ]
       }

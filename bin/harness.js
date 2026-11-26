@@ -145,7 +145,7 @@ if (command === "install-codex") {
     ["ponytail", "DietrichGebert/ponytail", "ponytail"],
     ["claude-plugins-official", "anthropics/claude-plugins-official", "mattpocock-skills"],
   ]);
-  addRtkHook(project);
+  if (!addRtkHook(project)) status = status || 1;
   writeFlowInstructions(project);
   writeLocalModels(project);
   // Instalar ferramentas não decide os portões do projeto. Só --default, pedido explícito do dono,
@@ -470,8 +470,9 @@ function writeFlowInstructions(project) {
   }
 }
 
-// O rtk comprime a saída dos comandos e economiza token. Não é plugin: é um programa da máquina. Entra
-// como hook do projeto que só roda se ele existir, para o clone sem rtk não quebrar.
+// O rtk comprime a saída dos comandos e economiza token. É obrigatório: sem ele a instalação termina com erro
+// e diz como instalar. Não é plugin, é um programa da máquina; o hook do projeto confere se ele existe para o
+// clone ainda sem rtk não quebrar a sessão, e a instalação desse clone cobra o rtk de novo.
 function addRtkHook(project) {
   const file = path.join(project, ".claude", "settings.json");
   let data = {};
@@ -486,6 +487,10 @@ function addRtkHook(project) {
     fs.writeFileSync(file, JSON.stringify(data, null, 2) + "\n");
   }
   if (spawnSync("sh", ["-c", "command -v rtk"]).status !== 0) {
-    console.log("\nAviso: o `rtk` não está instalado nesta máquina; o hook dele fica no projeto e passa a valer quando instalar.");
+    console.log("\nErro: o `rtk` é obrigatório e não está instalado nesta máquina. Instale e rode o install de novo:" +
+      "\n  brew install rtk" +
+      "\n  (outras formas: https://github.com/rtk-ai/rtk)");
+    return false;
   }
+  return true;
 }

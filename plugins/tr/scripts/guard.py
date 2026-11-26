@@ -117,10 +117,8 @@ def dispatch(root, reg, ti, caller=None):
         if caller in registry.ORCHESTRATORS and kind_name not in tasks.READ_ONLY_AGENTS:
             # Paralelo é várias chamadas de Agent na mesma mensagem, em primeiro plano: o orquestrador espera
             # todas voltarem. Em segundo plano ele não é avisado do fim e acaba disparando o mesmo ticket de novo.
-            if ti.get("run_in_background"):
-                return deny(root, f"executor em segundo plano: {kind_name}", panel("execução barrada", [
-                    ("motivo", "o orquestrador dispara executores em primeiro plano"),
-                ], ["  → paralelo: um Agent por ticket da fronteira, todos na mesma mensagem, sem run_in_background"]))
+            # O Agent de um subagente não tem `run_in_background`: o orquestrador dispara em primeiro plano, vários
+            # na mesma mensagem, e fica esperando. Quem vigia executor travado é a sessão principal (`tr-harness wait`).
             if ti.get("isolation") != "worktree":
                 # Executores em paralelo na mesma pasta disputam package.json, lockfile e migrations.
                 return deny(root, f"executor sem worktree: {kind_name}", panel("execução barrada", [
@@ -139,7 +137,7 @@ def dispatch(root, reg, ti, caller=None):
             refs = tasks.ticket_refs(root, ti.get("prompt"))
             if refs and "DONE:" not in (ti.get("prompt") or ""):
                 new_item["prompt"] = ((ti.get("prompt") or "") + tasks.executor_env(refs[0])
-                                      + tasks.EXECUTOR_PROTOCOL.format(ticket=refs[0]))
+                                      + tasks.protocol(root, refs[0]))
         # ticket com `Complexity:` decide; sem ticket, só opus é trocado (o resto, a definição do agente
         # ou o CLAUDE_CODE_SUBAGENT_MODEL do settings.local resolvem)
         model_name = registry.ticket_model(root, ti.get("prompt"))
@@ -169,6 +167,10 @@ def dispatch(root, reg, ti, caller=None):
         ticket_request = re.search(r"(?m)^\s*ticket:\s*([^\s]+)", ti.get("prompt") or "")
         ticket = ticket_request.group(1) if ticket_request else None
         gate = reg["gates"][gate_name]
+        if gate["stage"] == "end":
+            refused = audit_too_early(root, [gate_name])
+            if refused:
+                return deny(root, *refused)
         if gate["stage"] != "middle" and registry.satisfied(root, gate_name, reg):
             return deny(root, f"carimbo já vale: {gate_name}", panel("validação desnecessária", [
                 ("portão", gate_name), ("motivo", "já há carimbo deste portão para o estado atual do projeto"),
@@ -181,7 +183,10 @@ def dispatch(root, reg, ti, caller=None):
             ticket = None  # portão de entrada ou de fim vale para o projeto todo; o ticket citado não muda nada
         new_item["prompt"] = f"gate: {gate_name}\n" + (f"ticket: {ticket}\n" if ticket else "") + f"commit: {top}"
     else:
-        new_item["prompt"] = f"snapshot: {top}\ncommit: {top}\nInspect the project's current files."
+        refused = audit_too_early(root, [n for n in validators[kind_name] if reg["gates"][n]["stage"] == "end"])
+        if refused:
+            return deny(root, *refused)
+        new_item["prompt"] = (f"snapshot: {top}\ncommit: {top}\nInspect the project's current files. " + DELTA)
     # Um modelo Claude específico do portão vence o padrão de revisão; sem escolha, vale o
     # `model` da definição do agente. O CLI externo de Codex usa `models run`, não o Agent.
     config = reg.get("models") or {}
@@ -198,6 +203,25 @@ def dispatch(root, reg, ti, caller=None):
         new_item.pop("model", None)  # vale o `model` da definição do validador
     ledger.log(root, "tr", "requested", f"{kind_name}: {new_item['prompt'].splitlines()[0]}")
     return allow(new_item)
+
+
+GATE_TIMEOUT = 600000  # o máximo do Bash; um portão que passa disso precisa ficar mais rápido
+
+
+DELTA = ("Validate the delta between the planned (the accepted spec, its tickets and the artifacts approved at "
+         "the start) and the delivered, observed in the delivered state: the running product, the code and the "
+         "tests that exercise it. An artifact of the plan is the reference to compare against, never the evidence.")
+
+
+def audit_too_early(root, gates):
+    """A auditoria é a chegada do trem: com ticket ou ajuste aberto, revisor de fim não roda."""
+    pending = tasks.open_work(root) if gates else []
+    if not pending:
+        return None
+    return (f"auditoria antes da chegada: {', '.join(gates)}", panel("o trem ainda não chegou", [
+        ("portões", ", ".join(gates)), ("em aberto", ", ".join(p.rsplit("/", 1)[-1] for p in pending[:4])),
+        ("motivo", "os portões de fim auditam o estado final, uma vez, com todos os tickets e ajustes integrados"),
+    ], ["  → termine e integre o que está aberto; depois rode a auditoria, com os validadores em paralelo"]))
 
 
 OWNER_FLAGS = {"--write", "--set", "--register", "--remove", "--approve", "--parallel", "--accept"}
@@ -226,16 +250,41 @@ def owner_write(command):
     return None
 
 
+def owner_combined(command):
+    """Um comando do dono no meio de outros (`git commit && tr-harness gates --accept | tail`): o hook não
+    consegue pedir a aprovação e o CLI recusa. Devolve o comando do dono, para mandar rodar sozinho."""
+    try:
+        parts = ledger._split(ledger.strip_heredocs(command))
+    except ValueError:
+        return None
+    for words in parts if len(parts) > 1 else []:
+        while words and (words[0] in WRAPPERS or re.fullmatch(r"\w+=.*", words[0])):
+            words = words[1:]
+        if words and os.path.basename(words[0]) == "tr-harness":
+            rest = [w for w in words[1:] if not re.match(r"\d*[<>]", w)]
+            if rest[:1] == ["gates"] and OWNER_FLAGS & set(rest) or rest[:2] == ["models", "configure"]:
+                return "tr-harness " + shlex.join(rest)
+    return None
+
+
 def ask_owner(root, payload, words):
     """O dono aprova no diálogo do Claude Code o comando exato; sem diálogo possível, vai para o terminal."""
     canonical = registry.owner_canonical(words)
     terminal_line = shlex.join(words) if words[:1] == ["claude"] else registry.owner_command(root, words)
-    if payload.get("permission_mode") in ("bypassPermissions", "dontAsk", "auto") or payload.get("harness_client") == "codex":
+    codex = payload.get("harness_client") == "codex"
+    if payload.get("permission_mode") in ("bypassPermissions", "dontAsk", "auto") or codex:
+        if not codex and registry.owner_pending(root, canonical):
+            return 0  # o dono respondeu "Aprovo" na pergunta da sessão; o CLI consome a aprovação
+        steps = [] if codex else [
+            "  → pergunte ao dono, sozinho na mensagem, com AskUserQuestion:",
+            f"      pergunta: {registry.owner_question(canonical)}",
+            f"      opções: {registry.OWNER_YES} / {registry.OWNER_NO}",
+            "    com a resposta Aprovo, rode o mesmo comando de novo",
+            "  → ou o dono roda no terminal dele:"]
         return deny(root, f"gravação do dono: {canonical}", panel("aprovação do dono", [
             ("comando", canonical[:80]),
-            ("motivo", "neste modo não há diálogo de permissão para o dono aprovar"),
-        ], [f"  → no seu terminal, fora da sessão: {terminal_line}",
-            "  → o prefixo `!` roda dentro da sessão e também é recusado"]))
+            ("motivo", "neste modo não há diálogo de permissão; a decisão é do dono"),
+        ], steps + [f"  → {'no seu terminal, fora da sessão: ' if codex else '    '}{terminal_line}"]))
     registry.grant_owner(root, canonical)
     ledger.log(root, "tr", "asked", canonical[:160])
     print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask",
@@ -415,6 +464,12 @@ def main():
                 ("arquivo", rel), ("motivo", "contém os hooks ou validadores que aplicam os portões"),
             ], footer="o dono atualiza com `fullchico-harness install-codex` no terminal"))
 
+    if tool == "AskUserQuestion" and (ti.get("answers") or ti.get("annotations")):
+        # a resposta vem da interface, do dono; o agente que já manda respondida está respondendo por ele
+        return deny(root, "pergunta já respondida pelo agente", panel("resposta do dono", [
+            ("motivo", "a pergunta não pode chegar com `answers`: quem responde é o dono, na interface"),
+        ], ["  → mande só `questions`"]))
+
     refused = certificate_tamper(root, tool, ti, targets_pre)
     if refused:
         return deny(root, f"certificado: {refused}", panel("certificado protegido", [
@@ -425,6 +480,11 @@ def main():
         words = owner_write(ti["command"])
         if words:
             return ask_owner(root, payload, words)
+        alone = owner_combined(ti["command"])
+        if alone:
+            return deny(root, f"comando do dono combinado: {alone}", panel("comando do dono sozinho", [
+                ("comando", alone[:80]), ("motivo", "junto de outros comandos o hook não consegue pedir a aprovação do dono"),
+            ], [f"  → rode `{alone}` sozinho na chamada, sem `&&`, pipe ou redirecionamento"]))
 
     try:
         reg = registry.load(root)
@@ -485,6 +545,13 @@ def main():
             return deny(root, f"gate combinado: {command[:100]}", panel("gate sozinho", [
                 ("comando", command[:80]), ("motivo", "com pipe, `&&` ou redirecionamento o portão roda mas não carimba"),
             ], ["  → rode `gate <name>` sozinho na chamada; a saída já vem resumida"]))
+        m = re.fullmatch(r"\s*gate[ \t]+([\w.-]+)(?:[ \t]+--ticket[ \t]+\S+)?\s*", command)
+        if m and m.group(1) in reg["gates"] and (ti.get("run_in_background") or (ti.get("timeout") or 0) < GATE_TIMEOUT):
+            # o hook só assina o que vê: em segundo plano (ou movido para lá depois de 2 min) ele não vê o "passou"
+            return deny(root, f"gate sem tempo: {command[:80]}", panel("gate em primeiro plano", [
+                ("comando", command.strip()[:80]),
+                ("motivo", "o carimbo sai da saída que o hook vê; em segundo plano ela não chega"),
+            ], [f"  → rode de novo com timeout {GATE_TIMEOUT} e sem run_in_background"]))
         targets = bash_targets(command)
     elif tool in EDIT_TOOLS:
         path = ti.get("file_path") or ti.get("notebook_path")

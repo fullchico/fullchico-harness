@@ -78,13 +78,35 @@ def criterion(root):
     """Hash do critério da demanda: spec e tickets, sem apêndice nem andamento. Vazio sem demanda."""
     files = []
     for base in _specs(root):
-        for folder, _, names in os.walk(base):
+        for folder, dirs, names in os.walk(base):
+            dirs[:] = [d for d in dirs if d != "progress"]  # andamento (ajustes, handoffs, balanço) não é critério
             files += [os.path.join(folder, n) for n in names if n.endswith(".md")]
     digest = hashlib.sha1()
     for path in sorted(files):
         digest.update(os.path.relpath(path, root).replace(os.sep, "/").encode() + b"\0")
         digest.update(_PROGRESS.sub("", strip(_read(path) or "")).encode())
     return digest.hexdigest() if files else ""
+
+
+def criterion_at(root, sha):
+    """O hash do critério como estava no commit `sha` (mesma regra de `criterion`)."""
+    slug = demand(root)
+    if not slug:
+        return ""
+    listed = _git(root, "ls-tree", "-r", "--name-only", sha, "--", f"docs/specs/{slug}") or ""
+    files = sorted(p for p in listed.splitlines() if p.endswith(".md") and "/progress/" not in p)
+    digest = hashlib.sha1()
+    for rel in files:
+        digest.update(rel.encode() + b"\0")
+        digest.update(_PROGRESS.sub("", strip(_git(root, "show", f"{sha}:{rel}") or "")).encode())
+    return digest.hexdigest() if files else ""
+
+
+def commit_of(root, doc, entry):
+    """O commit que assinou a linha, ou None."""
+    blame = _git(root, "blame", "--porcelain", "-L", f"{entry['line']},{entry['line']}", "--", doc)
+    sha = (blame or "").split(" ", 1)[0]
+    return sha if re.fullmatch(r"[0-9a-f]{40}", sha) and set(sha) != {"0"} else None
 
 
 def entries(root, doc):

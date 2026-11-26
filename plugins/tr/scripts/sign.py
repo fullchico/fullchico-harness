@@ -46,17 +46,23 @@ def from_command(payload, root, reg):
     gate = reg["gates"].get(name)
     if not gate or gate["signs"] == "agent":
         return 0
-    lines = [l for l in output_of(payload.get("tool_response")).splitlines() if l.strip()]
+    failed_event = payload.get("hook_event_name") == "PostToolUseFailure"
+    # comando que sai com erro chega por outro evento, com a saída em `error` (e "Exit code N" em volta)
+    text = payload.get("error") if failed_event else output_of(payload.get("tool_response"))
+    lines = [l for l in (text if isinstance(text, str) else "").splitlines() if l.strip()]
     expected = f"gate {name}{' ticket ' + ticket if ticket else ''}: passou"
-    if lines and lines[-1].strip().startswith(f"gate {name}: FALHOU") and payload.get("agent_type") == registry.CHECKER:
+    failure = next((l.strip() for l in reversed(lines) if l.strip().startswith(f"gate {name}: FALHOU")), None)
+    if failed_event and not failure:
+        return 0
+    if failure and (failed_event or lines[-1].strip() == failure) and payload.get("agent_type") == registry.CHECKER:
         key = registry.stamp_key(root, gate, ticket)
         if key:
-            certs.certify(root, name, key, "REJECTED", registry.CHECKER, lines[-1].strip(), ticket)
+            certs.certify(root, name, key, "REJECTED", registry.CHECKER, failure, ticket)
         state = attempts.status(root, name, gate)
         if gate["stage"] == "end" and state["intervention"]:
             return render.warn(f"Intervenção humana necessária no portão {name}: {state['rejections']} reprovações; limite {gate.get('attempts', 3)}.")
         return 0
-    if not lines or lines[-1].strip() != expected:
+    if failed_event or not lines or lines[-1].strip() != expected:
         return 0
     if payload.get("agent_type") != registry.CHECKER:
         # quem escreveu o código vê o resultado, mas não assina: o carimbo vem de um subagente limpo
@@ -68,6 +74,9 @@ def from_command(payload, root, reg):
             ("portão", name), ("motivo", "passou, mas a árvore tem alteração sem commit"),
         ], [f"  → faça o commit e rode `gate {name}` de novo"],
             "o fiscal só assina com a árvore limpa"))
+    if gate["stage"] == "end" and __import__("tasks").open_work(root):
+        ledger.log(root, "tr", "not_signed", f"{name}: auditoria antes da chegada do trem")
+        return render.warn(f"trilho · {name} passou, mas a auditoria só certifica com todos os tickets e ajustes integrados")
     if gate["stage"] == "middle" and (not ticket or ticket not in __import__("tasks").tickets(root)):
         return 0
     if gate["stage"] != "middle" and ticket:
@@ -137,7 +146,7 @@ def main():
     reg = registry.load(root)
     if not reg:
         return 0
-    if payload.get("hook_event_name") == "PostToolUse":
+    if payload.get("hook_event_name") in ("PostToolUse", "PostToolUseFailure"):
         return from_command(payload, root, reg) if payload.get("tool_name") == "Bash" else 0
     return from_agent(payload, root, reg)
 

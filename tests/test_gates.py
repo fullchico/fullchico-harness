@@ -426,7 +426,8 @@ class TestProtectionAndInit(Case):
         hooks = json.loads((PLUGIN / "hooks/hooks.json").read_text())["hooks"]
         self.assertIn("SessionStart", hooks)
         self.assertEqual({g["matcher"] for g in hooks["PreToolUse"]},
-                         {"Bash", "Edit|Write|MultiEdit|NotebookEdit", "Agent|Task", "SubagentHandback"})
+                         {"Bash", "Edit|Write|MultiEdit|NotebookEdit", "Agent|Task", "SubagentHandback",
+                          "AskUserQuestion"})
         self.assertTrue(all(h.get("onFailure") == "block" for group in hooks["PreToolUse"][:3]
                             for h in group["hooks"]))
         self.assertEqual(hooks["PostToolUse"][0]["matcher"], "Bash")

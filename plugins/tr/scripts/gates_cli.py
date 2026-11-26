@@ -332,7 +332,9 @@ def main(argv):
         return execute(os.path.abspath(project), flags, setting, register)
     except NoPermission as e:
         print(e, file=sys.stderr)
-        print(f"No seu terminal: {registry.owner_command(os.path.abspath(project), ['gates', *argv])}", file=sys.stderr)
+        print("Na sessão: rode este comando sozinho na chamada (sem `&&`, pipe ou redirecionamento); o hook pede a "
+              "aprovação do dono ali mesmo.", file=sys.stderr)
+        print(f"No terminal do dono: {registry.owner_command(os.path.abspath(project), ['gates', *argv])}", file=sys.stderr)
         return 1
 
 

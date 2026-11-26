@@ -91,6 +91,24 @@ def grant_owner(root, canonical):
         json.dump(data, f)
 
 
+OWNER_YES, OWNER_NO = "Aprovo", "Não aprovo"
+
+
+def owner_question(canonical):
+    """A pergunta que o agente faz ao dono pelo AskUserQuestion: o hook só libera esta pergunta exata."""
+    return f"Você aprova, como dono, `{canonical}`?"
+
+
+def owner_from_question(text):
+    m = re.fullmatch(r"Você aprova, como dono, `([^`]+)`\?", (text or "").strip())
+    return m.group(1) if m else None
+
+
+def owner_pending(root, canonical):
+    """Há uma aprovação viva do dono para este comando (sem consumir)?"""
+    return hashlib.sha256(canonical.encode()).hexdigest() in _load_approvals(root)
+
+
 def owner_approved(root, canonical):
     """O CLI dentro da sessão só grava com uma aprovação viva para este comando; ela é consumida aqui."""
     data = _load_approvals(root)
@@ -315,7 +333,33 @@ def stamped_commit(root, name, gate, ticket=None):
     key = stamp_key(root, gate, ticket)
     if key and certs.has(root, name, key, ticket, by=responsible(gate)):
         return key
+    if key and gate["stage"] == "end" and gate["signs"] == "agent" and carried(root, name, gate):
+        return key
     return None
+
+
+def carried(root, name, gate):
+    """Um revisor de modelo que aprovou continua valendo na chegada do trem de ajuste: desde a aprovação dele, só
+    mudaram arquivos que os ajustes declararam (`Files:`) e o critério é o mesmo. O `quality` (comando) não é levado:
+    roda de novo sempre que o código muda, e é ele que pega a regressão."""
+    import certs
+    import tasks
+    doc = certs.document(root)
+    found = [e for e in certs.entries(root, doc) if e["name"] == name]
+    if not found or found[-1]["verdict"] != "APPROVED" or found[-1]["by"] != responsible(gate):
+        return False
+    sha = certs.commit_of(root, doc, found[-1])
+    if not sha or certs.criterion_at(root, sha) != certs.criterion(root):
+        return False
+    declared = [g.strip() for f in tasks.adjustments(root).values()
+                for g in re.split(r"[,\s]+", f.get("files", "")) if g.strip()]
+    if not declared:
+        return False
+    changed = set((_git(root, "diff", "--name-only", sha) or "").splitlines())
+    changed |= set((_git(root, "ls-files", "--others", "--exclude-standard") or "").splitlines())
+    code = [p for p in changed if p and not p.endswith(".md") and not p.startswith("docs/")]
+    return all(any(fnmatch.fnmatch(p, g) or p.startswith(g.rstrip("*").rstrip("/") + "/") for g in declared)
+               for p in code)
 
 
 def scoped_stamp(name, ticket):

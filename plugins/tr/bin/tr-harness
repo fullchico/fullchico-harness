@@ -11,5 +11,7 @@ case "$cmd" in
   owner)   exec python3 -I "$dir/scripts/registry.py" owner "$@" ;;
   status)  exec python3 -I "$dir/scripts/status.py" ;;
   skill)   exec python3 -I "$dir/scripts/skill_path.py" "$@" ;;
-  *) echo "uso: tr-harness gates|models|cost|deliver|status|skill|owner <args>" >&2; exit 2 ;;
+  wait)    exec python3 -I "$dir/scripts/wait_cli.py" "$@" ;;
+  balance) exec python3 -I "$dir/scripts/balance_cli.py" "$@" ;;
+  *) echo "uso: tr-harness gates|models|cost|deliver|status|skill|wait|balance|owner <args>" >&2; exit 2 ;;
 esac

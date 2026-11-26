@@ -323,6 +323,12 @@ def validate_gate(root, name, ticket=None, request=""):
         instructions = _agent_instructions(root, gate["agent"])
     else:
         instructions = ""
+    if gate["stage"] == "end":
+        import tasks
+        pending = tasks.open_work(root)
+        if pending:  # a auditoria é a chegada do trem: com trabalho aberto, nada de revisor de fim
+            raise ValueError("o trem ainda não chegou: termine e integre " + ", ".join(pending[:4]) +
+                             " antes da auditoria")
     snapshot = ledger.head(root)
     key = registry.stamp_key(root, gate)
     if not snapshot or not key or (gate["stage"] == "end" and registry.dirty(root)):
@@ -337,6 +343,9 @@ def validate_gate(root, name, ticket=None, request=""):
               f"Expected snapshot: {snapshot} (a tr content hash of the working files, not a Git commit: do not look "
               f"it up in Git; copy it verbatim into COMMIT)\n{context}"
               # o relato de quem pede não chega ao revisor: o julgado não instrui o juiz (fica no manifesto)
+              "Validate the delta between the planned (the accepted spec, its tickets and the artifacts approved "
+              "at the start) and the delivered, observed in the delivered state: the running product, the code "
+              "and the tests that exercise it. An artifact of the plan is the reference, never the evidence. "
               "Answer with concrete findings and end with exactly three lines: "
               "VERDICT: APPROVED or REJECTED, COMMIT: <the expected snapshot, verbatim>, SUMMARY: <one sentence>.\n"
               + (f"Agent instructions:\n{instructions}\n" if instructions else ""))
