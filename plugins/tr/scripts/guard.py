@@ -234,7 +234,8 @@ def ask_owner(root, payload, words):
         return deny(root, f"gravação do dono: {canonical}", panel("aprovação do dono", [
             ("comando", canonical[:80]),
             ("motivo", "neste modo não há diálogo de permissão para o dono aprovar"),
-        ], [f"  → no seu terminal: {terminal_line}"]))
+        ], [f"  → no seu terminal, fora da sessão: {terminal_line}",
+            "  → o prefixo `!` roda dentro da sessão e também é recusado"]))
     registry.grant_owner(root, canonical)
     ledger.log(root, "tr", "asked", canonical[:160])
     print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask",

@@ -263,6 +263,18 @@ class TestEndGateByCommand(Case):
         self.assertIn("quebrou", out.stdout)
         self.assertIn("gate quality: FALHOU (echo quebrou; false)", out.stdout)
 
+    def test_a_long_command_output_still_ends_in_the_stamp_line(self):
+        data = json.loads((self.repo / ".claude/harness.json").read_text())
+        data["gates"]["quality"]["command"] = "seq 1 20000"
+        (self.repo / ".claude/harness.json").write_text(json.dumps(data))
+        commit_all(self.repo, "chore: comando com saída longa")
+        out = self.gate("quality")
+        self.assertEqual(out.returncode, 0, out.stdout + out.stderr)
+        self.assertLess(len(out.stdout.splitlines()), 50, "o portão mostra só o fim da saída")
+        self.assertIn("20000", out.stdout)
+        self.post("gate quality", out.stdout)
+        self.assertTrue(self.signed("quality"))
+
     def test_a_send_is_blocked_without_the_stamp_and_free_with_it(self):
         for cmd in ("git push", "git add . && git push origin x", "gh pr create --fill"):
             r = self.bash(cmd)

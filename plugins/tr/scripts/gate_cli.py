@@ -59,9 +59,28 @@ def list_all(root, reg):
     return 0
 
 
+TAIL = 40  # linhas da saída que o portão mostra; o resto fica no log
+
+
 def run(command, root, *args):
-    sys.stdout.flush()
-    return subprocess.run(["bash", "-c", command, "_", *args], cwd=root).returncode
+    """Roda o comando e mostra só o fim da saída: com saída longa o Claude Code entrega ao hook um trecho,
+    e a linha `gate <x>: passou` some (o carimbo não sai). A saída inteira fica num log no diretório temporário
+    (o verificador roda em sandbox)."""
+    import hashlib, tempfile
+    result = subprocess.run(["bash", "-c", command, "_", *args], cwd=root,
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace")
+    lines = result.stdout.splitlines()
+    key = hashlib.sha1(os.path.realpath(root).encode()).hexdigest()[:12]
+    log = os.path.join(tempfile.gettempdir(), f"tr-gate-{key}.log")
+    try:
+        with open(log, "w", encoding="utf-8") as stream:
+            stream.write(result.stdout)
+    except OSError:
+        log = None
+    if len(lines) > TAIL:
+        print(f"… {len(lines) - TAIL} linhas omitidas" + (f" (saída inteira em {log})" if log else ""))
+    print("\n".join(lines[-TAIL:]))
+    return result.returncode
 
 
 def checkout_lock(root):

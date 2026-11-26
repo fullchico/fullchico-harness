@@ -246,16 +246,39 @@ def _in_flight_path(root):
     return os.path.join(ledger.state_dir(root), "in-flight.json")
 
 
-def _in_flight(root):
+PENDING_TTL = 90  # disparo que não abriu subagente nesse tempo foi negado depois do guard (classificador, outro hook)
+
+
+def _raw_in_flight(root):
+    """{ticket: [início, abriu]}; um número solto (formato antigo) conta como aberto."""
     import json, time
     try:
         with open(_in_flight_path(root), encoding="utf-8") as f:
             data = json.load(f)
     except (OSError, ValueError):
         return {}
-    now = time.time()
-    current = tickets(root)  # um ticket de outra demanda (ou rodada) não ocupa vaga
-    return {k: v for k, v in data.items() if isinstance(v, (int, float)) and now - v < IN_FLIGHT_TTL and k in current}
+    now, current = time.time(), tickets(root)  # um ticket de outra demanda (ou rodada) não ocupa vaga
+    live = {}
+    for k, v in data.items():
+        at, opened = (v, True) if isinstance(v, (int, float)) else (v if isinstance(v, list) and len(v) == 2 else (0, False))
+        if k in current and now - at < (IN_FLIGHT_TTL if opened else PENDING_TTL):
+            live[k] = [at, bool(opened)]
+    return live
+
+
+def _in_flight(root):
+    return {k: v[0] for k, v in _raw_in_flight(root).items()}
+
+
+def executor_opened(root):
+    """SubagentStart: o disparo mais antigo ainda sem subagente ganhou o dele.
+    ponytail: casa por ordem, não por ticket (o SubagentStart não traz o pedido); dois disparos na mesma
+    mensagem com um negado podem trocar de dono, e o trocado expira em PENDING_TTL."""
+    data = _raw_in_flight(root)
+    pending = sorted((v[0], k) for k, v in data.items() if not v[1])
+    if pending:
+        data[pending[0][1]][1] = True
+        _save_in_flight(root, data)
 
 
 def _save_in_flight(root, data):
@@ -431,13 +454,13 @@ def ticket_refs(root, prompt):
 def start_executor(root, prompt):
     """Marca os tickets do pedido como em execução. Devolve o primeiro que já tinha executor, ou None."""
     import time
-    data = _in_flight(root)
+    data = _raw_in_flight(root)
     refs = ticket_refs(root, prompt)
     busy = next((ref for ref in refs if ref in data), None)
     if busy:
         return busy
     for ref in refs:
-        data[ref] = time.time()
+        data[ref] = [time.time(), False]
     _save_in_flight(root, data)
     return None
 
@@ -460,8 +483,8 @@ def release_if_idle(root):
 
 
 def finish_executor(root, prompt):
-    """O executor voltou: os tickets do pedido dele ficam livres de novo."""
-    data = _in_flight(root)
+    """O executor voltou (ou o disparo falhou): os tickets do pedido dele ficam livres de novo."""
+    data = _raw_in_flight(root)
     for ref in ticket_refs(root, prompt):
         data.pop(ref, None)
     _save_in_flight(root, data)

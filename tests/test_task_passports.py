@@ -372,6 +372,27 @@ class TestTaskPassports(unittest.TestCase):
         self.assertNotEqual(self.hook("Agent", job, "tr:orchestrator").get("permissionDecision"), "deny",
                             "depois que o executor volta, o ticket pode ser disparado de novo")
 
+    def test_a_dispatch_that_never_opened_frees_its_ticket(self):
+        ticket = self.ticket("01", "api")
+        commit_all(self.repo, "plan")
+        rel = str(ticket.relative_to(self.repo))
+        job = {"subagent_type": "general-purpose", "prompt": f"Implemente {rel}", "isolation": "worktree"}
+        done = lambda payload: subprocess.run(
+            [sys.executable, str(ROOT / "plugins/tr/scripts/dispatch_done.py")], input=json.dumps(payload),
+            capture_output=True, text=True, env=dict(os.environ, CLAUDE_PROJECT_DIR=str(self.repo)))
+        age = lambda seconds: tasks._save_in_flight(str(self.repo), {
+            k: [v[0] - seconds, v[1]] for k, v in tasks._raw_in_flight(str(self.repo)).items()})
+        busy = lambda: self.hook("Agent", job, "tr:orchestrator").get("permissionDecision") == "deny"
+        self.assertFalse(busy())
+        done({"hook_event_name": "PermissionDenied", "tool_name": "Agent", "cwd": str(self.repo), "tool_input": job})
+        self.assertFalse(busy(), "o classificador negou depois do guard: o ticket volta a ficar livre")
+        age(tasks.PENDING_TTL + 1)
+        self.assertFalse(busy(), "disparo sem subagente aberto expira em minutos, não em horas")
+        done({"hook_event_name": "SubagentStart", "cwd": str(self.repo), "agent_id": "x1",
+              "agent_type": "general-purpose"})
+        age(tasks.PENDING_TTL + 1)
+        self.assertTrue(busy(), "com o subagente aberto, o ticket segue ocupado")
+
     def test_status_board_comes_from_hooks(self):
         first = self.ticket("01", "api")
         second = self.ticket("02", "api", blockers="01")
