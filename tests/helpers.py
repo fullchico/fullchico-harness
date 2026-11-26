@@ -93,6 +93,16 @@ def fake_claude(folder):
     path = pathlib.Path(folder) / "claude"
     path.write_text(f'#!/bin/sh\necho "$*" >> "{folder}/calls"\n')
     path.chmod(path.stat().st_mode | stat.S_IEXEC)
+    fake_rtk(folder)
+    return folder
+
+
+def fake_rtk(folder):
+    """Um `rtk` de mentira: o instalador só confere que ele existe (é obrigatório)."""
+    import stat
+    path = pathlib.Path(folder) / "rtk"
+    path.write_text("#!/bin/sh\nexit 0\n")
+    path.chmod(path.stat().st_mode | stat.S_IEXEC)
     return folder
 
 
@@ -102,6 +112,7 @@ def fake_npx(folder):
     path = pathlib.Path(folder) / "npx"
     path.write_text(f'#!/bin/sh\necho "$*" >> "{folder}/npx-calls"\n')
     path.chmod(path.stat().st_mode | stat.S_IEXEC)
+    fake_rtk(folder)
     return folder
 
 

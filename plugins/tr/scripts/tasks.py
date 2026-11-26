@@ -29,6 +29,32 @@ def tickets(root):
     return out
 
 
+def progress_dir(root):
+    """A área de andamento da demanda ativa (`docs/specs/<demanda>/progress/`): ajustes, handoffs e balanço.
+    É andamento, não critério: fica fora do hash do critério e não derruba o aceite do dono."""
+    import certs
+    slug = certs.demand(root)
+    return f"docs/specs/{slug}/progress" if slug else None
+
+
+def adjustments(root):
+    """Os ajustes da demanda (`progress/adjust-*.md`), com o passaporte de cada um (Status, Files, Gates)."""
+    import glob
+    folder = progress_dir(root)
+    out = {}
+    for file in sorted(glob.glob(os.path.join(root, folder or "-", "adjust-*.md"))):
+        with open(file, encoding="utf-8") as stream:
+            out[os.path.relpath(file, root).replace(os.sep, "/")] = {
+                key.lower(): value.strip() for key, value in FIELD.findall(stream.read())}
+    return out
+
+
+def open_work(root):
+    """Tickets e ajustes ainda abertos: enquanto houver, o trem não chegou e a auditoria não começa."""
+    pending = [path for path, f in adjustments(root).items() if f.get("status", "").lower() != "done"]
+    return open_tickets(root) + pending
+
+
 def open_tickets(root):
     """Tickets da demanda que ainda não terminaram: enquanto houver, o código é dos executores."""
     return [path for path, fields in tickets(root).items() if fields.get("status", "").lower() != "done"]
@@ -80,6 +106,7 @@ def audit(root, reg):
         return [f"critério da demanda `{certs.demand(root)}` sem aceite do dono (ou mudou depois do aceite): "
                 "o dono roda `tr-harness gates --accept`"], []
     problems, graph, completed, ids, entries_ok, plan_ok = [], {}, set(), {}, {}, {}
+    integrated = set()
     for path, fields in all_tickets.items():
         first_problem = len(problems)
         ticket_id = (os.path.dirname(path), os.path.basename(path).split("-", 1)[0])
@@ -142,6 +169,8 @@ def audit(root, reg):
         if status != "done":
             problems.append(f"{path}: Status ainda não é done")
             continue
+        if len(problems) == first_problem and plan_ok[path]:
+            integrated.add(path)  # chegou: libera os dependentes; os portões de fim são da auditoria, na chegada
         import registry
         missing_stamp = []
         # Além dos portões do ticket, os de comando sempre obrigatórios (typecheck, lint, test, build) valem a
@@ -187,8 +216,16 @@ def audit(root, reg):
                     completed.remove(path)
                     changed = True
                     break
+    # A fronteira anda com o que foi integrado (`Status: done`); o certificado de fim só é exigido na entrega.
+    changed = True
+    while changed:
+        changed = False
+        for path in list(integrated):
+            if any(blocker not in integrated for blocker in graph[path]):
+                integrated.remove(path)
+                changed = True
     ready = [path for path, blockers in graph.items()
-             if all(blocker in completed for blocker in blockers)
+             if all(blocker in integrated for blocker in blockers)
              and plan_ok[path]
              and entries_ok[path]
              and all_tickets[path].get("status", "").lower() != "done"]
@@ -262,12 +299,17 @@ def _raw_in_flight(root):
             data = json.load(f)
     except (OSError, ValueError):
         return {}
-    now, current = time.time(), tickets(root)  # um ticket de outra demanda (ou rodada) não ocupa vaga
+    now = time.time()
+    current = set(tickets(root)) | set(adjustments(root))  # um ticket de outra demanda (ou rodada) não ocupa vaga
     live = {}
     for k, v in data.items():
-        at, opened = (v, True) if isinstance(v, (int, float)) else (v if isinstance(v, list) and len(v) == 2 else (0, False))
+        if isinstance(v, (int, float)):
+            v = [v, True]
+        if not isinstance(v, list) or len(v) < 2:
+            continue
+        at, opened, agent = v[0], bool(v[1]), (v[2] if len(v) > 2 else None)
         if k in current and now - at < (IN_FLIGHT_TTL if opened else PENDING_TTL):
-            live[k] = [at, bool(opened)]
+            live[k] = [at, opened, agent]
     return live
 
 
@@ -275,14 +317,15 @@ def _in_flight(root):
     return {k: v[0] for k, v in _raw_in_flight(root).items()}
 
 
-def executor_opened(root):
-    """SubagentStart: o disparo mais antigo ainda sem subagente ganhou o dele.
+def executor_opened(root, agent_id=None):
+    """SubagentStart: o disparo mais antigo ainda sem subagente ganhou o dele (e o quadro guarda quem é).
     ponytail: casa por ordem, não por ticket (o SubagentStart não traz o pedido); dois disparos na mesma
     mensagem com um negado podem trocar de dono, e o trocado expira em PENDING_TTL."""
     data = _raw_in_flight(root)
     pending = sorted((v[0], k) for k, v in data.items() if not v[1])
     if pending:
         data[pending[0][1]][1] = True
+        data[pending[0][1]][2] = agent_id
         _save_in_flight(root, data)
 
 
@@ -296,9 +339,50 @@ def _save_in_flight(root, data):
 STALE_AFTER = 600  # segundos sem nenhuma ferramenta: o subagente aparece como possivelmente parado
 # Aceita um prefixo curto que os agentes costumam pôr (`result: DONE: …`, `**DONE:** …`).
 REPORT_LINE = re.compile(r"(?m)^\s*(?:[*_`>]+\s*|\w+:\s*)?(DONE|BLOCKED):[*_`]*\s*(\S+)\s*(?:[—-]+\s*)?(.*)$")
-EXECUTOR_PROTOCOL = ("\n\nYou work in your own git worktree: commit your changes on its branch before finishing. "
-                     "End your final message with exactly one line: `DONE: {ticket} — <one-sentence summary>` "
-                     "when the ticket is finished, or `BLOCKED: {ticket} — <reason>` when you cannot finish it.")
+EXECUTOR_PROTOCOL = ("\n\nYou work in your own git worktree, which may have been created from another branch. Before "
+                     "anything else, bring it to the demand branch `{branch}`: if `git merge-base --is-ancestor "
+                     "{branch} HEAD` fails, run `git merge --ff-only {branch}` (or `git reset --hard {branch}` while "
+                     "you have no commits of your own). The plan and `.claude/harness.json` must be there before you "
+                     "write code. Commit your changes on your branch before finishing. If you stop before the "
+                     "ticket is done (blocked, out of time, anything), first write the handoff `{progress}/"
+                     "handoff-{name}.md`: what is done (with commits), what is left, why you stopped, your branch and "
+                     "the files involved; commit it, so whoever picks it up continues from there. End your final "
+                     "message with exactly one line: `DONE: {ticket} — <one-sentence summary>` when the ticket is "
+                     "finished, or `BLOCKED: {ticket} — <reason>` when you cannot finish it.")
+
+
+def protocol(root, ticket):
+    import registry
+    return EXECUTOR_PROTOCOL.format(ticket=ticket, branch=registry.branch(root),
+                                    progress=progress_dir(root) or "docs/specs/<demand>/progress",
+                                    name=os.path.splitext(os.path.basename(ticket))[0])
+
+
+STALE_WAIT = 600  # segundos sem ferramenta: o executor travou e o orquestrador socorre
+
+
+def wait(root, seconds=540, stale=STALE_WAIT):
+    """`tr-harness wait`: a sessão principal vigia o trem enquanto o orquestrador (parado, esperando os
+    executores) não pode. Volta quando o trem parou (0: sem executor em voo nem orquestrador ativo), quando um
+    executor travou (4: sem ferramenta há `stale` s) ou no fim do prazo (3: ainda rodando)."""
+    import time
+    deadline = time.time() + seconds
+    while True:
+        flying = _raw_in_flight(root)
+        agents = board(root).get("agents") or {}
+        now = time.time()
+        import registry
+        driving = [a for a, v in agents.items() if v.get("type") in registry.ORCHESTRATORS
+                   and now - v.get("last", 0) < stale]
+        if not flying and not driving:
+            return 0, {"arrived": True}  # nenhum executor em voo e nenhum orquestrador ativo
+        stuck = {k: v[2] for k, v in flying.items() if v[1] and v[2] and
+                 now - (agents.get(v[2]) or {}).get("last", v[0]) > stale}
+        if stuck:
+            return 4, {"stuck": stuck, "running": sorted(set(flying) - set(stuck))}
+        if time.time() >= deadline:
+            return 3, {"running": sorted(flying)}
+        time.sleep(5)
 
 
 def _board_path(root):
@@ -404,7 +488,10 @@ def report(root, agent_id, message):
     import time
     data = board(root)
     data.get("agents", {}).pop(agent_id, None)
-    known = tickets(root)
+    flying = _raw_in_flight(root)  # o executor em segundo plano terminou: a vaga dele fica livre
+    if any(v[2] == agent_id for v in flying.values()):
+        _save_in_flight(root, {k: v for k, v in flying.items() if v[2] != agent_id})
+    known = list(tickets(root)) + list(adjustments(root))
     for kind, ref, note in REPORT_LINE.findall(message or ""):
         number = ref.strip("`*#").split("-", 1)[0]
         rel = next((p for p in known if p == ref or p.endswith(ref) or ref.endswith(p)
@@ -453,7 +540,8 @@ def orphan_containers(root):
 
 
 def ticket_refs(root, prompt):
-    return [path for path in tickets(root) if path in (prompt or "")]
+    """Tickets e ajustes citados no pedido (um ajuste é despachado como um ticket)."""
+    return [path for path in list(tickets(root)) + list(adjustments(root)) if path in (prompt or "")]
 
 
 def start_executor(root, prompt):
@@ -465,7 +553,7 @@ def start_executor(root, prompt):
     if busy:
         return busy
     for ref in refs:
-        data[ref] = [time.time(), False]
+        data[ref] = [time.time(), False, None]
     _save_in_flight(root, data)
     return None
 

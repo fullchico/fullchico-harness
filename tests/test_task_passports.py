@@ -339,6 +339,54 @@ class TestTaskPassports(unittest.TestCase):
         self.assertEqual(pin["permissionDecision"], "ask", "fixar plugin no projeto é decisão do dono")
         self.assertEqual(subprocess.run(models, cwd=self.repo, capture_output=True, env=in_session).returncode, 0)
 
+    def test_in_auto_mode_the_owner_approves_by_answering_the_question_in_the_session(self):
+        (self.repo / ".claude/harness.json").unlink()
+        draft = self.repo.parent / "draft.json"
+        draft.write_text(json.dumps({"quality": {"stage": "end", "signs": "command", "command": "true"}}))
+        command = f"tr-harness gates --register {shlex.quote(str(draft))}"
+        cli = [str(ROOT / "plugins/tr/bin/tr-harness"), "gates", "--register", str(draft)]
+        in_session = dict(os.environ, CLAUDECODE="1")
+        env = dict(os.environ, CLAUDE_PROJECT_DIR=str(self.repo))
+
+        def run(script, payload):
+            out = subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts" / script)], capture_output=True,
+                                 text=True, input=json.dumps(dict(payload, cwd=str(self.repo))), env=env).stdout
+            return json.loads(out) if out.strip() else {}
+
+        combined = self.owner_hook(f"git add -A && {command} 2>&1 | tail -5", "auto")
+        self.assertEqual(combined["permissionDecision"], "deny")
+        self.assertIn("sozinho", combined["permissionDecisionReason"], "combinado, o hook não consegue perguntar")
+        denied = self.owner_hook(command, "auto")
+        self.assertEqual(denied["permissionDecision"], "deny")
+        canonical = registry.owner_canonical(["gates", "--register", str(draft)])
+        question = registry.owner_question(canonical)
+        self.assertIn(question, denied["permissionDecisionReason"], "o agente recebe a pergunta exata")
+        ask = {"questions": [{"question": question, "header": "Dono", "multiSelect": False,
+                              "options": [{"label": "Aprovo", "description": "grava"},
+                                          {"label": "Não aprovo", "description": "não grava"}]}]}
+        forged = run("guard.py", {"hook_event_name": "PreToolUse", "tool_name": "AskUserQuestion",
+                                  "tool_input": dict(ask, answers={question: "Aprovo"})})
+        self.assertEqual(forged["hookSpecificOutput"]["permissionDecision"], "deny", "o agente não responde pelo dono")
+        self.assertEqual(run("guard.py", {"hook_event_name": "PreToolUse", "tool_name": "AskUserQuestion",
+                                          "tool_input": ask}), {}, "a pergunta limpa passa")
+        answered = lambda reply, asked=ask: run("owner_answer.py", {
+            "hook_event_name": "PostToolUse", "tool_name": "AskUserQuestion", "tool_input": asked,
+            "tool_response": {"questions": asked["questions"], "answers": {question: reply}}})
+        answered("Não aprovo")
+        self.assertEqual(self.owner_hook(command, "auto")["permissionDecision"], "deny", "não aprovou, não libera")
+        answered("Aprovo", {"questions": []})
+        self.assertEqual(self.owner_hook(command, "auto")["permissionDecision"], "deny",
+                         "resposta a uma pergunta que não foi feita não libera")
+        answered("Aprovo")
+        allowed = subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/guard.py")], capture_output=True,
+                                 text=True, env=env, input=json.dumps({
+                                     "hook_event_name": "PreToolUse", "tool_name": "Bash", "cwd": str(self.repo),
+                                     "permission_mode": "auto", "tool_input": {"command": command}}))
+        self.assertEqual(allowed.stdout.strip(), "", "com o Aprovo do dono, o comando passa")
+        done = subprocess.run(cli, cwd=self.repo, capture_output=True, text=True, env=in_session)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(self.owner_hook(command, "auto")["permissionDecision"], "deny", "a aprovação é de uso único")
+
     def test_tool_files_are_not_code_and_listing_gates_may_be_piped(self):
         self.assertFalse(registry.is_code(str(self.repo), "skills-lock.json"))
         self.assertTrue(registry.is_code(str(self.repo), "package.json"))
@@ -355,20 +403,20 @@ class TestTaskPassports(unittest.TestCase):
             self.assertEqual(gates_cli.merge(str(self.repo), {"code": ["outro"]}), [], "code existente não muda")
         self.assertEqual(registry.load(str(self.repo))["code"], ["apps", "packages"])
 
-    def test_the_orchestrator_runs_executors_in_the_foreground_once_per_ticket(self):
+    def test_the_orchestrator_runs_executors_in_the_background_once_per_ticket(self):
         ticket = self.ticket("01", "api")
         commit_plan(self.repo, "plan")
         rel = str(ticket.relative_to(self.repo))
-        job = {"subagent_type": "general-purpose", "prompt": f"Implemente {rel}", "isolation": "worktree"}
-        background = self.hook("Agent", dict(job, run_in_background=True), "tr:orchestrator")
-        self.assertEqual(background.get("permissionDecision"), "deny")
-        self.assertIn("primeiro plano", background["permissionDecisionReason"])
+        job = {"subagent_type": "general-purpose", "prompt": f"Implemente {rel}", "isolation": "worktree",
+               "run_in_background": True}
+        job.pop("run_in_background")  # o Agent de um subagente não tem esse parâmetro
         self.assertNotEqual(self.hook("Agent", job, "tr:orchestrator").get("permissionDecision"), "deny")
         twice = self.hook("Agent", job, "tr:orchestrator")
         self.assertEqual(twice.get("permissionDecision"), "deny", "o mesmo ticket não ganha dois executores")
         self.assertIn("já tem um executor", twice["permissionDecisionReason"])
         done = subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/dispatch_done.py")],
-                              input=json.dumps({"tool_name": "Agent", "cwd": str(self.repo), "tool_input": job}),
+                              input=json.dumps({"tool_name": "Agent", "cwd": str(self.repo), "tool_input": job,
+                                                "hook_event_name": "PostToolUse"}),
                               capture_output=True, text=True, env=dict(os.environ, CLAUDE_PROJECT_DIR=str(self.repo)))
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertNotEqual(self.hook("Agent", job, "tr:orchestrator").get("permissionDecision"), "deny",
@@ -378,7 +426,8 @@ class TestTaskPassports(unittest.TestCase):
         ticket = self.ticket("01", "api")
         commit_plan(self.repo, "plan")
         rel = str(ticket.relative_to(self.repo))
-        job = {"subagent_type": "general-purpose", "prompt": f"Implemente {rel}", "isolation": "worktree"}
+        job = {"subagent_type": "general-purpose", "prompt": f"Implemente {rel}", "isolation": "worktree",
+               "run_in_background": True}
         done = lambda payload: subprocess.run(
             [sys.executable, str(ROOT / "plugins/tr/scripts/dispatch_done.py")], input=json.dumps(payload),
             capture_output=True, text=True, env=dict(os.environ, CLAUDE_PROJECT_DIR=str(self.repo)))
@@ -401,7 +450,7 @@ class TestTaskPassports(unittest.TestCase):
         commit_plan(self.repo, "plan")
         rel1, rel2 = str(first.relative_to(self.repo)), str(second.relative_to(self.repo))
         dispatched = self.hook("Agent", {"subagent_type": "general-purpose", "prompt": f"Implemente {rel1}",
-                                         "isolation": "worktree"}, "tr:orchestrator")
+                                         "isolation": "worktree", "run_in_background": True}, "tr:orchestrator")
         self.assertIn(f"DONE: {rel1}", dispatched["updatedInput"]["prompt"], "o hook pede o aviso de fim ao executor")
         self.assertIn("ports 3100–3199", dispatched["updatedInput"]["prompt"], "portas próprias pelo número do ticket")
         self.assertIn("app_t01", dispatched["updatedInput"]["prompt"], "banco próprio pelo número do ticket")
@@ -447,12 +496,14 @@ class TestTaskPassports(unittest.TestCase):
         tickets = [self.ticket(f"0{n}", "api", paths=f"src/m{n}/**") for n in (1, 2, 3)]
         commit_plan(self.repo, "plan")
         rels = [str(t.relative_to(self.repo)) for t in tickets]
-        shared = self.hook("Agent", {"subagent_type": "general-purpose", "prompt": f"Implemente {rels[0]}"}, "tr:orchestrator")
+        shared = self.hook("Agent", {"subagent_type": "general-purpose", "prompt": f"Implemente {rels[0]}",
+                                     "run_in_background": True}, "tr:orchestrator")
         self.assertEqual(shared.get("permissionDecision"), "deny")
         self.assertIn("worktree", shared["permissionDecisionReason"])
         reg = json.loads((self.repo / ".claude/harness.json").read_text())
         (self.repo / ".claude/harness.json").write_text(json.dumps(dict(reg, max_parallel=2)))
-        job = lambda rel: {"subagent_type": "general-purpose", "prompt": f"Implemente {rel}", "isolation": "worktree"}
+        job = lambda rel: {"subagent_type": "general-purpose", "prompt": f"Implemente {rel}", "isolation": "worktree",
+               "run_in_background": True}
         for rel in rels[:2]:
             self.assertNotEqual(self.hook("Agent", job(rel), "tr:orchestrator").get("permissionDecision"), "deny")
         third = self.hook("Agent", job(rels[2]), "tr:orchestrator")
@@ -511,9 +562,14 @@ class TestTaskPassports(unittest.TestCase):
         self.assertEqual(tasks.board(str(self.repo))["tickets"][ticket]["state"], "done")
 
     def test_a_stamp_that_still_holds_is_not_validated_again(self):
-        self.ticket("01", "api")
+        ticket = self.ticket("01", "api")
         commit_plan(self.repo, "plan")
         request = {"subagent_type": registry.CHECKER, "description": "gate", "prompt": "gate: quality"}
+        early = self.hook("Agent", request, "tr:orchestrator")
+        self.assertEqual(early.get("permissionDecision"), "deny", "com ticket aberto, o trem não chegou")
+        self.assertIn("o trem ainda não chegou", early["permissionDecisionReason"])
+        ticket.write_text(ticket.read_text().replace("Status: open", "Status: done"))
+        commit_all(self.repo, "done")
         self.assertNotEqual(self.hook("Agent", request, "tr:orchestrator").get("permissionDecision"), "deny",
                             "sem carimbo, valida")
         key = registry.stamp_key(str(self.repo), registry.load(str(self.repo))["gates"]["quality"])
@@ -590,7 +646,7 @@ class TestTaskPassports(unittest.TestCase):
         self.assertIn("caminho do ticket", loose["permissionDecisionReason"])
         rel = str(ticket.relative_to(self.repo))
         self.assertNotEqual(self.hook("Agent", {"subagent_type": "general-purpose", "prompt": f"Implemente {rel}",
-                                       "isolation": "worktree"}, "tr:orchestrator").get("permissionDecision"), "deny")
+                                       "isolation": "worktree", "run_in_background": True}, "tr:orchestrator").get("permissionDecision"), "deny")
         self.assertEqual(self.hook("Agent", {"subagent_type": "Explore", "prompt": "Ache a soma"}, "tr:orchestrator"), {})
         self.assertEqual(self.hook("Agent", {"subagent_type": "general-purpose", "prompt": "Pesquise"}), {},
                          "a sessão principal ainda explora sem ticket")

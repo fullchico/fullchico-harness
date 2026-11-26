@@ -8,8 +8,15 @@ description: Diagnoses Claude Code and Codex, analyzes the project and interview
 You will diagnose the environments, analyze the project, interview the owner with `mattpocock-skills:grilling`
 and propose the `.claude/harness.json` registry. The agent **does not edit** that file (the tr hook
 blocks it): the harness CLI writes it, and only with the **owner's approval**. You ask the questions,
-decide the gates, build the sketch and run the CLI; the owner approves each write in Claude Code's
-permission dialog. The owner does not have to type commands.
+decide the gates, build the sketch and run the CLI; the owner approves each write inside the session.
+The owner does not have to type commands.
+
+**How the owner approves, without leaving the session.** Run the owner command yourself. In the normal
+permission mode the tr hook turns it into Claude Code's permission dialog. In auto or bypass mode there is no
+dialog: the hook denies the call and gives you an exact question. Put that question to the owner with
+`AskUserQuestion`, alone in the message, with the options `Aprovo` and `Não aprovo`, and never fill `answers`
+yourself (the hook refuses it). When the owner answers `Aprovo`, run the same command again: the hook lets it
+through once. Codex has no such question: there the owner runs the printed line in the terminal.
 
 Inside the session, always call the CLI as `tr-harness` (it ships with the installed plugin, at the same
 version). Never use `npx @fullchico/harness` without a version: it fetches another release, with another
@@ -146,8 +153,7 @@ code the framework would reject.
    Before each one, tell the owner in one line what it writes. The tr hook turns each call into a Claude
    Code permission dialog with the exact command: the owner's approval is what lets it write. If the
    owner declines, ask what to change; do not retry the same command or look for another way. If the
-   hook denies it instead (no dialog in this mode), hand the owner the line from `tr-harness owner <args>`
-   for their terminal and wait.
+   hook denies it instead (no dialog in this mode), ask the owner the exact question it gives, as above.
 4. **Close the round against the owner's answers.** Before moving on, list each decision the owner gave
    in this interview (including answers that contradicted your recommendation, such as "make it a gate
    anyway") and check that the registry, the models, the installed skills and the agents reflect it. Anything
@@ -176,7 +182,7 @@ on your own: the project leaves the configuration with its code map, and every s
 - [ ] With the stack decided, I ran `/tr:skills-discover`: inventory by scope, pinning of machine-only skills, best practices per technology, owner asked before installing.
 - [ ] I invoked `mattpocock-skills:grilling` (Skill tool) to decide the entry and exit gates with the owner.
 - [ ] Each proposed gate has evidence, timing, signing mode and a concrete verifier.
-- [ ] Sketch outside the repository; `--register`/`--set`/`models configure` run by me and approved by the owner in the dialog, never `Write`/`Edit`.
+- [ ] Sketch outside the repository; `--register`/`--set`/`models configure` run by me and approved by the owner in the session (dialog or question), never `Write`/`Edit`.
 - [ ] I remembered to review the registry before stamping.
 - [ ] I ran `gate` at the end and showed the state.
 - [ ] With the `memory` plugin, I ran `/tr:memory-map` so the project starts with its map.

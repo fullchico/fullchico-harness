@@ -96,8 +96,10 @@ On top of `to-spec`'s sections, the spec carries:
   ones always apply; this line only adds the optional ones. Without the line, all end gates are required.
 - **Owner prerequisites**: everything a gate or a ticket will need that only the owner can do (the
   environment up and pointing at the right services, a credential, an external account, data). Agents do not
-  start services or create credentials, so what is not asked here stops the delivery at the end. List each one
-  with the check that proves it is ready.
+  start services or create credentials, so what is not asked here stops the delivery at the end. Derive the
+  list, do not guess it: for each gate this demand requires, read its verifier (the registered command, or the
+  instructions of its reviewer agent) and write down what that verifier needs to run. "None" is only a valid
+  answer after that reading. List each one with the check that proves it is ready.
 
 ## 3. Tickets
 
@@ -154,60 +156,71 @@ Commit the spec and the tickets. Then ask for the owner's acceptance in one mess
 criterion, the waves, and the owner prerequisites with the check for each. The acceptance is
 `tr-harness gates --accept`, run by you in the session.
 
-In the normal permission mode the hook turns it into a dialog for the owner; in auto or bypass mode the
-owner runs the line the hook prints in their terminal. It writes the acceptance into the spec's
+**How the owner approves, without leaving the session.** Run the owner command yourself. In the normal
+permission mode the tr hook turns it into Claude Code's permission dialog. In auto or bypass mode there is no
+dialog: the hook denies the call and gives you an exact question. Put that question to the owner with
+`AskUserQuestion`, alone in the message, with the options `Aprovo` and `Não aprovo`, and never fill `answers`
+yourself (the hook refuses it). When the owner answers `Aprovo`, run the same command again: the hook lets it
+through once. Codex has no such question: there the owner runs the printed line in the terminal.
+
+The acceptance writes into the spec's
 certificate appendix, signed by a commit of the owner. No executor starts, and no delivery passes, while the
 current criterion has no acceptance: if the spec or a ticket changes later (anything but `Status:` and
 `Delivery:`), the acceptance drops and the change goes back to the owner. Whoever is judged never loosens a
 criterion alone: when a gate rejects, fix the work; when the criterion itself is wrong, bring the change to the
 owner as a question with your recommendation.
 
-Every command the owner must run goes in its own code block, alone, ready to paste: no prose, `and`, or `!`
-inside the block.
+**Questions to the owner live only at the edges.** After the acceptance the delivery runs on its own until the
+pull request is open. `AskUserQuestion` (or any question that stops the flow) is used only for the owner
+commands above and for the four urgent cases: the criterion must change, a final gate exceeded its rejection
+limit (`gates --approve`), an irreversible external action not yet authorized, or a blocker with no allowed
+alternative after investigation. Everything else is decided by the orchestrator.
+
+Every command the owner must run in a terminal goes in its own code block, alone, ready to paste: no prose,
+`and`, or `!` inside the block.
 
 Then validate each start gate required by the registry (see `gate`). For command or artifact gates,
 dispatch `/tr:quality-check`. For agent gates, use the configured reviewer; if the model is from another CLI,
 run `tr-harness models validate-gate <name>`. Only the gates registered by the project are required.
 
-## 5. Execution by the orchestrator subagent
+## 5. The train: trip, arrival and adjustment trains
 
-The execution follows Matt's `implement-spec` model (an integration branch, one worktree per ticket, each
-ticket built with `tdd`), with the tr rails on top: executors in the foreground, the frontier checked by the
-hook, and the certificates in the appendix.
+The delivery is a train with a start and an end. Boarding is section 4 (owner acceptance, owner prerequisites
+ready, start gates). After it, the orchestrator runs on its own until the arrival is certified; the owner is
+asked only in the urgent cases of section 4.
 
-The orchestrator reads the spec, the tickets and `tr-harness models show`. Tickets with no blockers and with `Start:` certified are the frontier. If `execution` is configured, for each released ticket it uses
-`tr-harness models run execution --ticket <path> --prompt <handoff> --detach` to open the chosen CLI and model, and collects it with `tr-harness models wait <id>`. The handoff contains the spec, the approved decision, the ticket and its gates. The execution manifest stays outside the repository and allows resuming after a failure. If `execution` is not configured, it dispatches an implementer subagent with the
-ticket path in the request (the hook reads its `Complexity:`), the `tdd` skill, and an isolated context when there is
-more than one in parallel. For **each gate in the passport**,
-dispatch the matching reviewer in a clean context. For an agent gate with a configured model,
-use `tr-harness models validate-gate <name> --ticket <path>`;
-the harness checks the verdict and the snapshot and writes the certificate. The reviewer gets the accepted
-criterion and the code, never instructions from whoever asks. For commands and artifacts, use the
-gate's verifier. Whoever implemented does not validate.
-If rejected, hand the findings back to the implementer; it fixes and the reviewer re-examines.
-Approval certifies the current state of the project: the certificate goes into the appendix of the ticket
-or the spec, committed by the hook in the reviewer's name (`Certified-by:`). Only the gate's responsible
-signs it; nobody edits the appendix by hand.
+**Trip.** The execution follows Matt's `implement-spec` model (an integration branch, one worktree per ticket,
+each ticket built with `tdd`), with the tr rails on top. Tickets with no blockers and with `Start:` certified
+are the frontier. With `execution` configured, the orchestrator uses `tr-harness models run execution
+--ticket <path> --prompt <handoff> --detach` and `tr-harness models wait <id>`; otherwise it dispatches an
+implementer subagent with the ticket path in the request (the hook reads its `Complexity:` and adds the
+executor protocol: align to the demand branch, ports and database, handoff, `DONE`/`BLOCKED`). The
+orchestrator dispatches the executors of a wave together and waits for them, so it cannot notice a stuck one:
+**you, the main session, watch the train**. After dispatching the orchestrator in the background, run
+`tr-harness wait` (alone, with the Bash `timeout` at 600000) and repeat while it exits 3. Exit 0: the train
+stopped; read the orchestrator's report. Exit 4: an executor stopped using tools for minutes. Rescue it: stop
+the orchestrator (`TaskStop`), write `progress/handoff-<ticket>.md` for each stuck ticket from its worktree
+(commits made, what is left), commit the handoffs and dispatch the orchestrator again, telling it to continue
+from them. A stuck or blocked executor never loses work: the next one starts from the handoff.
+No end gate runs during the trip (the hook refuses it while tickets or adjustments are open).
 
-Only after the certificates, record `Status: done` on the ticket and open the next frontier.
-If the project uses Git, `Delivery:` may record the validated commit.
-The orchestrator gathers, decides and informs the main session about progress, real blockers and the result.
+**Arrival.** With every ticket integrated, the orchestrator checks the branch as engineering work (`git status`,
+untracked files, the diff, changes unrelated to the demand) and runs the audit: every required end gate at the
+same time, each reviewer in a clean context. A reviewer validates the delta between the planned (spec, tickets,
+artifacts approved at the start) and the delivered, observed in the delivered state; an artifact of the plan is
+the reference, never the evidence. Whoever executed does not approve their own work. The reviewer gets the
+accepted criterion and the code, never instructions from whoever asks. Approval writes the certificate into the
+spec's appendix, committed by the hook in the reviewer's name (`Certified-by:`); nobody edits the appendix by
+hand. `tr-harness balance --write` records the arrival balance in `progress/balance.md`.
 
-## 6. End gates
-
-Before declaring delivery, the orchestrator checks the branch as engineering work: `git status`, ignored
-and untracked files, the diff of what will be included, test results and certificates. Fix
-a local file included by mistake and changes unrelated to the demand. Each gate's reviewer
-examines the state that will be delivered; whoever executed does not approve their own work. Do not require a PR,
-push or remote if the project did not configure them as a gate.
-
-When the executor declares the implementation ready, the orchestrator runs `gate`: it checks the passports and shows the
-frontier still open. It dispatches the verifiers of `/tr:quality-check` (one per global
-command or artifact gate) and, for each required agent gate, the registered reviewer or
-`tr-harness models validate-gate <name>` depending on the configured model.
-If it failed or was rejected: an implementer fixes and the reviewer revalidates what changed, without asking
-the owner for intermediate approval. Finally, run `tr-harness deliver` or `gate delivery`.
-The orchestrator reports the result to the main session; it only declares the delivery complete when that command passes. At the start of the final response write
+**Adjustment trains.** Each rejected point becomes an adjustment in `progress/adjust-NN-<slug>.md` (progress,
+not criterion: the owner's acceptance stays), dispatched like a ticket, in parallel. On their arrival, only the
+gates that rejected are validated again, plus the command gates if the code changed; a model reviewer's approval
+stays while the adjustments touched only what they declared in `Files:`. Each end gate has its `attempts` limit;
+past it, the owner decides with the balance in hand. When every end gate is certified, the orchestrator runs
+`tr-harness deliver` or `gate delivery` and reports to the main session; it only declares the delivery complete
+when that command passes. After the audit nothing enters the branch except the certificates. Do not require a
+PR, push or remote if the project did not configure them as a gate. At the start of the final response write
 `DELIVERY: done`; the Stop hook checks the certificates again.
 
 **Learn from the delivery.** When the main session receives `DELIVERY: done` and the project has the

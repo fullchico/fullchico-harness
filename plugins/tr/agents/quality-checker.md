@@ -18,7 +18,9 @@ commit: <current state hash>
 ## What to do
 
 1. Run exactly `gate <name>` or, if the request has `ticket:`,
-   `gate <name> --ticket <path>`, alone in the call: no pipe, no `&&`, no redirection,
+   `gate <name> --ticket <path>`, alone in the call, in the foreground with the Bash `timeout` set to
+   600000 (the hook refuses it otherwise: a check moved to the background never shows its result to the hook
+   that certifies it): no pipe, no `&&`, no redirection,
    nothing before it. Once. The hook reads the output and, if it passed, stamps the state; you sign
    nothing.
 2. Do not run another gate, do not fix code, do not edit a file, do not commit. Whoever validates

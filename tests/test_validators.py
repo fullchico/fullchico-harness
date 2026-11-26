@@ -7,6 +7,7 @@ import unittest
 
 from tests.helpers import ROOT, commit_all, commit_plan, git, make_repo
 sys.path.insert(0, str(ROOT / "plugins/tr/scripts"))
+import guard  # noqa: E402
 import ledger  # noqa: E402
 
 PLUGIN = ROOT / "plugins/tr"
@@ -64,7 +65,7 @@ class TestValidatorPrompt(Case):
     def test_bug_hunter_prompt_is_rewritten(self):
         out = self.agent("tr:bug-hunter", "diff: abc..def\ncommit: def\nfoco no que eu mudei, está certo")
         self.assertEqual(out["updatedInput"]["prompt"],
-                         f"snapshot: {self.top}\ncommit: {self.top}\nInspect the project's current files.")
+                         f"snapshot: {self.top}\ncommit: {self.top}\nInspect the project's current files. " + guard.DELTA)
 
     def test_bug_hunter_without_base_is_denied(self):
         git(self.repo, "branch", "-m", "main", "antiga")
@@ -119,8 +120,15 @@ class TestValidatorRails(Case):
         for command in ("gate quality | tail -3", "gate quality && echo ok", "gate quality > out.txt",
                         "gate quality 2>&1"):
             self.assertDenied(self.hook("Bash", command=command), "gate sozinho")
-        for command in ("gate", "gate quality", "gate | head", 'git commit -m "gate quality | x"'):
+        for command in ("gate", "gate | head", 'git commit -m "gate quality | x"'):
             self.assertIsNone(self.hook("Bash", command=command), command)
+        self.assertIsNone(self.hook("Bash", command="gate quality", timeout=600000))
+
+    def test_a_gate_runs_in_the_foreground_with_the_longest_timeout(self):
+        """Com mais de 2 min a plataforma joga o comando para segundo plano e o hook nunca vê o "passou"."""
+        self.assertDenied(self.hook("Bash", command="gate quality"), "gate em primeiro plano")
+        self.assertDenied(self.hook("Bash", command="gate quality", timeout=600000, run_in_background=True),
+                          "gate em primeiro plano")
 
     def test_git_internals_are_not_written(self):
         """Na sessão real, a IA pôs `__pycache__/` em `.git/info/exclude` para a árvore parecer limpa."""

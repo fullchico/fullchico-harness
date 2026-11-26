@@ -169,6 +169,14 @@ class TestInstall(unittest.TestCase):
             os.close(master)
         self.assertTrue((self.repo / ".agents/plugins/marketplace.json").exists())
 
+    def test_rtk_is_required(self):
+        (self.bin / "rtk").unlink()
+        system = os.pathsep.join(d for d in os.environ["PATH"].split(os.pathsep) if not os.path.exists(os.path.join(d, "rtk")))
+        r = subprocess.run([shutil.which("node"), str(ROOT / "bin/harness.js"), "install", str(self.repo), "--target", "claude"],
+                           capture_output=True, text=True, env=dict(os.environ, PATH=f"{self.bin}:{system}"))
+        self.assertNotEqual(r.returncode, 0, "sem rtk a instalação não termina bem")
+        self.assertIn("o `rtk` é obrigatório", r.stdout)
+
     def test_running_it_twice_does_not_duplicate_the_rtk_hook(self):
         self.install()
         self.install()

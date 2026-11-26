@@ -61,12 +61,27 @@ O orquestrador despacha a fronteira de tickets em ondas, cada executor no própr
 banco próprios (derivados do número do ticket). O hook garante o resto:
 
 - **até `max_parallel` executores ao mesmo tempo** (3 por padrão; cada um sobe servidores, banco e navegador);
-- **cada integração carimba os portões baratos** (`typecheck`, `lint`, `test`, `build`), então uma quebra
-  aponta o ticket que a causou; os revisores por agente rodam uma vez, no fim;
+- **nenhum portão de fim roda no meio da viagem**: o ticket integrado já libera quem depende dele, e os
+  portões de fim auditam o estado final uma vez, na chegada (o hook barra antes disso);
 - **a máquina não dorme** enquanto há subagente trabalhando (`caffeinate` no macOS, `systemd-inhibit` no
   Linux); o pedido expira sozinho quando a entrega para. Desligue com `"keep_awake": false`;
 - **retomada depois de queda**: a sessão nova libera os tickets presos e retoma pelo quadro;
 - `tr-harness status` mostra tickets, executores ativos, contêineres esquecidos e até quando a máquina fica acordada.
+
+## A entrega é um trem, com início e fim
+
+| Momento | O que acontece |
+|---|---|
+| **Embarque** | só parte com todos a bordo: o dono aceita o critério escrito (uma pergunta na própria sessão, `Aprovo` ou `Não aprovo`; no terminal, `gates --accept`), os pré-requisitos do dono foram derivados do verificador de cada portão, e os portões de início estão certificados |
+| **Viagem** | automática: tickets em paralelo, cada executor alinhado à branch da demanda, sem portão de fim no caminho |
+| **Socorro** | a sessão principal vigia com `tr-harness wait` (o orquestrador fica parado esperando os executores); quem trava ou bloqueia deixa um handoff em `docs/specs/<demanda>/progress/`, e o próximo continua dali, em Claude ou Codex |
+| **Chegada** | auditoria: todos os portões de fim ao mesmo tempo; cada revisor valida o delta entre o planejado (spec, tickets, artefatos aprovados) e o entregue, com a prova vinda do estado entregue; `tr-harness balance --write` grava o balanço |
+| **Trem de ajuste** | cada reprovação vira um ajuste em `progress/adjust-NN-*.md` (andamento, não critério: o aceite do dono continua); revalida só o portão que reprovou e os de comando se o código mudou; a aprovação de um revisor segue valendo se o ajuste ficou nos arquivos que declarou |
+| **Limite** | cada portão de fim tem um limite de reprovações (3 por padrão; falha de comando também conta); passou dele, o dono decide |
+
+O dono só é chamado nas bordas: no embarque, no limite estourado, se o critério precisar mudar, numa ação
+externa irreversível ou num bloqueio sem alternativa. Para conferir fora da sessão, `npx @fullchico/harness deliver`
+roda em qualquer clone (pre-push ou CI, à escolha do projeto; no CI use `fetch-depth: 0`).
 
 ## Exemplo: dois trilhos, uma entrega
 
@@ -115,6 +130,7 @@ os papéis ainda é conduzido pelas skills do `tr`.
 
 ## Sumário
 
+- [A entrega é um trem](#a-entrega-é-um-trem-com-início-e-fim)
 - [Exemplo: dois trilhos, uma entrega](#exemplo-dois-trilhos-uma-entrega)
 - [A divisão](#a-divisão)
 - [Os oito conceitos](#os-oito-conceitos)
@@ -306,7 +322,7 @@ As **ferramentas integradas** têm papéis separados:
 | [Matt Pocock skills](https://www.skills.sh/mattpocock/skills) | entrevista, modelagem e práticas de implementação; o `tr` invoca `grilling` e `domain-modeling` em vez de manter cópia | skills CLI na instalação |
 | [Ponytail](https://www.skills.sh/dietrichgebert/ponytail) | mudanças pequenas e revisão | skills CLI na instalação |
 | [Graphify](https://github.com/Graphify-Labs/graphify) | grafo AST opcional para busca na memória; skill incluída no pacote | CLI `graphifyy` opcional |
-| [rtk](https://github.com/rtk-ai/rtk) | compacta a saída dos comandos quando já existe no ambiente | opcional |
+| [rtk](https://github.com/rtk-ai/rtk) | compacta a saída dos comandos e economiza tokens, no Claude Code e no Codex | **obrigatório**: o `install` termina com erro sem ele |
 | Git | ancora o estado do código, os carimbos e o índice local | requisito; `install` executa `git init` se faltar |
 
 Remoto, push, PR e ferramentas como lint, teste, acessibilidade ou análise de segurança são
