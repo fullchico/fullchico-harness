@@ -398,6 +398,8 @@ def steps(name, gate, models=None, root=None):
     if mode == "artifact":
         check_cmd = f" e que passe em `{gate['check']}`" if gate.get("check") else ""
         after_step = f"depois {INVOKERS[CHECKER]} (o carimbo sai do `{CHECKER}`)"
+        if root and artifact_files(root, gate):  # o artefato existe: falta só o certificado
+            return [f"{INVOKERS[CHECKER]} (`{gate['artifact']}` existe; o certificado sai do `{CHECKER}`)"]
         return [f"produza `{gate['artifact']}` no projeto{check_cmd}", after_step]
     choice = ((models or {}).get("gates") or {}).get(name) or (models or {}).get("review")
     if isinstance(choice, dict) and choice.get("cli") in ("claude", "codex") and choice.get("model"):

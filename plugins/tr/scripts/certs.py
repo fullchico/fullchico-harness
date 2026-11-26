@@ -110,6 +110,26 @@ def _git(root, *args, check=False):
     return r.stdout if r.returncode == 0 else None
 
 
+def _write_git(root, *args):
+    """Comando que grava no índice: outro processo (um `git status` do editor, outro hook) pode estar com o
+    `index.lock`; tenta de novo por alguns segundos. Devolve None se deu certo, ou o erro do git."""
+    import time
+    error = "git não respondeu"
+    for attempt in range(8):
+        try:
+            r = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, timeout=60)
+        except (OSError, subprocess.SubprocessError) as exc:
+            return str(exc)
+        if r.returncode == 0:
+            return None
+        error = (r.stderr or r.stdout).strip().splitlines()[-1:] or ["sem mensagem"]
+        error = error[0]
+        if "index.lock" not in (r.stderr or ""):
+            return error
+        time.sleep(0.5 * (attempt + 1))
+    return error
+
+
 def _in_git(root):
     return (_git(root, "rev-parse", "--is-inside-work-tree") or "").strip() == "true"
 
@@ -166,11 +186,12 @@ def version():
 
 def certify(root, name, key, verdict, by, summary, ticket=None):
     """`record` sem repetir o mesmo veredito (o relatório e o fecho do subagente trazem o mesmo bloco)."""
-    found = [e for e in entries(root, document(root, ticket)) if e["name"] == name]
+    doc = document(root, ticket)
+    found = [e for e in entries(root, doc) if e["name"] == name]
     last = found[-1] if found else {}
     if (last.get("key"), last.get("verdict"), last.get("by"), last.get("summary")) == \
-            (key, verdict, by, " ".join((summary or "").split())[:300]):
-        return None
+            (key, verdict, by, " ".join((summary or "").split())[:300]) and signed(root, doc, last):
+        return None  # já está assinado; uma linha que ficou sem commit é escrita de novo
     return record(root, name, key, verdict, by, version(), summary, ticket)
 
 
@@ -212,6 +233,8 @@ def _record(root, name, key, verdict, by, version, summary, ticket=None):
             return f"{doc} ainda não tem commit; faça o commit do documento antes do certificado"
         if committed is not None and strip(committed) != strip(text):
             return f"{doc} tem alteração sem commit; faça o commit do documento antes do certificado"
+        if committed is not None:
+            text = committed  # linha de certificado sem commit (assinatura que falhou) não pega carona
     summary = " ".join((summary or "").split())[:300]
     at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     line = f"- `{name}` · {verdict} · {key} · `{by}` · tr {version} · {at} · {summary}"
@@ -228,11 +251,13 @@ def _record(root, name, key, verdict, by, version, summary, ticket=None):
         stream.write(new)
     if not git:
         return None
-    if _git(root, "add", "-f", "--", doc) is None:
-        return f"não consegui preparar {doc} para o commit"
+    failed = _write_git(root, "add", "-f", "--", doc)
+    if failed:
+        return f"não consegui preparar {doc} para o commit: {failed}"
     # ponytail: --no-verify, o commit só traz o apêndice; hooks do projeto (lint, mensagem) não têm o que
     # validar ali e poderiam recusar a assinatura
     message = f"chore(tr): certify {name} ({verdict.lower()})"
-    if _git(root, "commit", "--no-verify", "-q", "-m", message, "-m", f"{TRAILER}: {by}", "--", doc) is None:
-        return f"o commit do certificado de {name} falhou"
+    failed = _write_git(root, "commit", "--no-verify", "-q", "-m", message, "-m", f"{TRAILER}: {by}", "--", doc)
+    if failed:
+        return f"o commit do certificado de {name} falhou: {failed}"
     return None

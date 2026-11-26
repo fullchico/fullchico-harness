@@ -64,6 +64,19 @@ class CertificateTest(unittest.TestCase):
         spec.write_text(spec.read_text().replace("listar agendamentos", "listar só os de hoje"))
         self.assertFalse(registry.stamped_commit(self.root, "quality", QUALITY), "mudou o critério, cai")
 
+    def test_a_line_left_without_commit_never_rides_along_and_is_written_again(self):
+        spec = self.repo / "docs/specs/pedido/spec.md"
+        orphan = (f"\n## Certificates\n\n{certs.START}\n- `domain` · APPROVED · {'b' * 40} · `{registry.CHECKER}` · "
+                  f"tr 9 · 2026-01-01T00:00:00Z · assinatura que falhou\n{certs.END}\n")
+        spec.write_text(spec.read_text() + orphan)  # o commit da assinatura falhou e a linha ficou
+        self.assertIsNone(certs.certify(self.root, "quality", self.key(), "APPROVED", registry.CHECKER, "passou"))
+        self.assertNotIn("assinatura que falhou", spec.read_text(), "a linha órfã não entra no commit de outro")
+        self.assertTrue(registry.stamped_commit(self.root, "quality", QUALITY))
+        spec.write_text(spec.read_text().replace(certs.END, f"- `quality` · APPROVED · {self.key()} · "
+                                                  f"`{registry.CHECKER}` · tr x · 2026-01-01T00:00:00Z · de novo\n{certs.END}"))
+        self.assertIsNone(certs.certify(self.root, "quality", self.key(), "APPROVED", registry.CHECKER, "de novo"))
+        self.assertEqual(git(self.repo, "status", "--porcelain"), "", "a repetição sem commit é escrita e assinada")
+
     def test_an_uncommitted_change_to_the_document_is_not_signed_along(self):
         spec = self.repo / "docs/specs/pedido/spec.md"
         spec.write_text(spec.read_text() + "\nCritério novo que ninguém combinou.\n")

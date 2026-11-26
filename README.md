@@ -7,8 +7,6 @@
 
 [Página do projeto](https://fullchico.github.io/fullchico-harness/) · [Pacote no npm](https://www.npmjs.com/package/@fullchico/harness)
 
-[Conceito ilustrado e componentes](docs/arquitetura/conceito-e-componentes.md)
-
 ```bash
 npx @fullchico/harness@latest install
 ```
@@ -16,8 +14,9 @@ npx @fullchico/harness@latest install
 **Um harness por projeto para Claude Code e Codex.** O plugin organiza a demanda, distribui
 tarefas independentes, mantém guardrails ativos, consulta a memória do código e confere os
 portões antes de declarar a entrega. Cada tarefa carrega um passaporte: requisitos de entrada,
-validações específicas no percurso e carimbos de conclusão. Se faltar evidência, o executor
-corrige e o fiscal independente revisa novamente. O instalador inicia Git se necessário;
+validações específicas no percurso e carimbos de conclusão. O carimbo é um certificado escrito no
+próprio documento da demanda e assinado por commit de quem validou: vale em qualquer máquina. Se faltar
+evidência, o executor corrige e o fiscal independente revisa novamente. O instalador inicia Git se necessário;
 push e PR não são requisitos da entrega. O plugin é distribuído como pacote Node por conveniência
 (`npx` em uma linha); o pacote só instala, não é biblioteca para importar no app.
 
@@ -50,8 +49,9 @@ portão de agente específico, use `gate:<name> claude:<model>` ou `gate:<name> 
 gate:design-review claude:opus`.
 Cada portão de agente pode usar Claude ou Codex e um modelo próprio. O orquestrador abre os
 executores com `models run execution --ticket <path> --prompt <handoff>` e os fiscais
-externos com `models validate-gate <name> [--ticket <path>] [--prompt <resumo>]`.
-O harness exige veredito, hash do estado examinado e processo bem sucedido antes de carimbar.
+externos com `models validate-gate <name> [--ticket <path>]`. O revisor recebe o critério aceito e o
+código, nunca instrução de quem pediu a revisão; o relato de quem chama fica só no manifesto.
+O harness exige veredito, hash do estado examinado e processo bem sucedido antes de certificar.
 Se o modelo do portão for Codex, o hook impede que um Agent Claude assine no lugar dele.
 As execuções e seus manifestos ficam fora do repositório.
 
@@ -99,7 +99,7 @@ Os nomes `accessibility` e `contract` são exemplos de portões que o projeto re
 ao executor. O comando `fullchico-harness deliver` confere o passaporte antes de declarar a
 entrega concluída.
 
-![Claude entrevista e executa o vagão, Codex revisa e o passaporte chega carimbado](site/img/passaporte-cartoon.png)
+![O dono aceita o critério, o vagão executa, o fiscal confere e o documento chega certificado](site/img/passaporte-cartoon.png)
 
 Neste exemplo, o mascote do Claude conduz a entrevista e a execução; o do Codex faz a revisão.
 Esses papéis podem ser configurados por projeto:
@@ -147,9 +147,9 @@ Fica em `.claude/` e `.codex/`, na pasta do projeto; o registro compartilhado é
 
 ### 2. Planejamento
 
-O portão de começo, assinado por um artefato (OpenSpec, `docs/specs/*/spec.md`) ou por comando. O
-plugin não entrevista produto nem força uma stack de processo: ele liga a etapa à ferramenta que o
-projeto já usa.
+O portão de começo, assinado por um artefato (`docs/specs/*/spec.md`) ou por comando. Um fluxo próprio
+do projeto que já faz spec, plano ou revisão é tratado como concorrente: o `/tr:configure` mostra onde ele
+está ligado e recomenda trocá-lo pelo fluxo do `tr`, convertendo as specs abertas. O dono decide.
 
 Cada demanda começa por `/tr:process-plan`, que orquestra as skills de Matt Pocock (`mattpocock-skills`)
 sem cópia adaptada: a entrevista (`grilling` e `domain-modeling`; o glossário `GLOSSARY.md` e os ADRs em
@@ -249,6 +249,8 @@ ticket) e é assinado pelo commit do responsável pelo portão, com o trailer `C
 - **onde vale:** em qualquer máquina, agente ou CI, porque está no Git. As reprovações também ficam no
   apêndice, e o limite de tentativas vai junto com a demanda.
 
+![O dono assina o primeiro selo do apêndice e o fiscal carimba o último; cada selo desce até um marco no trilho](site/img/certificado-cartoon.png)
+
 Arquivos `.md` e `docs/` fora da demanda não invalidam nada; mexer na configuração local do Git ou publicar
 (push, PR) também não, porque não é conteúdo.
 
@@ -261,7 +263,22 @@ Mapa do código e notas ancoradas, por projeto, injetadas no começo de cada ses
 ensinaram (proposto por um extrator isolado, conferido contra o código) e `/tr:memory-learn` mede
 o consumo e faz a retrospectiva depois de uma entrega. `memory graph rebuild` atualiza o
 Graphify local quando instalado; `memory graph search <termos>` cruza o grafo de código com
-resumos, notas, glossário e ADRs. Os dados gerados ficam fora dos arquivos versionados.
+resumos, notas, glossário e ADRs. A memória fica fora dos arquivos versionados, no diretório Git comum.
+
+**A memória é um loop do processo, não um comando para lembrar:**
+
+![A locomotiva percorre o trilho circular: mapa, prancheta com lupa e o sonho depois da entrega; no centro, o caderno de notas](site/img/memoria-cartoon.png)
+
+| Momento | Quem dispara | O que acontece |
+|---|---|---|
+| Fim do `/tr:configure` | o próprio configure | cria o mapa: um resumo por pasta de **código** (pasta só de Markdown não entra) |
+| Entrada de cada demanda | o `/tr:process-plan`, antes da entrevista | `memory check`; refaz só o que envelheceu |
+| Fim de cada entrega | a sessão, ao receber `DELIVERY: done` | `/tr:memory-dream` das sessões da demanda, sem bloquear a entrega |
+
+O dream lê a sessão inteira, em partes, com o que cada subagente escreveu (executores, orquestrador,
+revisores). `memory-sessions sessions` diz o tipo de cada sessão: `trabalho` é lida; `revisão` (aberta por
+um `validate-gate`, com o veredito já certificado) só é marcada; `em andamento` fica para depois. Uma
+sessão só é marcada quando todas as partes passaram pelo extrator.
 
 *Status: disponível.*
 
@@ -371,8 +388,9 @@ claude                                      # abre a sessão normalmente
 No terminal interativo, escolha **1** para este fluxo do Claude Code; também pode usar
 `install --target claude` para escolher sem menu.
 O `install` escreve o fluxo do projeto num bloco gerenciado do `CLAUDE.md` e do `AGENTS.md` (todo pedido começa por `/tr:process-plan`; outras skills são ferramentas dentro dele). Sem portões configurados, o hook barra escrita de código até o `/tr:configure`. O `install` traz `tr` `memory`, `ponytail`
-(código mínimo) e `mattpocock-skills` (processo e revisão: `grilling`, `domain-modeling`, `tdd`,
-`clean-code-guard`...), e liga o hook do `rtk`. O `install` não escolhe nem grava portões.
+(código mínimo) e `mattpocock-skills` (o processo que o `tr` orquestra: `grilling`, `domain-modeling`,
+`to-spec`, `to-tickets`, `tdd`, `code-review`), e liga o hook do `rtk`. Se o marketplace `fullchico` da
+máquina apontar para outra fonte, o `install` para e mostra como trocar. O `install` não escolhe nem grava portões.
 Com a stack decidida, o `/tr:configure` procura skills de boas práticas para cada tecnologia e separa o que é do projeto do que existe só na máquina do dono, propondo fixar no projeto o que importa (a instalação é aprovada pelo dono). O dono configura os portões com `/tr:configure`, que usa o diagnóstico do projeto e a entrevista
 `grilling`. Para ver sugestões sem gravar, ou mudá-las depois: `npx @fullchico/harness gates --analyze` e
 `gates --write`. O modelo de exemplo `gates --default` só grava se o dono o pedir
@@ -383,8 +401,10 @@ marketplace fica preso a esta versão do plugin, e o `install` grava o modelo po
 Instalar é passo do dono, no terminal. Gravar portões e modelos é decisão do dono, mas não exige
 terminal: a sessão roda `tr-harness gates --register …` (o CLI do plugin, na mesma versão dele) e o
 hook transforma a chamada num diálogo de permissão do Claude Code com o comando exato. A aprovação vale
-uma vez, para aquele comando, por 2 minutos; sem ela, o CLI recusa gravar. Em `bypassPermissions`, onde
-não há diálogo, a gravação volta para o terminal, com a linha pronta de `tr-harness owner <args>`. O instalador não liga o sandbox nativo por padrão (perfil
+uma vez, para aquele comando, por 2 minutos; sem ela, o CLI recusa gravar. Nos modos `auto`,
+`bypassPermissions` e `dontAsk`, onde não há diálogo, a gravação volta para o terminal, com a linha pronta de
+`tr-harness owner <args>`; o prefixo `!` roda dentro da sessão e também é recusado. O mesmo vale para o
+aceite do critério de cada demanda (`tr-harness gates --accept`). O instalador não liga o sandbox nativo por padrão (perfil
 `fluxo`, para o Docker do projeto funcionar); `install --sandbox` liga o perfil `isolado`, com o
 registro protegido e só `docker` e `fullchico-harness` fora do sandbox. Se você já o usa, preserva a configuração. Depois de instalar, revise esses dois arquivos. Se a pasta ainda não
 tinha Git, o instalador já executou `git init`.
@@ -505,13 +525,13 @@ também põe `.claude/harness.json` no `denyWrite`.
 
 - Os hooks só valem dentro da sessão da plataforma em que foram instalados. A validação final explícita
   funciona também no terminal; `git push` não é o gatilho da entrega.
-- Sem o sandbox nativo, comandos arbitrários podem contornar hooks e alterar arquivos ou carimbos;
+- O agente e os hooks rodam como o mesmo usuário da máquina: não existe assinatura que o agente seja
+  fisicamente incapaz de imitar. A garantia do certificado vem de três camadas: o guard barra o agente de
+  escrever no apêndice ou forjar o trailer; tudo fica no Git e aparece no diff do PR; e qualquer um
+  recalcula os hashes, então um certificado copiado para outro conteúdo não bate.
+- Sem o sandbox nativo, comandos arbitrários podem contornar hooks e alterar arquivos;
   os portões funcionam como guardrails de fluxo, não como isolamento do sistema.
-- O carimbo prova que a etapa aconteceu, não que o revisor foi bom.
-
-O [estudo dos guardrails com Docker e sem sandbox nativo](docs/arquitetura/guardrails-sem-sandbox.md)
-separa controle do fluxo e isolamento de segurança, com melhorias priorizadas para os hooks e
-para a validação independente da entrega.
+- O certificado prova que a etapa aconteceu contra o critério aceito, não que o revisor foi bom.
 
 ## Licença
 
