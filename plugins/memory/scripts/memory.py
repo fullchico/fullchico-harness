@@ -197,7 +197,8 @@ def units(root) -> list:
     for path in paths:
         unit = _unit_of_file(path, depth, excluded) if path else None
         # Nome com caractere de controle não entra: ele iria parar no texto de toda sessão.
-        if unit and not any(ord(ch) < 32 for ch in unit):
+        # O mapa é de código: pasta só de documentos (.md) não é unidade.
+        if unit and not any(ord(ch) < 32 for ch in unit) and not path.lower().endswith((".md", ".mdx")):
             found.add(unit)
     return sorted(found)
 

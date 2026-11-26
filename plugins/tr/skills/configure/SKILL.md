@@ -34,6 +34,13 @@ tests, lint/typecheck configuration, spec documentation and deploy
 tools. For each suggestion, note the concrete evidence and check that the command really
 exists. Preserve the gates already defined by the owner.
 
+**A flow that does what the tr does is a competing flow, not a gate.** When the project already has its own
+process for specs, plans, tickets or review (a spec framework, its slash commands, a commit gate, a planning
+folder with its own state), registering it as the `process` gate keeps two flows that disagree. Show the
+owner what it does and where it is wired (commands, hooks, scripts, CI), and recommend replacing it with the
+tr flow: its open specs become a demand through `/tr:process-plan`, and its wiring is removed as the first
+demand. Its useful rules stay as project rules (`AGENTS.md`, a lint, a check). The owner decides.
+
 As soon as the stack and the architecture are decided in the interview, run `/tr:skills-discover`
 by default: inventory what the project and this machine already have, propose pinning to the project the
 machine-only skills that matter to the stack, and search best-practice skills for each main technology
@@ -160,6 +167,9 @@ loads (for example `.env`), not from the command line.
 When done, run `gate` and show the result to the owner. If any gate fails on the first
 check, explain what is missing without rewriting the registry.
 
+When the project has the `memory` plugin (the `memory` command exists), finish by running `/tr:memory-map`
+on your own: the project leaves the configuration with its code map, and every session starts from it.
+
 ## Checklist
 
 - [ ] I summarized the doctor for each available environment and analyzed the project before asking.
@@ -169,3 +179,4 @@ check, explain what is missing without rewriting the registry.
 - [ ] Sketch outside the repository; `--register`/`--set`/`models configure` run by me and approved by the owner in the dialog, never `Write`/`Edit`.
 - [ ] I remembered to review the registry before stamping.
 - [ ] I ran `gate` at the end and showed the state.
+- [ ] With the `memory` plugin, I ran `/tr:memory-map` so the project starts with its map.

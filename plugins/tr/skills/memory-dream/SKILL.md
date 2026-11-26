@@ -27,7 +27,13 @@ memory check
 memory graph rebuild
 ```
 
-The first lists the sessions not yet processed, including those from already removed worktrees.
+The first lists the sessions not yet processed, including those from already removed worktrees, with
+their kind in the last column:
+
+- `trabalho`: a work session. Read it.
+- `revisão`: a session a `validate-gate` opened for a reviewer. Its verdict is already in the
+  certificate; do not extract it, mark it in step 6 as it is.
+- `em andamento`: still being written (usually this very session). Leave it for the next dream.
 Where a command asks for `<id>`, the full id or a prefix that matches only one session works. The second lists the aged notes.
 Transcripts live in `~/.claude/`, read-only: the plugin never writes there.
 The local graph links functions and files (Graphify, when installed) to summaries, glossary,
@@ -44,13 +50,15 @@ mkdir -p .harness-run/dream && { [ -f .harness-run/.gitignore ] || echo '*' > .h
 memory-sessions digest <id> .harness-run/dream/<id>.md
 ```
 
-The digest carries only what the owner and the agent wrote, without tool output.
+The digest carries only what the owner, the agent and each of the session's subagents (executors,
+orchestrator, reviewers) wrote, without tool output. A long session comes out in parts
+(`<id>.1.md`, `<id>.2.md`...): the command prints one path per line, and every part is read.
 
 ## 3. Extract candidates
 
 The notes are proposed by the `memory:extractor` subagent (runs on `haiku`), never by you. You did or followed the
-delivery, and would choose to remember what was hard work. It reads only the digest. One per digest, several
-in the same message, up to 3 at a time, with the one-line request:
+delivery, and would choose to remember what was hard work. It reads only the digest. One per digest part,
+several in the same message, up to 3 at a time, with the one-line request:
 
 ```request memory:extractor
 summary: .harness-run/dream/<id>.md
@@ -66,8 +74,8 @@ You decide what goes in, among what was proposed. For each candidate:
 
 - **Verify against the code, opening the files.** Read the indicated paths. A word
   search is not verification. If the code does not show what the item claims, discard it.
-- **Locate via the graph.** Run `memory graph search "<concept or path>"` for each
-  candidate; check the returned relations and paths against the current code. A relation
+- **Locate via the graph (required).** Run `memory graph search "<concept or path>"` for each
+  candidate before saving it; check the returned relations and paths against the current code. A relation
   inferred by Graphify is a lead, not proof. If the glossary points to a path that
   vanished or changed, revise the anchor before saving the note.
 - **Discard environment workarounds.** What only exists because a tool failed in the sandbox
@@ -106,5 +114,8 @@ with the same name and the same paths, which anchors it to the current commit. I
 ```bash
 memory-sessions mark <id> <id>
 ```
+
+Mark a work session only after every part of its digest went through the extractor: a session marked
+half-read never comes back. Mark the `revisão` sessions together. Leave `em andamento` ones unmarked.
 
 Report to the owner how many sessions were read, and the new, updated and deleted notes.

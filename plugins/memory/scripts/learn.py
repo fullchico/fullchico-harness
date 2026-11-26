@@ -8,7 +8,7 @@ dado: descreve o que aconteceu, não manda em quem a lê.
 O formato das transcrições não é contrato documentado; foi observado. Arquivo que
 não se parece com ele é recusado, em vez de virar número errado.
 
-Uso: learn.py <raiz> <sessions [--all]|digest <id> <arquivo>|usage [<id>...]|mark <id>...|remember>
+Uso: learn.py <raiz> <sessions [--all]|digest <id> <arquivo> (imprime as partes)|usage [<id>...]|mark <id>...|remember>
 """
 import datetime
 import json
@@ -223,29 +223,75 @@ def _cut(text: str) -> str:
     return text if len(text) <= MESSAGE_LIMIT else text[:MESSAGE_LIMIT] + " (cortado)"
 
 
-def digest(session_path) -> str:
-    lines = [HEADER, ""]
-    for entry in _entries(session_path):
-        if entry.get("isSidechain") or entry.get("isMeta"):
+# Texto que a plataforma põe na voz do dono e não é dele: a skill carregada, avisos do sistema.
+_NOT_OWNER = ("Base directory for this skill", "<system-reminder>", "<task-notification>", "<local-command-caveat>")
+REVIEW = "You are the independent reviewer of gate"  # a sessão que um `validate-gate` abriu
+
+
+def _lines(path, who_user="DONO", who_agent="AGENTE"):
+    lines = []
+    for entry in _entries(path):
+        if entry.get("isMeta"):
             continue
         message = entry.get("message")
         content = message.get("content") if isinstance(message, dict) else None
         if entry.get("type") == "user":
             blocks = [content] if isinstance(content, str) else [
                 b.get("text") for b in content or [] if isinstance(b, dict) and b.get("type") == "text"]
-            lines += [f"DONO: {_cut(text)}" for text in blocks if isinstance(text, str) and text.strip()]
+            lines += [f"{who_user}: {_cut(text)}" for text in blocks if isinstance(text, str) and text.strip()
+                      and not text.lstrip().startswith(_NOT_OWNER)]
         elif entry.get("type") == "assistant" and isinstance(content, list):
-            for block in content:
-                if not isinstance(block, dict):
-                    continue
-                if block.get("type") == "text" and isinstance(block.get("text"), str) and block["text"].strip():
-                    lines.append(f"AGENTE: {_cut(block['text'])}")
-                elif block.get("type") == "tool_use":
-                    lines.append(f"FERRAMENTA: {block.get('name')}")
-    text = "\n".join(lines)
-    if len(text) > DIGEST_LIMIT:
-        text = text[:DIGEST_LIMIT].rsplit("\n", 1)[0] + "\n(resumo cortado: a sessão continua além deste ponto)"
-    return text
+            lines += [f"{who_agent}: {_cut(b['text'])}" for b in content if isinstance(b, dict)
+                      and b.get("type") == "text" and isinstance(b.get("text"), str) and b["text"].strip()]
+    return lines
+
+
+def digest(session_path) -> list:
+    """O resumo da sessão em partes de até DIGEST_LIMIT: a sessão inteira, sem corte, e o que cada
+    subagente dela escreveu (quem executou e quem revisou também descobre). Devolve os textos das partes."""
+    lines = _lines(session_path)
+    sub = os.path.join(session_path[:-len(".jsonl")], "subagents")
+    for name in sorted(os.listdir(sub)) if os.path.isdir(sub) else []:
+        if not name.endswith(".jsonl"):
+            continue
+        kind = "subagente"
+        try:
+            with open(os.path.join(sub, name[:-len(".jsonl")] + ".meta.json"), encoding="utf-8") as f:
+                kind = (json.load(f) or {}).get("agentType") or kind
+        except (OSError, ValueError, AttributeError):
+            pass
+        try:
+            lines += _lines(os.path.join(sub, name), f"PEDIDO A {kind}", kind.upper())
+        except ValueError:
+            continue
+    return parts(lines)
+
+
+def parts(lines) -> list:
+    """As linhas em partes de até DIGEST_LIMIT, sem corte."""
+    found, current = [], [HEADER, ""]
+    for line in lines:
+        if sum(len(l) + 1 for l in current) + len(line) > DIGEST_LIMIT and len(current) > 2:
+            found.append("\n".join(current))
+            current = [HEADER, ""]
+        current.append(line)
+    found.append("\n".join(current))
+    if len(found) > 1:
+        found = [f"{text}\n(parte {n} de {len(found)})" for n, text in enumerate(found, 1)]
+    return found
+
+
+def kind(session) -> str:
+    """trabalho, revisão (aberta por `validate-gate`; o veredito já está certificado) ou em andamento."""
+    import time
+    if time.time() - session["mtime"] < 120:
+        return "em andamento"
+    try:
+        with open(session["path"], encoding="utf-8", errors="replace") as f:
+            head = f.read(65536)
+    except OSError:
+        return "trabalho"
+    return "revisão" if REVIEW in head else "trabalho"
 
 
 def select(found, ids) -> list:
@@ -295,13 +341,16 @@ def main(argv) -> int:
             for session in sessions(root):
                 if "--all" in args or not session["processed"]:
                     when = datetime.datetime.fromtimestamp(session["mtime"]).strftime("%Y-%m-%d %H:%M")
-                    print(f"{session['id']}\t{when}\t{'processada' if session['processed'] else 'nova'}")
+                    print(f"{session['id']}\t{when}\t{'processada' if session['processed'] else 'nova'}\t{kind(session)}")
         elif command == "digest" and len(args) == 2:
-            text = digest(select(sessions(root), [args[0]])[0]["path"])
+            parts = digest(select(sessions(root), [args[0]])[0]["path"])
             os.makedirs(os.path.dirname(os.path.abspath(args[1])), exist_ok=True)
-            with open(args[1], "w", encoding="utf-8") as f:
-                f.write(text + "\n")
-            print(args[1])
+            base, ext = os.path.splitext(args[1])
+            names = [args[1]] if len(parts) == 1 else [f"{base}.{n}{ext}" for n in range(1, len(parts) + 1)]
+            for name, text in zip(names, parts):
+                with open(name, "w", encoding="utf-8") as f:
+                    f.write(text + "\n")
+            print("\n".join(names))  # uma parte por linha: um extrator por parte
         elif command == "usage":
             _print_usage(root, args)
         elif command == "propose" and len(args) == 2:

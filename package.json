@@ -1,6 +1,6 @@
 {
   "name": "@fullchico/harness",
-  "version": "4.2.0",
+  "version": "4.3.0",
   "description": "Per-project harness plugin for Claude Code and Codex: orchestration, guardrails, memory and validations.",
   "license": "MIT",
   "author": "FullChico",
