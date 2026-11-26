@@ -526,8 +526,25 @@ class TestGatesCli(Case):
         self.assertEqual(out.returncode, 2)
         self.assertIn("--register <esboço.json>", out.stderr)
 
-    def test_register_adds_new_gates_and_keeps_the_existing_ones(self):
+    def test_register_replaces_a_gate_and_remove_drops_it(self):
         self.registry({"quality": QUALITY})
+        draft = self.home / "troca.json"
+        draft.write_text(json.dumps({"quality": {"stage": "start", "signs": "artifact",
+                                                 "artifact": "docs/specs/*/spec.md"}}))
+        out = self.cli("--register", str(draft), "--project", str(self.repo))
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertIn("`quality` substituído", out.stdout)
+        gates = json.loads((self.repo / ".claude/harness.json").read_text())["gates"]
+        self.assertEqual(gates["quality"]["signs"], "artifact")
+        out = self.cli("--remove", "quality", "--project", str(self.repo))
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertNotIn("quality", json.loads((self.repo / ".claude/harness.json").read_text())["gates"])
+        out = self.cli("--remove", "quality", "--project", str(self.repo))
+        self.assertEqual(out.returncode, 2)
+        self.assertIn("não existe", out.stderr)
+
+    def test_register_adds_new_gates_next_to_the_existing_ones(self):
+        self.registry({"quality": QUALITY, "lint": QUALITY})
         draft = self.home / "esboco.json"
         draft.write_text(json.dumps({"planning": {"stage": "start", "signs": "artifact",
                                                       "artifact": "docs/specs/*/spec.md"},
@@ -538,7 +555,8 @@ class TestGatesCli(Case):
         gates = json.loads((self.repo / ".claude/harness.json").read_text())["gates"]
         self.assertEqual(gates["planning"]["stage"], "start")
         self.assertEqual(gates["seo"]["command"], "pnpm gate:seo")
-        self.assertEqual(gates["quality"]["command"], "true", "o que já existe não muda")
+        self.assertEqual(gates["quality"]["command"], "outro", "o esboço do dono substitui o de mesmo nome")
+        self.assertEqual(gates["lint"]["command"], "true", "o que o esboço não cita fica")
 
     def test_register_accepts_a_whole_registry_and_refuses_an_invalid_one(self):
         self.registry({"quality": QUALITY})

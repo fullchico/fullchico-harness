@@ -81,7 +81,7 @@ class TestInstall(unittest.TestCase):
         self.assertFalse((self.repo / ".claude/harness.json").exists())
         calls = (self.bin / "npx-calls").read_text()
         self.assertIn("skills add DietrichGebert/ponytail", calls)
-        self.assertIn("skills add mattpocock/skills", calls)
+        self.assertIn("skills add mattpocock/skills --skill grilling domain-modeling tdd", calls)
 
     def test_invalid_environment_stops_before_changes(self):
         r = self.install("--target", "outro")

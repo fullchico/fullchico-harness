@@ -303,7 +303,7 @@ class TestTaskPassports(unittest.TestCase):
                                  env=dict(os.environ, CLAUDECODE="1"))
         self.assertIn("npx @fullchico/harness@9.9.9-rc.1 gates --write", refused.stderr)
 
-    def owner_hook(self, command, mode="auto"):
+    def owner_hook(self, command, mode="default"):
         payload = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "cwd": str(self.repo),
                    "permission_mode": mode, "tool_input": {"command": command}}
         run = subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/guard.py")], input=json.dumps(payload),
@@ -320,6 +320,8 @@ class TestTaskPassports(unittest.TestCase):
         self.assertNotEqual(refused.returncode, 0, "sem aprovação, a sessão não grava")
         bypass = self.owner_hook(f"tr-harness gates --register {shlex.quote(str(draft))}", "bypassPermissions")
         self.assertEqual(bypass["permissionDecision"], "deny", "sem diálogo possível, o dono grava no terminal")
+        auto = self.owner_hook(f"tr-harness gates --register {shlex.quote(str(draft))}", "auto")
+        self.assertEqual(auto["permissionDecision"], "deny", "no modo auto não há diálogo para o dono")
         asked = self.owner_hook(f"tr-harness gates --register {shlex.quote(str(draft))}")
         self.assertEqual(asked["permissionDecision"], "ask")
         done = subprocess.run(cli, cwd=self.repo, capture_output=True, text=True, env=in_session)

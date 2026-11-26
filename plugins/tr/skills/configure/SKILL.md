@@ -119,6 +119,7 @@ code the framework would reject.
 
    ```bash
    tr-harness gates --register /path/to/draft.json
+   tr-harness gates --remove <gate>
    tr-harness models configure planning claude:opus review claude:sonnet
    ```
 
