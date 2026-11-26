@@ -93,6 +93,9 @@ class TestDeliveryWithoutGit(unittest.TestCase):
         fake_npx = fake_bin / "npx"
         fake_npx.write_text("#!/bin/sh\nexit 0\n")
         fake_npx.chmod(0o755)
+        fake_rtk = fake_bin / "rtk"  # o rtk é obrigatório; o runner do CI não o tem
+        fake_rtk.write_text("#!/bin/sh\nexit 0\n")
+        fake_rtk.chmod(0o755)
         self.env["PATH"] = str(fake_bin) + os.pathsep + self.env.get("PATH", "")
         install = subprocess.run([sys.executable, str(ROOT / "tools/install_codex.py"), str(self.project)],
                                  cwd=self.project, env=self.env, capture_output=True, text=True, timeout=20)
