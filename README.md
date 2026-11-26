@@ -99,7 +99,7 @@ Os nomes `accessibility` e `contract` são exemplos de portões que o projeto re
 ao executor. O comando `fullchico-harness deliver` confere o passaporte antes de declarar a
 entrega concluída.
 
-![Claude entrevista e executa o vagão, Codex revisa e o passaporte chega carimbado](site/img/passaporte-cartoon.png)
+![O dono aceita o critério, o vagão executa, o fiscal confere e o documento chega certificado](site/img/passaporte-cartoon.png)
 
 Neste exemplo, o mascote do Claude conduz a entrevista e a execução; o do Codex faz a revisão.
 Esses papéis podem ser configurados por projeto:
@@ -249,7 +249,7 @@ ticket) e é assinado pelo commit do responsável pelo portão, com o trailer `C
 - **onde vale:** em qualquer máquina, agente ou CI, porque está no Git. As reprovações também ficam no
   apêndice, e o limite de tentativas vai junto com a demanda.
 
-![A spec da demanda com o aceite do dono e os selos dos revisores no apêndice, cada um ligado a um commit](site/img/certificado.svg)
+![O dono assina o primeiro selo do apêndice e o fiscal carimba o último; cada selo desce até um marco no trilho](site/img/certificado-cartoon.png)
 
 Arquivos `.md` e `docs/` fora da demanda não invalidam nada; mexer na configuração local do Git ou publicar
 (push, PR) também não, porque não é conteúdo.
@@ -267,7 +267,7 @@ resumos, notas, glossário e ADRs. A memória fica fora dos arquivos versionados
 
 **A memória é um loop do processo, não um comando para lembrar:**
 
-![Trilho circular: configurar cria o mapa, planejar confere o mapa, entregar leva ao sonho; no centro, as notas abrem a próxima sessão](site/img/memoria-loop.svg)
+![A locomotiva percorre o trilho circular: mapa, prancheta com lupa e o sonho depois da entrega; no centro, o caderno de notas](site/img/memoria-cartoon.png)
 
 | Momento | Quem dispara | O que acontece |
 |---|---|---|
