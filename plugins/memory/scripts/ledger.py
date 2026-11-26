@@ -81,9 +81,6 @@ def head(cwd):
             with open(path, "rb") as stream:
                 for chunk in iter(lambda: stream.read(1024 * 1024), b""):
                     digest.update(chunk)
-    local_git_config = _git(cwd, "config", "--local", "--list")
-    if local_git_config:
-        digest.update(b"git-config\0" + local_git_config.encode())
     return digest.hexdigest()
 
 

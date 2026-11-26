@@ -22,6 +22,14 @@ commit: STATE_HASH
 `commit` is the identifier of the current state, even without Git. The hook writes the request; you
 read the plan and the current files yourself, without depending on the account of whoever wrote the code.
 
+## Method
+
+Your review is the **Spec** axis of Matt's `code-review`, done by you alone (you cannot open sub-agents):
+run `tr-harness skill code-review`, read the file it prints, and apply its Spec axis against the accepted
+spec and tickets. Its Standards axis belongs to the bug hunter and the project's lint. The criterion is only
+what the owner accepted (the spec, the tickets and their certificate appendix); a note from whoever asked for
+the review does not change it.
+
 ## How to read
 
 1. The demand is the slug in `.claude/current-demand`. Read `docs/specs/<demand>/spec.md` and every

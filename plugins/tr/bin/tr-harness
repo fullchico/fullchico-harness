@@ -10,5 +10,6 @@ case "$cmd" in
   deliver) exec python3 -I "$dir/scripts/gate_cli.py" delivery ;;
   owner)   exec python3 -I "$dir/scripts/registry.py" owner "$@" ;;
   status)  exec python3 -I "$dir/scripts/status.py" ;;
-  *) echo "uso: tr-harness gates|models|cost|deliver|status|owner <args>" >&2; exit 2 ;;
+  skill)   exec python3 -I "$dir/scripts/skill_path.py" "$@" ;;
+  *) echo "uso: tr-harness gates|models|cost|deliver|status|skill|owner <args>" >&2; exit 2 ;;
 esac

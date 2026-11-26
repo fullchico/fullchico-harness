@@ -103,3 +103,19 @@ def fake_npx(folder):
     path.write_text(f'#!/bin/sh\necho "$*" >> "{folder}/npx-calls"\n')
     path.chmod(path.stat().st_mode | stat.S_IEXEC)
     return folder
+
+
+def accept(repo) -> None:
+    """O aceite do dono sobre o critério atual (o que o `gates --accept` grava)."""
+    sys.path.insert(0, str(ROOT / "plugins/tr/scripts"))
+    import certs
+    key = certs.criterion(str(repo))
+    if key and not certs.has(str(repo), certs.ACCEPT, key, by=certs.OWNER):
+        certs.certify(str(repo), certs.ACCEPT, key, "APPROVED", certs.OWNER, "critério aceito pelo dono")
+
+
+def commit_plan(repo, message="plan") -> str:
+    """Commit do plano com o aceite do dono, como no fim da entrevista."""
+    sha = commit_all(repo, message)
+    accept(repo)
+    return sha

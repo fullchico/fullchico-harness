@@ -103,10 +103,20 @@ code the framework would reject.
    agent files are protected and only the owner can change them. Reusing an agent the project already has
    counts as creating it: adapt it first so it reviews the whole delivery against the base branch and ends with
    `VERDICT: APPROVED|REJECTED`, `COMMIT: <sha>` and `SUMMARY: …`; an agent that reviews only the staged diff
-   or answers in another format fails the gate even on correct code.
+   or answers in another format fails the gate even on correct code. A reviewer that writes captures or reports
+   inside the project needs that folder in `.gitignore`: otherwise its own
+   output changes the project's content and drops every stamp already given.
 0. **Code paths.** Add a top-level `"code": [...]` to the sketch with the folders that will hold the app's
    code (for a planned monorepo, `apps` and `packages`), even before they exist. Without it, everything
    outside `docs/`, `.claude/`, `.codex/`, `.agents/` and Markdown counts as code, which is too broad.
+0. **Where Matt's skills write.** `to-spec` and `to-tickets` publish to the project's "issue tracker". Point
+   it at the tr layout, the extension point Matt's `setup-matt-pocock-skills` documents: write
+   `docs/agents/issue-tracker.md` saying the spec is `docs/specs/<slug>/spec.md`, each ticket is
+   `docs/specs/<slug>/issues/NN-<slug>.md` with the tr passport as plain lines (`Status: open`,
+   `Blocked by:`, `Start:`, `Gates:`, `Files:`, `Complexity:`), and the `## Certificates` appendix is written
+   only by the tr hooks. Add the `## Agent skills` block that points to it in `CLAUDE.md` (or `AGENTS.md` when
+   that is the one the project has). A tracker the project already uses (GitHub, Linear) stays for its own
+   issues; the demand's criterion and certificates live in `docs/specs/`, versioned with the code.
 1. **New gate** (a name not yet in the registry): build a JSON sketch. Entry example:
    `{"planning": {"stage": "start", "signs": "artifact", "artifact": "docs/specs/*/spec.md"}}`.
    Exit example: `{"e2e": {"stage": "end", "signs": "command", "command": "pnpm test:e2e", "always": false}}`.

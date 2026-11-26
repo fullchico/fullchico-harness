@@ -5,7 +5,7 @@ import subprocess
 import sys
 import unittest
 
-from tests.helpers import ROOT, commit_all, git, make_repo
+from tests.helpers import ROOT, commit_all, commit_plan, git, make_repo
 sys.path.insert(0, str(ROOT / "plugins/tr/scripts"))
 import ledger  # noqa: E402
 
@@ -77,6 +77,7 @@ class TestRoleModel(Case):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(f"# Ticket\n\nStatus: open\nComplexity: {complexity}\n"
                         "Blocked by: none\nStart: none\nGates: none\nFiles: a.py\n")
+        commit_plan(self.repo)
 
     def test_executor_model_from_ticket(self):
         self.ticket("simple")

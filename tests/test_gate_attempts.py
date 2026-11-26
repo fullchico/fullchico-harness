@@ -27,15 +27,18 @@ class GateAttemptsTest(unittest.TestCase):
             with mock.patch.dict(os.environ, {"HOME": home}, clear=False):
                 reg = registry.load(project)
                 key = registry.stamp_key(project, gate)
-                ledger.sign(project, "quality", key, "tr", "1", "fiscal", "ok")
+                import certs
                 for _ in range(5):
                     state = attempts.reject(project, "quality", gate)
                     self.assertFalse(state["intervention"])
+                certs.certify(project, "quality", key, "APPROVED", registry.CHECKER, "ok")
                 self.assertTrue(registry.satisfied(project, "quality", reg))
                 state = attempts.reject(project, "quality", gate)
                 self.assertEqual(state["rejections"], 6)
                 self.assertTrue(state["intervention"])
-                self.assertFalse(registry.satisfied(project, "quality", reg))
+                self.assertFalse(registry.satisfied(project, "quality", reg), "o último veredito do estado vale")
+                certs.certify(project, "quality", key, "APPROVED", registry.CHECKER, "ok de novo")
+                self.assertFalse(registry.satisfied(project, "quality", reg), "depois do limite, o dono aprova")
                 with mock.patch.dict(os.environ, {"CLAUDECODE": "", "CODEX_THREAD_ID": ""}):
                     self.assertEqual(gates_cli.approve(project, "quality"), 0)
                 self.assertTrue(registry.satisfied(project, "quality", reg))

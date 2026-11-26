@@ -332,9 +332,11 @@ def validate_gate(root, name, ticket=None, request=""):
         with open(os.path.join(root, ticket), encoding="utf-8") as stream:
             context = f"Ticket: {ticket}\n{stream.read()}\n"
     prompt = (f"You are the independent reviewer of gate `{name}` ({gate['agent']}). "
-              "Do not edit files. Examine the current state yourself; the executor's report is context, not proof. "
+              "Do not edit files. Examine the current state yourself, against the criterion the owner accepted "
+              f"({__import__('certs').document(root)} and its tickets), and your own instructions. "
               f"Expected snapshot: {snapshot} (a tr content hash of the working files, not a Git commit: do not look "
-              f"it up in Git; copy it verbatim into COMMIT)\n{context}Report: {request or '(none)'}\n"
+              f"it up in Git; copy it verbatim into COMMIT)\n{context}"
+              # o relato de quem pede não chega ao revisor: o julgado não instrui o juiz (fica no manifesto)
               "Answer with concrete findings and end with exactly three lines: "
               "VERDICT: APPROVED or REJECTED, COMMIT: <the expected snapshot, verbatim>, SUMMARY: <one sentence>.\n"
               + (f"Agent instructions:\n{instructions}\n" if instructions else ""))
@@ -362,18 +364,14 @@ def validate_gate(root, name, ticket=None, request=""):
     accepted = bool(verdict and commit == snapshot == current and summary and
                     registry.stamp_key(root, gate) == key and
                     (gate["stage"] != "end" or not registry.dirty(root)))
-    if accepted and verdict == "APPROVED":
-        try:
-            stamped = ledger.sign(root, name, key, "tr", sign.version(),
-                                  f"{gate['agent']} via {final['cli']}:{final['model']}", summary)
-            accepted = bool(stamped)
-        except OSError:
+    if accepted:
+        import certs
+        model = f"{final['cli']}:{final['model']}"
+        refused = certs.certify(root, name, key, verdict, gate["agent"], f"{summary} ({model})")
+        if refused:
+            print(f"certificado recusado: {refused}", file=sys.stderr)
             accepted = False
-    elif accepted and verdict == "REJECTED":
-        ledger.forget(root, name, key)
-        import attempts as rejections  # `attempts` aqui é a lista de chamadas ao modelo
-        rejections.reject(root, name, gate)
-    manifest = {"gate": name, "agent": gate["agent"], "snapshot": snapshot,
+    manifest = {"gate": name, "agent": gate["agent"], "snapshot": snapshot, "caller_report": request,
                 "attempts": attempts, "verdict": verdict if accepted else None,
                 "stamped": accepted and verdict == "APPROVED"}
     manifest_path = os.path.join(folder, "manifesto.json")
