@@ -37,12 +37,12 @@ def _content_files(root, ignored):
 
     Num repositório Git, os versionados e os novos que o `.gitignore` não exclui: o que build e testes geram
     (`*.tsbuildinfo`, `next-env.d.ts`, relatórios) não muda o conteúdo, senão rodar um portão invalidaria o
-    carimbo do outro. Fora do Git, a árvore inteira. Nos dois casos ficam de fora as pastas de `ignored`, a
-    `.codex` da raiz e os worktrees dos executores (`.claude/worktrees/`, outros estados do projeto)."""
+    carimbo do outro. Fora do Git, a árvore inteira. Nos dois casos ficam de fora as pastas de `ignored` e os
+    worktrees dos executores (`.claude/worktrees/`, outros estados do projeto). A configuração do harness no
+    projeto (`.claude/`, `.codex/`) é arquivo do projeto como qualquer outro: mudou, o certificado cai."""
     def kept(rel):
         parts = rel.split("/")
-        return not (any(p in ignored for p in parts[:-1]) or parts[0] == ".codex"
-                    or parts[:2] == [".claude", "worktrees"])
+        return not (any(p in ignored for p in parts[:-1]) or parts[:2] == [".claude", "worktrees"])
     try:
         out = subprocess.run(["git", "ls-files", "-co", "--exclude-standard", "-z"], cwd=root,
                              capture_output=True, timeout=60)
@@ -74,13 +74,6 @@ def head(cwd):
                     digest.update(chunk)
         except OSError:
             continue
-    for rel in (".codex/config.toml", ".codex/hooks.json"):
-        path = os.path.join(root, rel)
-        if os.path.isfile(path) and not os.path.islink(path):
-            digest.update(rel.encode() + b"\0")
-            with open(path, "rb") as stream:
-                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-                    digest.update(chunk)
     return digest.hexdigest()
 
 

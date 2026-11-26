@@ -233,7 +233,7 @@ class TestSessions(Case):
 class TestPackaging(unittest.TestCase):
     def test_layout(self):
         manifest = json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text())
-        self.assertEqual((manifest["name"], manifest["version"]), ("memory", "0.3.0"))
+        self.assertEqual((manifest["name"], manifest["version"]), ("memory", "0.3.1"))
         hooks = json.loads((PLUGIN / "hooks/hooks.json").read_text())["hooks"]
         self.assertIn("SessionStart", hooks)
         self.assertEqual(hooks["SubagentStop"][0]["matcher"], "^memory:extractor$")
