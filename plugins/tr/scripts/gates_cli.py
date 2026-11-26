@@ -3,7 +3,8 @@
 
 Lê o projeto e PROPÕE o registro de portões, com o porquê de cada um; com `--write`, grava em
 `.claude/harness.json` (preservando as outras chaves) e protege o arquivo no sandbox. `--register`
-acrescenta os portões de um esboço JSON (`{"name": {portão}}`) sem tocar nos que já existem.
+grava os portões de um esboço JSON (`{"name": {portão}}`): acrescenta os novos e substitui os de mesmo nome.
+`--remove <portão>` tira um portão do registro.
 
 O registro é do dono: dentro de uma sessão com sandbox o arquivo é protegido e este comando para
 antes de gravar qualquer coisa, dizendo para rodá-lo no terminal.
@@ -67,9 +68,10 @@ def discover(project):
     return scripts_command(found, pm) if found else "@define"
 
 
-def merge(project, entries_in):
-    """Acrescenta ao registro os portões que faltam (resolvendo `@discover`); nunca toca em um que já existe.
-    Devolve os nomes acrescentados. Não cria o arquivo se não há nada a acrescentar."""
+def merge(project, entries_in, replace=False):
+    """Acrescenta ao registro os portões que faltam (resolvendo `@discover`). Com `replace` (o esboço do dono),
+    também substitui os de mesmo nome e o `code`; sem ele (plugins que se registram), nunca toca em um que já
+    existe. Devolve os nomes gravados. Não cria o arquivo se não há nada a gravar."""
     path = os.path.join(project, ".claude", "harness.json")
     data = read_json(path)
     gates = data.get("gates") if isinstance(data.get("gates"), dict) else {}
@@ -77,14 +79,15 @@ def merge(project, entries_in):
     # `code` no esboço: as pastas do código do app. Só entra se o registro ainda não tem a chave.
     code = entries_in.get("code")
     new_code = code if (isinstance(code, list) and code and all(isinstance(c, str) and c for c in code)
-                        and "code" not in data) else None
+                        and ("code" not in data or (replace and data["code"] != code))) else None
     for gate_name, gate in entries_in.items():
-        if gate_name == "code" or gate_name in gates or not isinstance(gate, dict):
+        if gate_name == "code" or (gate_name in gates and not replace) or not isinstance(gate, dict):
             continue
         gate = dict(gate)
         if gate.get("command") == "@discover":
             gate["command"] = discover(project)
-        new_items[gate_name] = gate
+        if gates.get(gate_name) != gate:  # igual ao gravado: nada a regravar
+            new_items[gate_name] = gate
     if not new_items and not new_code:
         return []
     check_writable(project)
@@ -97,7 +100,7 @@ def merge(project, entries_in):
 
 
 USAGE_TEXT = ('uso: fullchico-harness gates [--analyze] [--write] [--default] [--approve <portão>] [--parallel <n>] [--set <portão> "<comando>"] '
-       "[--register <esboço.json>] [--project <pasta>]")
+       "[--register <esboço.json>] [--remove <portão>] [--project <pasta>]")
 
 
 class NoPermission(Exception):
@@ -173,6 +176,21 @@ def set_command(project, gate_name, command_text):
     gate["command"] = command_text
     write_json(path, data)
     print(f"portão `{gate_name}`: comando definido como `{command_text}`")
+    return 0
+
+
+def remove_gate(project, gate_name):
+    """Tira um portão do registro. É do dono."""
+    path = os.path.join(project, ".claude", "harness.json")
+    data = read_json(path)
+    if gate_name not in (data.get("gates") or {}):
+        print(f"portão `{gate_name}` não existe; existem: {', '.join(data.get('gates') or {}) or 'nenhum'}.",
+              file=sys.stderr)
+        return 2
+    check_writable(project)
+    del data["gates"][gate_name]
+    write_json(path, data)
+    print(f"portão `{gate_name}` removido do registro")
     return 0
 
 
@@ -254,6 +272,7 @@ OWNER_COMMAND = [""]  # o comando desta execução, como o hook o aprovou
 def main(argv):
     OWNER_COMMAND[0] = registry.owner_canonical(["gates", *argv])
     project, flags, i, setting, register, approving, parallel = ".", set(), 0, None, None, None, None
+    removing = None
     while i < len(argv):
         if argv[i] == "--project":
             i += 1
@@ -264,6 +283,9 @@ def main(argv):
         elif argv[i] == "--register" and i + 1 < len(argv):
             i += 1
             register = argv[i]
+        elif argv[i] == "--remove" and i + 1 < len(argv):
+            i += 1
+            removing = argv[i]
         elif argv[i] == "--approve" and i + 1 < len(argv):
             i += 1
             approving = argv[i]
@@ -281,6 +303,8 @@ def main(argv):
             return approve(os.path.abspath(project), approving)
         if parallel:
             return set_parallel(os.path.abspath(project), parallel)
+        if removing:
+            return remove_gate(os.path.abspath(project), removing)
         return execute(os.path.abspath(project), flags, setting, register)
     except NoPermission as e:
         print(e, file=sys.stderr)
@@ -321,7 +345,8 @@ def execute(project, flags, setting, register):
             draft_file = {**draft_file["gates"], **({"code": draft_file["code"]} if "code" in draft_file else {})}
         target = os.path.join(project, ".claude", "harness.json")
         before = open(target, encoding="utf-8").read() if os.path.isfile(target) else None
-        names = merge(project, draft_file)
+        existing = set((read_json(target).get("gates") or {}) if before else {})
+        names = merge(project, draft_file, replace=True)
         try:
             registry.load(project)
         except registry.RegistryError as error:  # nada inválido fica gravado
@@ -337,7 +362,8 @@ def execute(project, flags, setting, register):
                 print(f"pastas de código registradas: {', '.join(draft_file['code'])}")
                 continue
             gate = read_json(os.path.join(project, ".claude", "harness.json"))["gates"][gate_name]
-            print(f"portão `{gate_name}` registrado: {gate.get('command') or gate.get('agent') or gate.get('artifact')}")
+            verb = "substituído" if gate_name in existing else "registrado"
+            print(f"portão `{gate_name}` {verb}: {gate.get('command') or gate.get('agent') or gate.get('artifact')}")
         return 0
     if "--default" in flags:
         reg, why = default_registry(project), [("padrão", "o registro padrão do plugin; qualidade com o comando do projeto")]

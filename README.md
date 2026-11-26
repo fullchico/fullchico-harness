@@ -377,8 +377,8 @@ registro. A pasta `.harness/` fica para você apagar; atualize o `AGENTS.md` se 
 `.harness/push`.
 
 Para cadastrar um portão: monte um esboço `{"name": {portão}}` e rode
-`npx @fullchico/harness gates --register esboco.json`. Para trocar só o comando de um portão:
-`gates --set <name> "<command>"`.
+`npx @fullchico/harness gates --register esboco.json`; um portão de mesmo nome é substituído. Para trocar só
+o comando de um portão: `gates --set <name> "<command>"`. Para tirar um portão: `gates --remove <name>`.
 
 ### Quanto a entrega custou
 

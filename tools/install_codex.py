@@ -10,6 +10,8 @@ SOURCE = pathlib.Path(__file__).resolve().parents[1]
 MARKETPLACE = "fullchico-project"
 
 
+MATT_SKILLS = ["grilling", "domain-modeling", "tdd"]  # entrevista, glossário/ADRs e executores
+
 def enable_plugin(config, selector):
     """Preserva as outras tabelas do config.toml e habilita só a entrada do harness."""
     header = f'[plugins."{selector}"]'
@@ -214,8 +216,9 @@ def main(args):
                               "--project", str(project)])
         if run.returncode:
             return run.returncode
-    for source, skill in (("DietrichGebert/ponytail", "*"), ("mattpocock/skills", "*")):
-        args = ["npx", "--yes", "skills", "add", source, "--skill", skill, "-a", "codex", "-y"]
+    # Só as skills que o fluxo do tr usa: o repositório do Matt tem dezenas, a maioria fora do processo.
+    for source, wanted in (("DietrichGebert/ponytail", ["*"]), ("mattpocock/skills", MATT_SKILLS)):
+        args = ["npx", "--yes", "skills", "add", source, "--skill", *wanted, "-a", "codex", "-y"]
         print("$ " + " ".join(args), flush=True)
         run = subprocess.run(args, cwd=project)
         if run.returncode:

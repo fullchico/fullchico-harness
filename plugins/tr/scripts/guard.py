@@ -200,7 +200,7 @@ def dispatch(root, reg, ti, caller=None):
     return allow(new_item)
 
 
-OWNER_FLAGS = {"--write", "--set", "--register", "--approve", "--parallel"}
+OWNER_FLAGS = {"--write", "--set", "--register", "--remove", "--approve", "--parallel"}
 
 
 def owner_write(command):
@@ -230,7 +230,7 @@ def ask_owner(root, payload, words):
     """O dono aprova no diálogo do Claude Code o comando exato; sem diálogo possível, vai para o terminal."""
     canonical = registry.owner_canonical(words)
     terminal_line = shlex.join(words) if words[:1] == ["claude"] else registry.owner_command(root, words)
-    if payload.get("permission_mode") in ("bypassPermissions", "dontAsk") or payload.get("harness_client") == "codex":
+    if payload.get("permission_mode") in ("bypassPermissions", "dontAsk", "auto") or payload.get("harness_client") == "codex":
         return deny(root, f"gravação do dono: {canonical}", panel("aprovação do dono", [
             ("comando", canonical[:80]),
             ("motivo", "neste modo não há diálogo de permissão para o dono aprovar"),
