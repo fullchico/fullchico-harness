@@ -39,6 +39,13 @@ class CertificateTest(unittest.TestCase):
         self.assertEqual(git(self.repo, "status", "--porcelain"), "", "o certificado já sai commitado")
         self.assertTrue(registry.stamped_commit(self.root, "quality", QUALITY), "o apêndice não muda a chave")
 
+    def test_the_harness_config_is_project_content_like_any_other(self):
+        import ledger
+        before = ledger.head(self.root)
+        (self.repo / ".codex").mkdir()
+        (self.repo / ".codex/config.toml").write_text("model = 'x'\n")
+        self.assertNotEqual(ledger.head(self.root), before, "sem exceção para os arquivos do próprio harness")
+
     def test_another_machine_reads_the_same_proof(self):
         certs.certify(self.root, "quality", self.key(), "APPROVED", registry.CHECKER, "passou")
         clone = _tmpdir() / "outra máquina"
