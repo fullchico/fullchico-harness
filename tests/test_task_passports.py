@@ -8,9 +8,10 @@ import sys
 import unittest
 from unittest import mock
 
-from tests.helpers import ROOT, commit_all, git, make_repo
+from tests.helpers import ROOT, accept, commit_all, commit_plan, git, make_repo
 
 sys.path.insert(0, str(ROOT / "plugins/tr/scripts"))
+import certs  # noqa: E402
 import ledger  # noqa: E402
 import registry  # noqa: E402
 import tasks  # noqa: E402
@@ -43,7 +44,7 @@ class TestTaskPassports(unittest.TestCase):
         front = self.ticket("01", "a11y", paths="front.tsx")
         back = self.ticket("02", "api", paths="back.py")
         dependent = self.ticket("03", "api", "01, 02")
-        commit_all(self.repo, "plan")
+        commit_plan(self.repo, "plan")
         problems, ready = tasks.audit(str(self.repo), registry.load(str(self.repo)))
         self.assertEqual(ready, [str(front.relative_to(self.repo)), str(back.relative_to(self.repo))])
         self.assertTrue(any("Status ainda não é done" in p for p in problems))
@@ -60,7 +61,7 @@ class TestTaskPassports(unittest.TestCase):
     def test_optional_entry_gate_applies_only_to_its_ticket(self):
         front = self.ticket("01", "a11y", paths="front.tsx", entry="design")
         back = self.ticket("02", "api", paths="back.py")
-        commit_all(self.repo, "plan")
+        commit_plan(self.repo, "plan")
         reg = registry.load(str(self.repo))
         self.assertNotIn("design", registry.required(str(self.repo), "start", reg))
         status = subprocess.run([str(ROOT / "plugins/tr/bin/gate")], cwd=self.repo,
@@ -78,13 +79,14 @@ class TestTaskPassports(unittest.TestCase):
     def test_middle_gate_is_ticket_scoped_and_result_versioned(self):
         ticket = self.ticket("01", "none")
         ticket.write_text(ticket.read_text().replace("Gates: none", "Middle: execution\nGates: none"))
-        commit_all(self.repo, "plan with middle gate")
+        commit_plan(self.repo, "plan with middle gate")
         rel = str(ticket.relative_to(self.repo))
         reg = registry.load(str(self.repo))
         key = registry.stamp_key(str(self.repo), GATES["execution"], rel)
         self.assertTrue(key)
         self.assertFalse(registry.satisfied(str(self.repo), "execution", reg, ticket=rel))
         ticket.write_text(ticket.read_text() + "Resultado: atualizado\n")
+        accept(self.repo)  # texto novo no ticket é critério novo: o dono aceita de novo
         self.assertNotEqual(key, registry.stamp_key(str(self.repo), GATES["execution"], rel))
         problems, ready = tasks.audit(str(self.repo), reg)
         self.assertFalse(any("falta carimbo de meio `execution`" in item for item in problems))
@@ -92,8 +94,8 @@ class TestTaskPassports(unittest.TestCase):
         before_done = registry.stamp_key(str(self.repo), GATES["execution"], rel)
         ticket.write_text(ticket.read_text().replace("Status: open", "Status: done"))
         self.assertEqual(before_done, registry.stamp_key(str(self.repo), GATES["execution"], rel))
-        scoped = registry.scoped_stamp("execution", rel)
-        with mock.patch.object(ledger, "has", side_effect=lambda root, stamp, key: stamp == scoped and key == before_done):
+        with mock.patch.object(certs, "has", side_effect=lambda root, name, key, ticket=None, by=None:
+                               name == certs.ACCEPT or name == "execution" and ticket == rel and key == before_done):
             self.assertTrue(registry.satisfied(str(self.repo), "execution", reg, ticket=rel))
             problems, ready = tasks.audit(str(self.repo), reg)
         self.assertFalse(any("falta carimbo de meio `execution`" in item for item in problems))
@@ -105,43 +107,43 @@ class TestTaskPassports(unittest.TestCase):
     def test_final_requires_each_ticket_stamp_on_current_snapshot(self):
         front = self.ticket("01", "a11y", paths="front.tsx")
         back = self.ticket("02", "api", paths="back.py")
-        commit_all(self.repo, "plan")
+        commit_plan(self.repo, "plan")
         (self.repo / "front.tsx").write_text("export const x = 1\n")
         front_commit = commit_all(self.repo, "front")
         (self.repo / "back.py").write_text("x = 1\n")
         back_commit = commit_all(self.repo, "back")
         front.write_text(front.read_text().replace("Status: open", f"Status: done\nDelivery: {front_commit}"))
         back.write_text(back.read_text().replace("Status: open", f"Status: done\nDelivery: {back_commit}"))
-        commit_all(self.repo, "passports")
-        current = ledger.head(str(self.repo))
-        signed = {("a11y", current), ("api", current)}
-        with mock.patch.object(ledger, "has", side_effect=lambda root, gate, commit: (gate, commit) in signed):
+        commit_plan(self.repo, "passports")
+        reg_now = registry.load(str(self.repo))
+        current = {name: registry.stamp_key(str(self.repo), reg_now["gates"][name]) for name in ("a11y", "api", "quality")}
+        signed = {("a11y", current["a11y"]), ("api", current["api"])}
+        with mock.patch.object(certs, "has", side_effect=lambda root, gate, key, ticket=None, by=None: gate == certs.ACCEPT or (gate, key) in signed):
             problems, _ = tasks.audit(str(self.repo), registry.load(str(self.repo)))
             self.assertTrue(problems and all("falta carimbo `quality`" in p for p in problems),
                             "o portão de comando sempre obrigatório vale a cada ticket integrado")
-            signed.discard(("api", current))
-            signed.add(("quality", current))
+            signed.discard(("api", current["api"]))
+            signed.add(("quality", current["quality"]))
             problems, _ = tasks.audit(str(self.repo), registry.load(str(self.repo)))
             self.assertEqual(len(problems), 1)
             self.assertIn("falta carimbo `api`", problems[0])
-            signed.add(("api", current))
+            signed.add(("api", current["api"]))
             self.assertEqual(tasks.audit(str(self.repo), registry.load(str(self.repo)))[0], [])
             (self.repo / "front.tsx").write_text("export const x = 2\n")
             commit_all(self.repo, "change front after approval")
             stale, _ = tasks.audit(str(self.repo), registry.load(str(self.repo)))
             self.assertTrue(any("falta carimbo `a11y`" in p for p in stale))
-            signed.add(("a11y", ledger.head(str(self.repo))))
-            signed.add(("api", ledger.head(str(self.repo))))
-            signed.add(("quality", ledger.head(str(self.repo))))
+            for name in ("a11y", "api", "quality"):
+                signed.add((name, registry.stamp_key(str(self.repo), reg_now["gates"][name])))
             self.assertEqual(tasks.audit(str(self.repo), registry.load(str(self.repo)))[0], [])
 
     def test_cycle_blocks_frontier(self):
         one = self.ticket("01", "a11y")
         self.ticket("02", "api", "01")
-        commit_all(self.repo, "plan")
+        commit_plan(self.repo, "plan")
         one.write_text(one.read_text().replace("Gates: a11y", "Gates: none")
                        .replace("Blocked by: none", "Blocked by: 02"))
-        commit_all(self.repo, "weaken")
+        commit_plan(self.repo, "weaken")
         problems, _ = tasks.audit(str(self.repo), registry.load(str(self.repo)))
         self.assertTrue(any("ciclo" in p for p in problems))
 
@@ -150,7 +152,7 @@ class TestTaskPassports(unittest.TestCase):
         self.ticket("02", "api", paths="apps/api/**")
         self.ticket("03", "api", paths="apps/api/src/search/**, apps/api/src/app.module.ts")
         self.ticket("04", "api", "02", paths="apps/api/src/availability/x.ts")
-        commit_all(self.repo, "plan")
+        commit_plan(self.repo, "plan")
         problems, ready = tasks.audit(str(self.repo), registry.load(str(self.repo)))
         overlaps = [p for p in problems if "ocupam" in p]
         # 02 (a API inteira) colide com 01 e 03; 01 e 03 só dividem um arquivo exato; 04 depende do 02.
@@ -159,7 +161,7 @@ class TestTaskPassports(unittest.TestCase):
         self.assertEqual(ready, [])
         two = self.repo / "docs/specs/a/issues/02-task.md"
         two.write_text(two.read_text().replace("Blocked by: none", "Blocked by: 01, 03"))
-        commit_all(self.repo, "chain")
+        commit_plan(self.repo, "chain")
         problems, ready = tasks.audit(str(self.repo), registry.load(str(self.repo)))
         self.assertFalse([p for p in problems if "ocupam" in p])
         self.assertEqual(len(ready), 2)
@@ -188,14 +190,14 @@ class TestTaskPassports(unittest.TestCase):
     def test_invalid_status_does_not_enter_the_frontier(self):
         ticket = self.ticket("01", "api")
         ticket.write_text(ticket.read_text().replace("Status: open", "Status: cancelled"))
-        commit_all(self.repo, "plan")
+        commit_plan(self.repo, "plan")
         problems, ready = tasks.audit(str(self.repo), registry.load(str(self.repo)))
         self.assertEqual(ready, [])
         self.assertTrue(any("deve ser open ou done" in p for p in problems))
 
     def test_delivery_is_blocked_by_task_passport(self):
         self.ticket("01", "a11y")
-        commit_all(self.repo, "plan")
+        commit_plan(self.repo, "plan")
         run = subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/gate_cli.py"), "delivery"],
                              cwd=self.repo, capture_output=True, text=True)
         self.assertEqual(run.returncode, 1)
@@ -204,7 +206,7 @@ class TestTaskPassports(unittest.TestCase):
     def test_hook_refuses_executor_before_blocker_finishes(self):
         self.ticket("01", "api")
         self.ticket("02", "a11y", "01")
-        commit_all(self.repo, "plan")
+        commit_plan(self.repo, "plan")
         payload = {"hook_event_name": "PreToolUse", "tool_name": "Agent", "cwd": str(self.repo),
                    "tool_input": {"subagent_type": "general-purpose",
                                   "prompt": "Implemente docs/specs/a/issues/02-task.md"}}
@@ -227,7 +229,7 @@ class TestTaskPassports(unittest.TestCase):
 
     def test_whoever_plans_does_not_write_code_while_tickets_are_open(self):
         ticket = self.ticket("01", "api", paths="src/**")
-        commit_all(self.repo, "plan")
+        commit_plan(self.repo, "plan")
         edit = {"file_path": str(self.repo / "src/a.py")}
         main = self.hook("Edit", edit)
         self.assertEqual(main.get("permissionDecision"), "deny")
@@ -251,7 +253,7 @@ class TestTaskPassports(unittest.TestCase):
 
     def test_indirect_writes_to_code_are_caught_by_their_effect(self):
         self.ticket("01", "api", paths="src/**")
-        commit_all(self.repo, "plan")
+        commit_plan(self.repo, "plan")
         sneaky = "python3 -c \"open('src/a.py','w').write('x = 1')\""
         bash = lambda tid, agent=None: self._bash(tid, sneaky, agent)  # noqa: E731
         self.assertEqual(bash("t1"), {}, "o texto do comando não mostra a escrita: o PreToolUse deixa passar")
@@ -355,7 +357,7 @@ class TestTaskPassports(unittest.TestCase):
 
     def test_the_orchestrator_runs_executors_in_the_foreground_once_per_ticket(self):
         ticket = self.ticket("01", "api")
-        commit_all(self.repo, "plan")
+        commit_plan(self.repo, "plan")
         rel = str(ticket.relative_to(self.repo))
         job = {"subagent_type": "general-purpose", "prompt": f"Implemente {rel}", "isolation": "worktree"}
         background = self.hook("Agent", dict(job, run_in_background=True), "tr:orchestrator")
@@ -374,7 +376,7 @@ class TestTaskPassports(unittest.TestCase):
 
     def test_a_dispatch_that_never_opened_frees_its_ticket(self):
         ticket = self.ticket("01", "api")
-        commit_all(self.repo, "plan")
+        commit_plan(self.repo, "plan")
         rel = str(ticket.relative_to(self.repo))
         job = {"subagent_type": "general-purpose", "prompt": f"Implemente {rel}", "isolation": "worktree"}
         done = lambda payload: subprocess.run(
@@ -396,7 +398,7 @@ class TestTaskPassports(unittest.TestCase):
     def test_status_board_comes_from_hooks(self):
         first = self.ticket("01", "api")
         second = self.ticket("02", "api", blockers="01")
-        commit_all(self.repo, "plan")
+        commit_plan(self.repo, "plan")
         rel1, rel2 = str(first.relative_to(self.repo)), str(second.relative_to(self.repo))
         dispatched = self.hook("Agent", {"subagent_type": "general-purpose", "prompt": f"Implemente {rel1}",
                                          "isolation": "worktree"}, "tr:orchestrator")
@@ -443,7 +445,7 @@ class TestTaskPassports(unittest.TestCase):
 
     def test_executors_run_in_worktrees_up_to_the_parallel_limit(self):
         tickets = [self.ticket(f"0{n}", "api", paths=f"src/m{n}/**") for n in (1, 2, 3)]
-        commit_all(self.repo, "plan")
+        commit_plan(self.repo, "plan")
         rels = [str(t.relative_to(self.repo)) for t in tickets]
         shared = self.hook("Agent", {"subagent_type": "general-purpose", "prompt": f"Implemente {rels[0]}"}, "tr:orchestrator")
         self.assertEqual(shared.get("permissionDecision"), "deny")
@@ -510,12 +512,12 @@ class TestTaskPassports(unittest.TestCase):
 
     def test_a_stamp_that_still_holds_is_not_validated_again(self):
         self.ticket("01", "api")
-        commit_all(self.repo, "plan")
+        commit_plan(self.repo, "plan")
         request = {"subagent_type": registry.CHECKER, "description": "gate", "prompt": "gate: quality"}
         self.assertNotEqual(self.hook("Agent", request, "tr:orchestrator").get("permissionDecision"), "deny",
                             "sem carimbo, valida")
         key = registry.stamp_key(str(self.repo), registry.load(str(self.repo))["gates"]["quality"])
-        ledger.sign(str(self.repo), "quality", key, "tr", "t", registry.CHECKER, "ok")
+        certs.certify(str(self.repo), "quality", key, "APPROVED", registry.CHECKER, "ok")
         again = self.hook("Agent", request, "tr:orchestrator")
         self.assertEqual(again.get("permissionDecision"), "deny")
         self.assertIn("validação desnecessária", again["permissionDecisionReason"])
@@ -581,7 +583,7 @@ class TestTaskPassports(unittest.TestCase):
 
     def test_the_orchestrator_dispatches_executors_only_with_a_ticket(self):
         ticket = self.ticket("01", "api")
-        commit_all(self.repo, "plan")
+        commit_plan(self.repo, "plan")
         loose = self.hook("Agent", {"subagent_type": "general-purpose", "prompt": "Implemente a soma"},
                           "tr:orchestrator")
         self.assertEqual(loose.get("permissionDecision"), "deny")
@@ -596,13 +598,13 @@ class TestTaskPassports(unittest.TestCase):
     def test_done_ticket_needs_its_blocker_complete(self):
         first = self.ticket("01", "api", paths="first.py")
         second = self.ticket("02", "api", blockers="01", paths="second.py")
-        commit_all(self.repo, "plan")
+        commit_plan(self.repo, "plan")
         (self.repo / "second.py").write_text("second = 1\n")
-        second_commit = commit_all(self.repo, "second too early")
+        second_commit = commit_plan(self.repo, "second too early")
         (self.repo / "first.py").write_text("first = 1\n")
-        first_commit = commit_all(self.repo, "first")
+        first_commit = commit_plan(self.repo, "first")
         second.write_text(second.read_text().replace("Status: open", f"Status: done\nDelivery: {second_commit}"))
-        commit_all(self.repo, "mark done")
+        commit_plan(self.repo, "mark done")
         signed = {("api", ledger.head(str(self.repo)))}
         with mock.patch.object(ledger, "has", side_effect=lambda root, gate, commit: (gate, commit) in signed):
             problems, ready = tasks.audit(str(self.repo), registry.load(str(self.repo)))

@@ -86,6 +86,15 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I \"${CLAUDE_PLUGIN_ROOT}/scripts/stale_session.py\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "Stop": [

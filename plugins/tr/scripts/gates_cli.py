@@ -100,7 +100,7 @@ def merge(project, entries_in, replace=False):
 
 
 USAGE_TEXT = ('uso: fullchico-harness gates [--analyze] [--write] [--default] [--approve <portão>] [--parallel <n>] [--set <portão> "<comando>"] '
-       "[--register <esboço.json>] [--remove <portão>] [--project <pasta>]")
+       "[--register <esboço.json>] [--remove <portão>] [--accept] [--project <pasta>]")
 
 
 class NoPermission(Exception):
@@ -194,6 +194,24 @@ def remove_gate(project, gate_name):
     return 0
 
 
+def accept(project):
+    """O aceite do dono sobre o critério da demanda (spec e tickets), no fim da entrevista. É do dono."""
+    import certs
+    if (os.environ.get("CLAUDECODE") == "1" and not registry.owner_approved(project, OWNER_COMMAND[0])) \
+            or os.environ.get("CODEX_THREAD_ID"):
+        raise NoPermission("O aceite do critério é do dono, no diálogo de permissão ou no terminal.")
+    criterion = certs.criterion(project)
+    if not criterion:
+        print("sem demanda ativa (.claude/current-demand) com spec em docs/specs/<demanda>/", file=sys.stderr)
+        return 2
+    refused = certs.certify(project, certs.ACCEPT, criterion, "APPROVED", certs.OWNER, "critério aceito pelo dono")
+    if refused:
+        print(refused, file=sys.stderr)
+        return 1
+    print(f"critério da demanda `{certs.demand(project)}` aceito pelo dono ({criterion[:10]}).")
+    return 0
+
+
 def approve(project, gate_name):
     """Aprovação explícita do dono, vinculada ao mesmo estado que o fiscal validou."""
     if (os.environ.get("CLAUDECODE") == "1" and not registry.owner_approved(project, OWNER_COMMAND[0])) \
@@ -208,7 +226,11 @@ def approve(project, gate_name):
     if not key:
         print(f"portão `{gate_name}` ainda não passou pela validação técnica.", file=sys.stderr)
         return 1
-    ledger.sign(project, "approval-" + gate_name, key, "tr", "local", "owner", "aprovação humana explícita")
+    import certs
+    refused = certs.certify(project, "approval-" + gate_name, key, "APPROVED", certs.OWNER, "aprovação humana explícita")
+    if refused:
+        print(refused, file=sys.stderr)
+        return 1
     print(f"portão `{gate_name}` aprovado pelo dono no estado {key[:10]}.")
     return 0
 
@@ -292,13 +314,15 @@ def main(argv):
         elif argv[i] == "--parallel" and i + 1 < len(argv) and argv[i + 1].isdigit() and int(argv[i + 1]) >= 1:
             i += 1
             parallel = int(argv[i])
-        elif argv[i] in ("--analyze", "--write", "--default"):
+        elif argv[i] in ("--analyze", "--write", "--default", "--accept"):
             flags.add(argv[i])
         else:
             print(USAGE_TEXT, file=sys.stderr)
             return 2
         i += 1
     try:
+        if "--accept" in flags:
+            return accept(os.path.abspath(project))
         if approving:
             return approve(os.path.abspath(project), approving)
         if parallel:

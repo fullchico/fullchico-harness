@@ -92,9 +92,12 @@ class ModelsCliTest(unittest.TestCase):
             self.assertTrue(summary["stamped"])
             key = registry.stamp_key(str(repo), registry.load(str(repo))["gates"]["security"])
             with mock.patch.dict(os.environ, HOME=bin_dir):
-                self.assertTrue(ledger.has(str(repo), "security", key))
+                import certs
+                self.assertTrue(certs.has(str(repo), "security", key))
             manifest = json.loads(pathlib.Path(summary["manifesto"]).read_text())
             self.assertIn("Procure falhas concretas", pathlib.Path(summary["manifesto"]).with_name("pedido.txt").read_text())
+            self.assertNotIn("Ticket concluído", pathlib.Path(summary["manifesto"]).with_name("pedido.txt").read_text(),
+                             "o relato de quem pede não chega ao revisor")
             self.assertEqual(manifest["attempts"][0]["model_id"], "gpt-6.2-sol")
 
     def test_gate_reviewer_rejects_wrong_snapshot(self):

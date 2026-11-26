@@ -270,20 +270,23 @@ def _hash(*parts):
 
 
 def stamp_key(root, gate, ticket=None):
-    """Chave do carimbo (40 hex). Fim: snapshot do código. Início: artefato ou definição do portão."""
+    """Chave do certificado (40 hex). Fim: conteúdo do código + critério da demanda. Meio: o ticket e o
+    conteúdo. Início: artefato ou definição do portão. O apêndice de certificados nunca entra."""
+    import certs
     if gate["stage"] == "middle":
         if not ticket:
             return None
         try:
             with open(os.path.join(root, ticket), encoding="utf-8") as stream:
-                content = stream.read()
+                content = certs.strip(stream.read())
         except OSError:
             return None
         content = re.sub(r"(?mi)^\s*Status:\s*(?:open|done)\s*$", "Status: <state>", content)
         version = hashlib.sha1(content.encode()).hexdigest()
         return _hash(ticket, version, ledger.head(root))
     if gate["stage"] == "end":
-        return ledger.head(root)
+        head = ledger.head(root)
+        return _hash(head, certs.criterion(root)) if head else None
     if gate["signs"] == "artifact":
         files = artifact_files(root, gate)
         if not files:
@@ -291,30 +294,26 @@ def stamp_key(root, gate, ticket=None):
         blobs = []
         for file in files:
             with open(os.path.join(root, file), "rb") as stream:
-                blobs.append(f"{file} {hashlib.sha1(stream.read()).hexdigest()}")
+                data = stream.read()
+            if file.endswith(".md"):
+                data = certs.strip(data.decode("utf-8", "replace")).encode()
+            blobs.append(f"{file} {hashlib.sha1(data).hexdigest()}")
         return _hash(*blobs)
     return _hash(os.path.realpath(root), json.dumps(gate, sort_keys=True))
 
 
-DOC_ONLY_DEPTH = 50  # quantos commits para trás o carimbo de fim é procurado
-
-
-def doc_only(path):
-    """Arquivo que não muda o que um portão de fim verifica: só documentação (`docs/` ou `.md`)."""
-    return path.startswith("docs/") or path.endswith(".md")
+def responsible(gate):
+    """Quem assina o certificado do portão: o revisor registrado ou o verificador limpo. Início: quem validou."""
+    if gate["signs"] == "agent":
+        return gate["agent"]
+    return CHECKER if gate["stage"] != "start" else None
 
 
 def stamped_commit(root, name, gate, ticket=None):
-    """O commit cujo carimbo vale para o topo, ou None.
-
-    Início: a chave do plano. Fim: o topo; ou um commit anterior carimbado, se do carimbo até o topo
-    só mudou documentação (um commit de relatório não refaz a rodada inteira de portões).
-    """
+    """A chave cujo certificado vale para o estado atual, ou None."""
+    import certs
     key = stamp_key(root, gate, ticket)
-    if not key:
-        return None
-    stamp = scoped_stamp(name, ticket) if ticket else name
-    if ledger.has(root, stamp, key):
+    if key and certs.has(root, name, key, ticket, by=responsible(gate)):
         return key
     return None
 
@@ -329,8 +328,9 @@ def satisfied(root, name, reg=None, ticket=None):
     key = stamped_commit(root, name, gate, ticket)
     if key is None:
         return False
-    if gate["stage"] == "end" and (gate.get("approval") == "human" or attempts.status(root, name).get("intervention")):
-        return ledger.has(root, "approval-" + name, key)
+    if gate["stage"] == "end" and (gate.get("approval") == "human" or attempts.status(root, name, gate).get("intervention")):
+        import certs
+        return certs.has(root, "approval-" + name, key, by=certs.OWNER)
     return True
 
 

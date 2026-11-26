@@ -15,6 +15,7 @@ from tests.helpers import ROOT, _tmpdir, commit_all, commit_file, git, make_repo
 
 PLUGIN = ROOT / "plugins/tr"
 sys.path.insert(0, str(PLUGIN / "scripts"))
+import certs  # noqa: E402
 import ledger  # noqa: E402
 import registry  # noqa: E402
 
@@ -275,6 +276,14 @@ class TestEndGateByCommand(Case):
         self.post("gate quality", out.stdout)
         self.assertTrue(self.signed("quality"))
 
+    def test_the_stamp_covers_the_content_not_the_machine_state(self):
+        before = ledger.head(str(self.repo))
+        git(self.repo, "config", "branch.feat.remote", "origin")
+        git(self.repo, "remote", "add", "origin", "git@example.com:x/y.git")
+        self.assertEqual(ledger.head(str(self.repo)), before, "publicar não muda o conteúdo")
+        (self.repo / "novo.txt").write_text("x")
+        self.assertNotEqual(ledger.head(str(self.repo)), before)
+
     def test_a_send_is_blocked_without_the_stamp_and_free_with_it(self):
         for cmd in ("git push", "git add . && git push origin x", "gh pr create --fill"):
             r = self.bash(cmd)
@@ -320,7 +329,8 @@ class TestEndGateByAgent(Case):
             self.assertFalse(self.signed("bugs"))
             self.assertEqual(send(self.block()).returncode, 0)
             self.assertTrue(self.signed("bugs"), send.__name__)
-            ledger.forget(str(self.repo), "bugs", self.head)
+            key = registry.stamp_key(str(self.repo), registry.load(str(self.repo))["gates"]["bugs"])
+            certs.certify(str(self.repo), "bugs", key, "REJECTED", "tr:bug-hunter", "zera para o próximo caminho")
 
     def test_review_model_uses_gate_override_before_role_default(self):
         path = self.repo / ".claude/harness.json"
@@ -633,7 +643,8 @@ class TestDocOnlyCommitsKeepTheEndStamps(Case):
         self.stamped = commit_file(self.repo, "a.py", "feat: a")
         self.sign_through_hook("quality")
         self.stamped = ledger.head(str(self.repo))
-        ledger.sign(str(self.repo), "bugs", self.stamped, "tr", "t", "tr:bug-hunter", "ok")
+        key = registry.stamp_key(str(self.repo), registry.load(str(self.repo))["gates"]["bugs"])
+        certs.certify(str(self.repo), "bugs", key, "APPROVED", "tr:bug-hunter", "ok")
 
     def test_a_docs_commit_keeps_them_and_the_list_says_from_where(self):
         (self.repo / "docs").mkdir(exist_ok=True)

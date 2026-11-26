@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Assina os carimbos dos portões. Quem assina é o hook, nunca o agente.
+"""Certifica os portões. Quem certifica é o hook, no contexto do responsável, nunca o agente à mão.
+
+O certificado vai para o apêndice do documento da demanda e é assinado por commit (`certs.py`).
 
 - `PostToolUse` de `Bash`: o comando foi exatamente `gate <name>` e a saída termina em
   `gate <name>: passou` -> portão `command` ou `artifact`. Portão de fim só assina dentro do
@@ -15,17 +17,13 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ledger  # noqa: E402
 import attempts  # noqa: E402
+import certs  # noqa: E402
 import registry  # noqa: E402
 import render  # noqa: E402
 
 
 def version():
-    try:
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".claude-plugin", "plugin.json")
-        with open(path, encoding="utf-8") as f:
-            return json.load(f)["version"]
-    except (OSError, ValueError, KeyError):
-        return "desconhecida"
+    return certs.version()
 
 
 def once(pattern, text):
@@ -53,9 +51,9 @@ def from_command(payload, root, reg):
     if lines and lines[-1].strip().startswith(f"gate {name}: FALHOU") and payload.get("agent_type") == registry.CHECKER:
         key = registry.stamp_key(root, gate, ticket)
         if key:
-            ledger.forget(root, registry.scoped_stamp(name, ticket) if ticket else name, key)
-        state = attempts.reject(root, name, gate)
-        if state and state["intervention"]:
+            certs.certify(root, name, key, "REJECTED", registry.CHECKER, lines[-1].strip(), ticket)
+        state = attempts.status(root, name, gate)
+        if gate["stage"] == "end" and state["intervention"]:
             return render.warn(f"Intervenção humana necessária no portão {name}: {state['rejections']} reprovações; limite {gate.get('attempts', 3)}.")
         return 0
     if not lines or lines[-1].strip() != expected:
@@ -77,9 +75,13 @@ def from_command(payload, root, reg):
     key = registry.stamp_key(root, gate, ticket)
     if not key:
         return 0
-    stamp = registry.scoped_stamp(name, ticket) if ticket else name
-    ledger.sign(root, stamp, key, "tr", version(), f"gate {name}", f"{name} passou ({gate['signs']})")
-    ledger.log(root, "tr", "signed", f"{stamp}: {key[:10]}")
+    by = registry.responsible(gate) or payload.get("agent_type") or "tr:main-session"
+    refused = certs.certify(root, name, key, "APPROVED", by, f"gate {name} passou ({gate['signs']})", ticket)
+    if refused:
+        ledger.log(root, "tr", "not_signed", f"{name}: {refused}")
+        return render.refuse(render.panel("certificado recusado", [("portão", name), ("motivo", refused)], [],
+                                          "o certificado vai no documento da demanda, assinado por commit"))
+    ledger.log(root, "tr", "signed", f"{name}: {key[:10]}")
     return render.warn(f"✓ trilho · {name} carimbado ({key[:10]})")
 
 
@@ -105,22 +107,26 @@ def from_agent(payload, root, reg):
         key = registry.stamp_key(root, gate)
         if not (verdict and commit and summary):
             # no SubagentStop vem só o fecho: se o relatório já assinou na entrega, não é falha
-            if not (payload.get("hook_event_name") == "SubagentStop" and key and ledger.has(root, name, key)):
+            if not (payload.get("hook_event_name") == "SubagentStop" and key and certs.has(root, name, key)):
                 ledger.log(root, "tr", "not_signed", f"{name}: bloco de três linhas ausente ou ambíguo")
         elif commit != top:
             ledger.log(root, "tr", "not_signed", f"{name}: o commit {commit[:10]} não é o topo ({(top or '?')[:10]})")
         elif not key:
             ledger.log(root, "tr", "not_signed", f"{name}: sem chave do carimbo")
         elif verdict == "APPROVED":
-            ledger.sign(root, name, key, "tr", version(), agent, summary)
-            ledger.log(root, "tr", "signed", f"{name}: {key[:10]}: {summary}")
-            warnings.append(f"✓ trilho · {name} carimbado por {agent} ({key[:10]})")
+            refused = certs.certify(root, name, key, "APPROVED", agent, summary)
+            if refused:
+                ledger.log(root, "tr", "not_signed", f"{name}: {refused}")
+                warnings.append(f"✗ trilho · {name} aprovado por {agent}, mas o certificado foi recusado: {refused}")
+            else:
+                ledger.log(root, "tr", "signed", f"{name}: {key[:10]}: {summary}")
+                warnings.append(f"✓ trilho · {name} certificado por {agent} ({key[:10]})")
         else:
-            ledger.forget(root, name, key)
-            state = attempts.reject(root, name, gate, f"{commit}:{summary}")
+            certs.certify(root, name, key, "REJECTED", agent, summary)
+            state = attempts.status(root, name, gate)
             ledger.log(root, "tr", "rejected", f"{name}: {key[:10]}: {summary}")
             warnings.append(f"✗ trilho · {name} reprovado por {agent} ({key[:10]}): {summary}")
-            if state and state["intervention"]:
+            if gate["stage"] == "end" and state["intervention"]:
                 warnings.append(f"Intervenção humana necessária: {state['rejections']} reprovações; limite {gate.get('attempts', 3)}.")
     return render.warn("\n".join(warnings)) if warnings else 0
 

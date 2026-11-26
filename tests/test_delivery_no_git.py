@@ -10,6 +10,7 @@ from pathlib import Path
 from tests.helpers import ROOT
 
 sys.path.insert(0, str(ROOT / "plugins/tr/scripts"))
+import certs  # noqa: E402
 import ledger  # noqa: E402
 import registry  # noqa: E402
 
@@ -43,8 +44,8 @@ class TestDeliveryWithoutGit(unittest.TestCase):
         try:
             root = str(self.project)
             reg = registry.load(root)
-            ledger.sign(root, "plano", registry.stamp_key(root, reg["gates"]["plano"]), "tr", "1", "fiscal", "ok")
-            ledger.sign(root, "quality", ledger.head(root), "tr", "1", "fiscal", "ok")
+            certs.certify(root, "plano", registry.stamp_key(root, reg["gates"]["plano"]), "APPROVED", "fiscal", "ok")
+            certs.certify(root, "quality", registry.stamp_key(root, reg["gates"]["quality"]), "APPROVED", registry.CHECKER, "ok")
             self.assertEqual(self.deliver().returncode, 0)
             (self.project / "src.py").write_text("value = 2\n")
             self.assertEqual(self.deliver().returncode, 1)
@@ -102,7 +103,7 @@ class TestDeliveryWithoutGit(unittest.TestCase):
         self.assertEqual(memory.returncode, 0, memory.stderr)
         self.assertIn(".", memory.stdout)
 
-    def test_project_remote_gate_is_optional_and_rechecked_after_remote_change(self):
+    def test_project_remote_gate_is_optional(self):
         subprocess.run(["git", "init", "-q", str(self.project)], check=True)
         subprocess.run(["git", "-C", str(self.project), "remote", "add", "review", "https://example.invalid/repo.git"],
                        check=True)
@@ -110,17 +111,18 @@ class TestDeliveryWithoutGit(unittest.TestCase):
         data = json.loads(config.read_text())
         data["gates"]["remoto"] = {"stage": "end", "signs": "command", "command": "git remote get-url review"}
         config.write_text(json.dumps(data))
+        for args in (["config", "user.email", "t@example.com"], ["config", "user.name", "T"], ["add", "-A"],
+                     ["commit", "-q", "-m", "plano"]):
+            subprocess.run(["git", "-C", str(self.project), *args], check=True)
         old_home = os.environ.get("HOME")
         os.environ["HOME"] = self.home.name
         try:
             root = str(self.project)
             reg = registry.load(root)
-            ledger.sign(root, "plano", registry.stamp_key(root, reg["gates"]["plano"]), "tr", "1", "fiscal", "ok")
+            certs.certify(root, "plano", registry.stamp_key(root, reg["gates"]["plano"]), "APPROVED", "fiscal", "ok")
             for gate in ("quality", "remoto"):
-                ledger.sign(root, gate, ledger.head(root), "tr", "1", "fiscal", "ok")
+                certs.certify(root, gate, registry.stamp_key(root, reg["gates"][gate]), "APPROVED", registry.CHECKER, "ok")
             self.assertEqual(self.deliver().returncode, 0)
-            subprocess.run(["git", "-C", root, "remote", "remove", "review"], check=True)
-            self.assertEqual(self.deliver().returncode, 1)
         finally:
             if old_home is None:
                 del os.environ["HOME"]

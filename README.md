@@ -151,8 +151,14 @@ O portão de começo, assinado por um artefato (OpenSpec, `docs/specs/*/spec.md`
 plugin não entrevista produto nem força uma stack de processo: ele liga a etapa à ferramenta que o
 projeto já usa.
 
-Cada demanda começa por `/tr:process-plan`: a entrevista (as skills `grilling` e `domain-modeling` de Matt Pocock, do `mattpocock-skills`, invocadas pelo `tr`, sem cópia adaptada; o glossário `GLOSSARY.md` e os ADRs em `docs/adr/` são saídas do planejamento, e o portão `domain` confere o glossário na entrada), a spec com o **passaporte** (a linha `Gates:` diz os portões opcionais que a
-demanda pede) e os tickets, cada um com a `Complexity:` que decide o modelo de quem o executa.
+Cada demanda começa por `/tr:process-plan`, que orquestra as skills de Matt Pocock (`mattpocock-skills`)
+sem cópia adaptada: a entrevista (`grilling` e `domain-modeling`; o glossário `GLOSSARY.md` e os ADRs em
+`docs/adr/` são saídas do planejamento, e o portão `domain` confere o glossário na entrada), a spec
+(`to-spec`) com o **passaporte** (a linha `Gates:` diz os portões opcionais que a demanda pede) e as
+pré-condições do dono, e os tickets (`to-tickets`), cada um com a `Complexity:` que decide o modelo de quem o
+executa. A execução segue o `implement-spec` com `tdd`, e o revisor de escopo aplica o eixo Spec do
+`code-review`. O Matt produz e julga; o `tr` certifica e protege a cadeia. Antes de qualquer executor, o dono
+aceita o critério escrito (`tr-harness gates --accept`).
 
 *Status: disponível. O portão vem no `tr`; `/tr:configure` entrevista o dono e propõe o registro.*
 
@@ -230,8 +236,21 @@ O que assina um carimbo. São três jeitos:
 pedido escrito pelo hook; o `gate` rodado pela sessão principal mostra o resultado, mas não carimba.
 Cada validador valida só o que o portão dele propõe.
 
-O carimbo guarda uma impressão digital do estado atual. Alteração de código pede novo carimbo;
-mudanças apenas em `docs/` ou arquivos `.md` não invalidam portões de fim.
+**O carimbo é um certificado no próprio documento.** Como a assinatura de um especialista num
+documento revisado, ele vai no apêndice `## Certificates` da spec da demanda (ou do ticket, para o que é do
+ticket) e é assinado pelo commit do responsável pelo portão, com o trailer `Certified-by:`:
+
+- **o que ele prova:** este estado do código passou por este portão, contra o critério que o dono aceitou. A
+  chave é a impressão digital do código mais a do critério (spec e tickets, sem o andamento `Status:` e
+  `Delivery:`). Mudou um dos dois, o certificado cai;
+- **quem assina:** só o responsável. Partida: o aceite do dono (`tr-harness gates --accept`) sobre o critério
+  escrito. Fim: cada revisor, pelo hook. Quem executa commita trabalho, nunca certificado. O guard barra o
+  agente de editar o apêndice ou forjar o trailer, e uma linha sem o commit do responsável não vale;
+- **onde vale:** em qualquer máquina, agente ou CI, porque está no Git. As reprovações também ficam no
+  apêndice, e o limite de tentativas vai junto com a demanda.
+
+Arquivos `.md` e `docs/` fora da demanda não invalidam nada; mexer na configuração local do Git ou publicar
+(push, PR) também não, porque não é conteúdo.
 
 *Status: disponível.*
 

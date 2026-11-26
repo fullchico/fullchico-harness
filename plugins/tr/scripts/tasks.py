@@ -74,6 +74,11 @@ def audit(root, reg):
     all_tickets = tickets(root)
     if not all_tickets:
         return [], []
+    import certs
+    if not certs.accepted(root):
+        # o critério é do dono: sem o aceite dele sobre o texto atual, nada começa nem se entrega
+        return [f"critério da demanda `{certs.demand(root)}` sem aceite do dono (ou mudou depois do aceite): "
+                "o dono roda `tr-harness gates --accept`"], []
     problems, graph, completed, ids, entries_ok, plan_ok = [], {}, set(), {}, {}, {}
     for path, fields in all_tickets.items():
         first_problem = len(problems)

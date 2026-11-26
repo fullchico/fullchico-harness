@@ -10,7 +10,7 @@ SOURCE = pathlib.Path(__file__).resolve().parents[1]
 MARKETPLACE = "fullchico-project"
 
 
-MATT_SKILLS = ["grilling", "domain-modeling", "tdd"]  # entrevista, glossário/ADRs e executores
+MATT_SKILLS = ["grilling", "domain-modeling", "to-spec", "to-tickets", "tdd", "code-review"]  # o processo que o tr orquestra
 
 def enable_plugin(config, selector):
     """Preserva as outras tabelas do config.toml e habilita só a entrada do harness."""

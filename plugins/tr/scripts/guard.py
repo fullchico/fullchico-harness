@@ -200,7 +200,7 @@ def dispatch(root, reg, ti, caller=None):
     return allow(new_item)
 
 
-OWNER_FLAGS = {"--write", "--set", "--register", "--remove", "--approve", "--parallel"}
+OWNER_FLAGS = {"--write", "--set", "--register", "--remove", "--approve", "--parallel", "--accept"}
 
 
 def owner_write(command):
@@ -342,6 +342,36 @@ def legacy_harness(command):
     return False
 
 
+def certificate_tamper(root, tool, ti, targets):
+    """O agente mexendo no apêndice de certificados (ou forjando o trailer de assinatura)? Devolve o arquivo."""
+    import certs
+    if tool == "Bash":
+        command = ti.get("command") or ""
+        if certs.TRAILER + ":" in command:
+            return "commit com " + certs.TRAILER
+        for t in targets:  # pelo shell não dá para ver o que muda: documento com certificado só por Edit
+            path = os.path.join(root, registry.relative(root, t) or t)
+            if path.endswith(".md") and os.path.isfile(path) and certs.block(open(path, encoding="utf-8").read()):
+                return registry.relative(root, t) or t
+        return None
+    if tool not in EDIT_TOOLS or not targets or not str(targets[0]).endswith(".md"):
+        return None
+    path = os.path.join(root, registry.relative(root, targets[0]) or targets[0])
+    try:
+        with open(path, encoding="utf-8") as stream:
+            before = stream.read()
+    except OSError:
+        before = ""
+    after = before
+    if tool == "Write":
+        after = ti.get("content") or ""
+    else:
+        for edit in ti.get("edits") or [ti]:
+            old, new = edit.get("old_string") or "", edit.get("new_string") or ""
+            after = after.replace(old, new) if edit.get("replace_all") else after.replace(old, new, 1)
+    return registry.relative(root, targets[0]) if certs.block(after) != certs.block(before) else None
+
+
 def main():
     payload = json.load(sys.stdin)
     tool = payload.get("tool_name")
@@ -384,6 +414,12 @@ def main():
             return deny(root, f"configuração Codex: {t}", panel("harness protegido", [
                 ("arquivo", rel), ("motivo", "contém os hooks ou validadores que aplicam os portões"),
             ], footer="o dono atualiza com `fullchico-harness install-codex` no terminal"))
+
+    refused = certificate_tamper(root, tool, ti, targets_pre)
+    if refused:
+        return deny(root, f"certificado: {refused}", panel("certificado protegido", [
+            ("arquivo", refused), ("motivo", "o apêndice de certificados é escrito pelos hooks, no commit do responsável"),
+        ], ["  → edite o resto do documento com Edit; o certificado sai do portão"]))
 
     if tool == "Bash" and isinstance(ti.get("command"), str):
         words = owner_write(ti["command"])

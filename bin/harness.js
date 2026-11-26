@@ -20,7 +20,7 @@ const ABSORBED = { "bugs@fullchico": true, "qualidade@fullchico": true };
 const RENAMED_AGENTS = { "bugs:cacador": "tr:bug-hunter" };
 const usage = "uso: fullchico-harness install [pasta do projeto] [--target claude|codex|both] [--default] [--migrate] [--sandbox]\n" +
   "     fullchico-harness install-codex [pasta do projeto] [--default]   (portões e memória no Codex)\n" +
-  "     fullchico-harness gates [--analyze] [--write] [--default] [--approve <gate>] [--set <gate> \"<command>\"] [--register <draft.json>] [--remove <gate>] [--project <pasta>]\n" +
+  "     fullchico-harness gates [--analyze] [--write] [--default] [--approve <gate>] [--set <gate> \"<command>\"] [--register <draft.json>] [--remove <gate>] [--accept] [--project <pasta>]\n" +
   "     fullchico-harness models configure [role cli:model ...] | show | run <role> [--prompt <texto>] [--ticket <caminho>] [--detach] | validate-gate <gate> [--ticket <caminho>] [--prompt <texto>] [--detach] | wait <id> [--timeout <s>] [--project <pasta>]\n" +
   "     fullchico-harness deliver [pasta do projeto]   (valida portões e passaportes na entrega)\n" +
   "     fullchico-harness add <plugin> [<plugin>...] [--project <pasta>]   (tr, memory)\n" +
