@@ -1,6 +1,6 @@
 {
   "name": "tr",
-  "version": "2.8.0",
+  "version": "2.8.1",
   "description": "Single entry point of the harness: diagnosis, grilling interview (Matt Pocock), gates, validators and memory.",
   "author": {
     "name": "FullChico"

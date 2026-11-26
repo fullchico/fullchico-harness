@@ -256,13 +256,13 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <p class="intro">Portão é uma etapa obrigatória; carimbo é a prova de que ela passou. O plugin não escolhe o seu lint nem o seu teste: exige que a etapa aconteça.</p>
       <ul class="cards count">
         <li><h3>Harness</h3><p>O conjunto do projeto: plugins, portões e configuração.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
-        <li><h3>Planejamento</h3><p>O <code>grilling</code> (Matt Pocock) refina requisitos, critérios e portões com o dono. A confirmação do plano autoriza a execução até a entrega; os portões escolhidos ficam no registro do projeto.</p><p class="note"><strong>Status:</strong> disponível em <code>/tr:configure</code> e <code>/tr:process-plan</code>.</p></li>
+        <li><h3>Planejamento</h3><p>O <code>tr</code> orquestra as skills de Matt Pocock: <code>grilling</code> e <code>domain-modeling</code> entrevistam, <code>to-spec</code> e <code>to-tickets</code> escrevem a spec e os tickets. O dono aceita o critério escrito (<code>gates --accept</code>), e esse aceite autoriza a execução até a entrega. Mudou o critério, o aceite volta para ele.</p><p class="note"><strong>Status:</strong> disponível em <code>/tr:configure</code> e <code>/tr:process-plan</code>.</p></li>
         <li><h3>Paralelismo com grafo</h3><p>Tickets independentes entram na fronteira juntos; o hook só libera os que não têm bloqueadores pendentes.</p><p class="note"><strong>Status:</strong> grafo e trava disponíveis no <code>tr</code>.</p></li>
         <li><h3>Loops</h3><p>Se o fiscal reprovar, o orquestrador devolve a tarefa ao executor, corrige e pede nova validação. Cada portão final tem um limite configurável de tentativas automáticas.</p><p class="note"><strong>Status:</strong> disponível; 3 reprovações por padrão, intervenção na quarta.</p></li>
         <li><h3>Guardrails</h3><p>Hooks em Claude Code e Codex conferem as chamadas cobertas e apontam etapas pendentes antes da entrega. Quem planeja não executa: com tickets abertos, a sessão principal e o orquestrador não escrevem código. Escrita indireta pelo terminal (<code>python -c</code>, scripts) é conferida pelo efeito. Perfil <code>fluxo</code> sem sandbox nativo, com Docker disponível; perfil <code>isolado</code> com <code>install --sandbox</code>.</p><p class="note"><strong>Status:</strong> disponível como controle de fluxo.</p></li>
         <li><h3>Portões</h3><p>Na entrada exigem os requisitos; no fim validam a entrega. Portões de meio podem exigir evidência de um ticket específico. Você os configura em <code>.claude/harness.json</code>.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
-        <li><h3>Validações</h3><p>O que dá o carimbo: um <strong>comando</strong> que passa, o <strong>veredito de um agente</strong> ou um <strong>artefato</strong> validado. O carimbo vale para o estado atual; alteração de código pede nova validação.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
-        <li><h3>Memória organizada</h3><p>Mapa do código e notas ancoradas, por projeto, carregados no começo de cada sessão (plugin <code>memory</code>).</p><p class="note"><strong>Status:</strong> disponível.</p></li>
+        <li><h3>Validações</h3><p>O que dá o carimbo: um <strong>comando</strong> que passa, o <strong>veredito de um agente</strong> ou um <strong>artefato</strong> validado. O carimbo é um certificado no próprio documento da demanda, assinado pelo commit de quem validou: vale para o código e o critério daquele momento, em qualquer máquina.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
+        <li><h3>Memória organizada</h3><p>Mapa do código e notas ancoradas, por projeto, carregados no começo de cada sessão (plugin <code>memory</code>). Ela roda sozinha: o configure cria o mapa, cada demanda o confere e cada entrega termina num sonho que lê as sessões e grava o que elas ensinaram.</p><p class="note"><strong>Status:</strong> disponível.</p></li>
       </ul>
     </div>
   </section>
@@ -272,7 +272,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <h2>Entrada, percurso e conferência</h2>
       <p class="intro">O portão de entrada confirma os requisitos. Cada tarefa percorre seu trilho, com validações próprias no meio quando necessárias. No destino, fiscais independentes conferem os carimbos exigidos para aquela entrega.</p>
       <figure class="art" tabindex="0">
-        <img src="img/passaporte-cartoon.png" width="1837" height="856" loading="lazy" alt="Entrevista, vagão com tarefas, fiscal examinando o passaporte e entrega validada; uma seta devolve a tarefa para correção.">
+        <img src="img/passaporte-cartoon.png" width="1838" height="856" loading="lazy" alt="O dono, de óculos, aperta a mão do documento depois da entrevista; um vagão leva as tarefas; o fiscal examina o documento com uma lupa, com o selo ainda vazio; o documento sai com os selos e uma bandeira. Uma seta devolve a tarefa do fiscal para o vagão.">
         <figcaption>O fiscal confere a evidência. Se faltar um carimbo, devolve a tarefa ao executor.</figcaption>
       </figure>
       <ol class="roles" aria-label="Quem conduz cada etapa no exemplo">
@@ -281,7 +281,18 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
         <li><img src="img/codex-mascot.svg" alt="" width="32" height="32"><span><strong>Codex</strong>revisa</span></li>
         <li><span aria-hidden="true">✓</span><span><strong>Entrega</strong>passaporte conferido</span></li>
       </ol>
-      <p class="note" style="margin-top:1rem">A entrevista decide os carimbos exigidos. Depois do plano aprovado, o orquestrador segue até a entrega; só pede intervenção quando um portão final exigir aprovação humana ou exceder seu limite.</p>
+      <p class="note" style="margin-top:1rem">A entrevista decide os carimbos exigidos. Depois do critério aceito, o orquestrador segue até a entrega; só pede intervenção quando um portão final exigir aprovação humana ou exceder seu limite.</p>
+    </div>
+  </section>
+
+  <section id="certificado">
+    <div class="wrap">
+      <h2>O carimbo é um certificado no documento</h2>
+      <p class="intro">Como a assinatura de um especialista num documento revisado: o certificado vai no apêndice da spec da demanda e é assinado pelo commit de quem validou. O dono assina o critério; cada revisor assina o próprio veredito; quem executou não assina nada.</p>
+      <figure class="art" tabindex="0">
+        <img src="img/certificado-cartoon.png" width="1838" height="856" loading="lazy" alt="O documento da demanda, sorridente, com três selos no apêndice; o dono, de óculos, assina o primeiro com uma caneta-tinteiro e o fiscal de quepe carimba o último. Cada selo desce por uma linha pontilhada até um marco no trilho.">
+        <figcaption>Mudou o código ou o critério, o certificado cai. Está no Git: outra máquina, outro agente ou o CI conferem a mesma prova.</figcaption>
+      </figure>
     </div>
   </section>
 
@@ -294,6 +305,17 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <p>O executor produz o trabalho; outro agente examina a evidência. Se faltar um carimbo ou a revisão reprovar, a tarefa volta para correção e passa de novo pelo portão. A aprovação é automática por padrão. O projeto pode exigir uma assinatura humana para um portão final.</p>
       <div class="cmd" style="margin-top:2rem"><code id="c2">fullchico-harness models configure</code><button type="button" data-copy="c2">Copiar</button></div>
       <p class="note" style="margin-top:0.8rem">Escolha quem planeja, quem executa, quem revisa e o modelo de apoio para erro de limite. A configuração vale para o projeto.</p>
+    </div>
+  </section>
+
+  <section id="memoria" class="wash">
+    <div class="wrap">
+      <h2>A memória aprende sozinha</h2>
+      <p class="intro">Ninguém precisa lembrar de um comando. O configure cria o mapa do código, cada demanda o confere antes da entrevista, e cada entrega termina num sonho: um extrator isolado lê as sessões inteiras, com o que cada subagente escreveu, e só fica a nota que o código confirma.</p>
+      <figure class="art" tabindex="0">
+        <img src="img/memoria-cartoon.png" width="1836" height="856" loading="lazy" alt="A locomotiva corre num trilho circular com três placas: um mapa (configurar), uma prancheta com lupa (planejar) e uma lua dormindo (o sonho depois da entrega). No centro, um caderno sorridente com um lápis e um visto.">
+        <figcaption>A memória fica na máquina, fora dos arquivos versionados. Não bloqueia a entrega: é o loop que a fecha.</figcaption>
+      </figure>
     </div>
   </section>
 
@@ -315,8 +337,8 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <h2>O que é core. O que entra como ferramenta.</h2>
       <p class="intro">O harness conecta módulos comprovados por processo. O projeto escolhe comandos, habilidades e portões sem prender a entrega a um único modelo ou stack.</p>
       <div class="two">
-        <div><h3>Core do FullChico</h3><ul><li><strong>Orquestração:</strong> entrevista, plano, tickets, dependências e modelos por papel.</li><li><strong>Guardrails:</strong> hooks que protegem o registro e impedem pular etapas.</li><li><strong>Memória:</strong> mapa, notas conferidas com o código e índice local.</li><li><strong>Validação:</strong> portões de entrada, meio e fim; passaporte e carimbos ligados ao estado do trabalho.</li></ul></div>
-        <div><h3>Ferramentas integradas</h3><ul><li><strong>Matt Pocock:</strong> skills de entrevista, modelagem e práticas de implementação; o <code>tr</code> invoca <code>grilling</code> e <code>domain-modeling</code>, sem cópia adaptada.</li><li><strong>Ponytail:</strong> orientação para mudanças pequenas e revisão.</li><li><strong>Graphify:</strong> motor AST opcional da memória; a skill acompanha o pacote.</li><li><strong>rtk:</strong> compressão opcional da saída de comandos.</li><li><strong>Git:</strong> base local para ancorar estado e memória; remoto e PR só se o projeto exigir.</li></ul></div>
+        <div><h3>Core do FullChico</h3><ul><li><strong>Orquestração:</strong> entrevista, plano, tickets, dependências e modelos por papel.</li><li><strong>Guardrails:</strong> hooks que protegem o registro e impedem pular etapas.</li><li><strong>Memória:</strong> mapa, notas conferidas com o código e índice local.</li><li><strong>Validação:</strong> portões de entrada, meio e fim; passaporte e certificados no documento da demanda, assinados por commit.</li></ul></div>
+        <div><h3>Ferramentas integradas</h3><ul><li><strong>Matt Pocock:</strong> skills de entrevista, modelagem e práticas de implementação; o <code>tr</code> orquestra <code>grilling</code>, <code>domain-modeling</code>, <code>to-spec</code>, <code>to-tickets</code>, <code>tdd</code> e <code>code-review</code>, sem cópia adaptada. O Matt produz e julga; o <code>tr</code> certifica.</li><li><strong>Ponytail:</strong> orientação para mudanças pequenas e revisão.</li><li><strong>Graphify:</strong> motor AST opcional da memória; a skill acompanha o pacote.</li><li><strong>rtk:</strong> compressão opcional da saída de comandos.</li><li><strong>Git:</strong> base local para ancorar estado e memória; remoto e PR só se o projeto exigir.</li></ul></div>
       </div>
     </div>
   </section>
@@ -329,7 +351,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <ol class="steps">
         <li><div><h3>Instale</h3><div class="cmd"><code id="c3">npx @fullchico/harness@latest install</code><button type="button" data-copy="c3">Copiar</button></div></div></li>
         <li><div><h3>Entreviste e configure</h3><p>Na sessão, use <code>/tr:configure</code>. O diagnóstico mostra candidatos; a entrevista <code>grilling</code> refina quais portões o projeto realmente quer, seus critérios e as tentativas de correção.</p></div></li>
-        <li><div><h3>Registre o plano</h3><p>Confirme o plano uma vez. A configuração escolhida vai para <code>.claude/harness.json</code>; o orquestrador segue autonomamente até os portões finais.</p></div></li>
+        <li><div><h3>Aceite o critério</h3><p>Cada demanda começa por <code>/tr:process-plan</code>. Depois da entrevista, você aceita a spec e os tickets escritos uma vez; o orquestrador segue sozinho até os portões finais.</p></div></li>
         <li><div><h3>Abra a sessão</h3><p>Use <code>claude</code> ou <code>codex</code> normalmente.</p></div></li>
       </ol>
       <p class="note" style="margin-top:2rem"><strong>Cada clone precisa do install.</strong> Ligar o plugin no settings não o baixa (limite da plataforma). Quem clona roda <code>install</code> uma vez.</p>
@@ -389,7 +411,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
         <div><dt>Validação na entrega</dt><dd>Os hooks valem nas sessões de Claude Code ou Codex em que estiverem ativos. A checagem explícita <code>fullchico-harness deliver</code> também funciona no terminal. O instalador inicia Git quando necessário.</dd></div>
         <div><dt>Sandbox opcional</dt><dd>O perfil padrão (<code>fluxo</code>) não liga o sandbox nativo, para o Docker do projeto funcionar. Os hooks e a checagem explícita aplicam o fluxo nas sessões cobertas e detectam escrita indireta depois que ela acontece; sem isolamento, não são uma barreira contra adulteração por processos com acesso ao usuário. O perfil <code>isolado</code> (<code>install --sandbox</code>) protege o registro e o estado.</dd></div>
         <div><dt>Codex</dt><dd>Hooks de projeto só rodam depois que você confia neles; o <code>models run</code> recusa uma execução Codex em que eles não rodaram. Na versão 0.171, a mensagem do disparo de subagente chega cifrada ao hook: a fronteira por ticket e o pedido canônico do fiscal não se aplicam a esses disparos.</dd></div>
-        <div><dt>O carimbo é prova de etapa</dt><dd>Ele prova que a etapa aconteceu, não que o revisor foi bom.</dd></div>
+        <div><dt>O certificado é prova de etapa</dt><dd>Ele prova que a etapa aconteceu contra o critério aceito, não que o revisor foi bom. O agente e os hooks rodam como o mesmo usuário: a garantia vem do guard, que barra o agente no apêndice, do Git, que mostra tudo no diff, e dos hashes, que qualquer um recalcula.</dd></div>
       </dl>
     </div>
   </section>
