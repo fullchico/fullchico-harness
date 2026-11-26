@@ -43,6 +43,12 @@ The limit on human intervention is set in the plan: only a change of scope or de
 external action, or a technical/policy blocker with no allowed alternative after
 investigation. Gate rejections produce a fix and revalidation inside the loop.
 
+## 0. Memory up to date
+
+When the project has the `memory` plugin (the `memory` command exists), run `memory check` before the
+interview. If units are aged or without a summary, run `/tr:memory-map` first: it redoes only what changed,
+on `haiku`. The interview then starts on a current map. Without the plugin, skip this step.
+
 ## 1. Interview
 
 Invoke `mattpocock-skills:grilling` and `mattpocock-skills:domain-modeling` with the Skill tool (the same
@@ -202,5 +208,10 @@ command or artifact gate) and, for each required agent gate, the registered revi
 If it failed or was rejected: an implementer fixes and the reviewer revalidates what changed, without asking
 the owner for intermediate approval. Finally, run `tr-harness deliver` or `gate delivery`.
 The orchestrator reports the result to the main session; it only declares the delivery complete when that command passes. At the start of the final response write
-`DELIVERY: done`; the Stop hook checks the certificates again. Intermediate replies and questions
+`DELIVERY: done`; the Stop hook checks the certificates again.
+
+**Learn from the delivery.** When the main session receives `DELIVERY: done` and the project has the
+`memory` plugin, it runs `/tr:memory-dream` right away, on its own, without asking the owner: what this
+demand's sessions taught becomes notes while it is fresh. It does not block the delivery and is not a
+gate; it is the loop that closes it. Report the new notes with the delivery result. Intermediate replies and questions
 do not use this mark. Git is initialized by the installer; push and PR are separate actions.

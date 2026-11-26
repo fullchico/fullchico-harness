@@ -274,20 +274,22 @@ function addPlugins(names, project, extras = []) {
     if ((["install", "update"].includes(args[1]) || (args[1] === "marketplace" && args[2] === "update")) &&
         run.status !== 0) status = run.status === null ? 1 : run.status;
   }
-  // O carimbo fica fora do projeto, onde o sandbox impede o agente de gravar. Sem sandbox, o agente
-  // consegue gravar lá: o portão continua avisando, mas deixa de ser barreira.
-  let sandboxed = false;
-  for (const file of ["settings.json", "settings.local.json"]) {
-    try {
-      const data = JSON.parse(fs.readFileSync(path.join(project, ".claude", file), "utf8"));
-      if (data.sandbox && data.sandbox.enabled === true) sandboxed = true;
-    } catch (e) { /* arquivo ausente ou inválido: segue */ }
-  }
-  if (!sandboxed) {
-    console.log("\nAviso: este projeto não liga o sandbox do Claude Code (`sandbox.enabled` em .claude/settings.json).\n" +
-      "Sem ele, o agente consegue gravar no estado dos carimbos e, em tese, forjar um carimbo: o portão avisa,\n" +
-      "mas deixa de ser barreira. Para ligar: https://code.claude.com/docs/en/sandboxing");
-  }
+  // Um marketplace `fullchico` já registrado com outra fonte (uma pasta de teste, um fork) faz o `add`
+  // passar em silêncio e o install trazer o plugin de lá. Confere a fonte e para com o conserto.
+  const expected = LOCAL_SOURCE || "FullChico/fullchico-harness";
+  try {
+    const known = JSON.parse(fs.readFileSync(path.join(require("os").homedir(), ".claude/plugins/known_marketplaces.json"), "utf8"));
+    const src = (known.fullchico || {}).source || {};
+    const actual = src.repo || src.path || src.url || "";
+    if (actual && path.resolve(actual) !== path.resolve(expected) && actual.toLowerCase() !== expected.toLowerCase()) {
+      console.log(`\nO marketplace \`fullchico\` desta máquina aponta para ${actual}, não para ${expected}:` +
+        "\nos plugins vieram de lá. Para trocar, rode no terminal, um por vez:" +
+        "\n  claude plugin marketplace remove fullchico" +
+        `\n  claude plugin marketplace add ${expected}` +
+        "\ne depois rode esta instalação de novo.");
+      status = status || 1;
+    }
+  } catch (e) { /* sem registro legível: o `claude` já disse o que houve */ }
   return status;
 }
 

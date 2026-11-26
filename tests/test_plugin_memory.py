@@ -1,6 +1,7 @@
 """Plugin `memory`: mapa e notas ancorados em git, candidatos de nota do extractor, sessões do projeto."""
 import json
 import os
+import pathlib
 import subprocess
 import sys
 import unittest
@@ -197,11 +198,42 @@ class TestSessions(Case):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("DONO: faça X", (self.repo / "d.md").read_text())
 
+    def test_a_long_session_is_read_whole_with_its_subagents(self):
+        folder = self.folder()
+        said = [json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": f"achado {n} " + "x" * 1500}]}})
+                for n in range(60)]
+        said.append(json.dumps({"type": "user", "message": {"content": "Base directory for this skill: texto da skill"}}))
+        (folder / "longa.jsonl").write_text("\n".join(said) + "\n")
+        (folder / "longa/subagents").mkdir(parents=True)
+        (folder / "longa/subagents/agent-x.jsonl").write_text(json.dumps(
+            {"type": "assistant", "message": {"content": [{"type": "text", "text": "o executor descobriu Y"}]}}) + "\n")
+        (folder / "longa/subagents/agent-x.meta.json").write_text(json.dumps({"agentType": "general-purpose"}))
+        r = self.bin("memory-sessions", "digest", "longa", str(self.repo / "d.md"))
+        parts = r.stdout.splitlines()
+        self.assertGreater(len(parts), 1, "sessão longa sai em partes, sem corte")
+        text = "".join(pathlib.Path(p).read_text() for p in parts)
+        self.assertIn("achado 59", text, "nada se perde no fim")
+        self.assertIn("GENERAL-PURPOSE: o executor descobriu Y", text, "quem executou também é lido")
+        self.assertNotIn("texto da skill", text, "o texto da skill não é do dono")
+
+    def test_sessions_say_their_kind(self):
+        import time
+        folder = self.folder()
+        (folder / "rev.jsonl").write_text(json.dumps({"type": "user", "message": {"content":
+                                          "You are the independent reviewer of gate `bugs`"}}) + "\n")
+        (folder / "job.jsonl").write_text(json.dumps({"type": "user", "message": {"content": "faça X"}}) + "\n")
+        old = time.time() - 3600
+        for name in ("rev.jsonl", "job.jsonl"):
+            os.utime(folder / name, (old, old))
+        out = self.bin("memory-sessions", "sessions").stdout
+        self.assertIn("revisão", next(l for l in out.splitlines() if l.startswith("rev")))
+        self.assertIn("trabalho", next(l for l in out.splitlines() if l.startswith("job")))
+
 
 class TestPackaging(unittest.TestCase):
     def test_layout(self):
         manifest = json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text())
-        self.assertEqual((manifest["name"], manifest["version"]), ("memory", "0.2.0"))
+        self.assertEqual((manifest["name"], manifest["version"]), ("memory", "0.3.0"))
         hooks = json.loads((PLUGIN / "hooks/hooks.json").read_text())["hooks"]
         self.assertIn("SessionStart", hooks)
         self.assertEqual(hooks["SubagentStop"][0]["matcher"], "^memory:extractor$")

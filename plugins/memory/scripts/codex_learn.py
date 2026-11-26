@@ -81,7 +81,7 @@ def usage(path):
 
 
 def digest(path):
-    lines = [learn.HEADER, ""]
+    lines = []
     for item in entries(path):
         payload = item.get("payload") or {}
         if item.get("type") != "response_item" or payload.get("type") != "message":
@@ -93,8 +93,7 @@ def digest(path):
             text = block.get("text") if isinstance(block, dict) else None
             if isinstance(text, str) and text.strip():
                 lines.append(("DONO: " if role == "user" else "AGENTE: ") + learn._cut(text))
-    text = "\n".join(lines)
-    return text[:learn.DIGEST_LIMIT].rsplit("\n", 1)[0] if len(text) > learn.DIGEST_LIMIT else text
+    return learn.parts(lines)
 
 
 def main(argv):

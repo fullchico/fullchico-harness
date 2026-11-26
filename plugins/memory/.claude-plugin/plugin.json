@@ -1,6 +1,6 @@
 {
   "name": "memory",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Git-anchored project memory: a code map and notes from past sessions, injected at the start of each session and marked stale when the code changes.",
   "author": {
     "name": "FullChico"

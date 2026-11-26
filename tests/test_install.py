@@ -35,6 +35,18 @@ class TestInstall(unittest.TestCase):
         return subprocess.run([shutil.which("node"), str(ROOT / "bin/harness.js"), "install", str(self.repo), *args],
                               capture_output=True, text=True, env=env)
 
+    def test_a_marketplace_registered_from_another_source_stops_the_install(self):
+        home = _tmpdir()
+        (home / ".claude/plugins").mkdir(parents=True)
+        (home / ".claude/plugins/known_marketplaces.json").write_text(json.dumps(
+            {"fullchico": {"source": {"source": "directory", "path": "/tmp/uma-pasta-de-teste"}}}))
+        env = dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}", HOME=str(home))
+        r = subprocess.run([shutil.which("node"), str(ROOT / "bin/harness.js"), "install", str(self.repo)],
+                           capture_output=True, text=True, env=env)
+        self.assertNotEqual(r.returncode, 0, "não segue em silêncio com a fonte errada")
+        self.assertIn("aponta para /tmp/uma-pasta-de-teste", r.stdout)
+        self.assertIn("claude plugin marketplace remove fullchico", r.stdout)
+
     def calls(self):
         return (self.bin / "calls").read_text().splitlines()
 
@@ -239,7 +251,12 @@ class TestInstall(unittest.TestCase):
         self.assertEqual(ref, f"v{version}")
 
     def test_a_local_source_is_installed_before_publishing(self):
-        env = dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}", FULLCHICO_HARNESS_SOURCE=str(ROOT))
+        home = _tmpdir()  # a máquina já registrou o marketplace a partir desta pasta
+        (home / ".claude/plugins").mkdir(parents=True)
+        (home / ".claude/plugins/known_marketplaces.json").write_text(json.dumps(
+            {"fullchico": {"source": {"source": "directory", "path": str(ROOT)}}}))
+        env = dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}", FULLCHICO_HARNESS_SOURCE=str(ROOT),
+                   HOME=str(home))
         r = subprocess.run([shutil.which("node"), str(ROOT / "bin/harness.js"), "install", str(self.repo)],
                            capture_output=True, text=True, env=env)
         self.assertEqual(r.returncode, 0, r.stderr)
