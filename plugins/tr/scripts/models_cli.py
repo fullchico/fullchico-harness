@@ -391,13 +391,21 @@ def validate_gate(root, name, ticket=None, request=""):
               "at the start) and the delivered, observed in the delivered state: the running product, the code "
               "and the tests that exercise it. An artifact of the plan is the reference, never the evidence. "
               "Evidence captured for this exact state is listed by `tr-harness evidence`; anything produced for "
-              "another state is not evidence: ask for a new one instead of judging it. "
+              "another state is not evidence. When that list is empty, or the command cannot run where you are, that "
+              "is NOT a reason to reject: judge from the delivered state itself (read the code and the tests, run "
+              "the checks you are allowed to run). Reject for missing evidence only when your gate's own instructions "
+              "require a captured proof that nothing else replaces. "
               "Answer with concrete findings and end with exactly three lines: "
               "VERDICT: APPROVED or REJECTED, COMMIT: <the expected snapshot, verbatim>, SUMMARY: <one sentence>.\n"
               + (f"Agent instructions:\n{instructions}\n" if instructions else ""))
     _, folder = _run_folder(root)
     with open(os.path.join(folder, "pedido.txt"), "w", encoding="utf-8") as stream:
         stream.write(prompt)
+    try:  # a pasta da prova nasce aqui, fora do sandbox do revisor: ele só precisa conseguir ler
+        import evidence_cli
+        evidence_cli.folder(root, create=True)
+    except Exception:
+        pass
     if in_terminal:
         attempts = [_review_in_terminal(root, choice, prompt, folder, name, gate["agent"])]
     else:
@@ -652,8 +660,11 @@ def _terminal_wait(root, run_ids, timeout):
     for run_id in run_ids:
         print(states[run_id][1].rstrip() + "\n")
     if any(k in ("dead", "human") for k in kinds):
+        waiting = [r for r in run_ids if states[r][0] == "human"]
         print("Um executor não consegue seguir: é bloqueio do dono. Reporte ao maestro; não troque de executor por "
-              "conta própria.", file=sys.stderr)
+              "conta própria." + (" O terminal dele continua aberto, esperando o dono: diga no relato o nome do terminal "
+              "e o run (" + ", ".join(waiting) + "); quando o dono responder, o próximo orquestrador adota esse executor "
+              "em vez de despachar de novo." if waiting else ""), file=sys.stderr)
         return 1
     return 0 if all(k == "done" for k in kinds) else 1
 

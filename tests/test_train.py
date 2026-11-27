@@ -266,6 +266,16 @@ class MaestroTest(Base):
         tasks.run_choice(self.root, {"executors": "claude:sonnet"})
         self.assertEqual(tasks.next_executor(self.root), ("claude", "sonnet"))
 
+    def test_boarding_warns_when_a_codex_executor_cannot_write_where_a_ticket_needs(self):
+        import orchestrate_cli
+        issues = self.repo / "docs/specs/pedido/issues"
+        (issues / "02-codex.md").write_text("# 02\n\nStatus: open\nBlocked by: none\nFiles: .codex/hooks.json, .agents/skills/x/**, src/a.py\n")
+        self.assertEqual(orchestrate_cli.unwritable_for_codex(self.root, "claude:haiku"), [])
+        lines = orchestrate_cli.unwritable_for_codex(self.root, "claude:haiku,codex:terra")
+        self.assertEqual(len(lines), 1)
+        self.assertIn(".codex/hooks.json", lines[0])
+        self.assertNotIn("src/a.py", lines[0])
+
     def test_the_orchestrator_cannot_stop_without_reporting(self):
         import subprocess
         payload = json.dumps({"hook_event_name": "Stop", "cwd": self.root, "last_assistant_message": "pronto"})
@@ -274,10 +284,69 @@ class MaestroTest(Base):
         self.assertEqual(quiet.stdout.strip(), "", "a sessão do maestro não é cobrada")
         held = subprocess.run(script, input=payload, capture_output=True, text=True, env=dict(os.environ, TR_ROLE="orchestrator"))
         self.assertEqual(json.loads(held.stdout)["decision"], "block")
+        import tasks
+        tasks.start_executor(self.root, "docs/specs/pedido/issues/01-soma.md")
+        waiting = subprocess.run(script, input=payload, capture_output=True, text=True, env=dict(os.environ, TR_ROLE="orchestrator"))
+        self.assertEqual(waiting.stdout.strip(), "", "com executor em voo, ele está esperando o aviso: não é cobrado")
+        tasks.finish_executor(self.root, "docs/specs/pedido/issues/01-soma.md")
         (self.repo / ".harness-run").mkdir(exist_ok=True)
         (self.repo / ".harness-run/report.md").write_text("DONE\n")
         free = subprocess.run(script, input=payload, capture_output=True, text=True, env=dict(os.environ, TR_ROLE="orchestrator"))
         self.assertEqual(free.stdout.strip(), "")
+
+
+class OwnerEditTest(Base):
+    def edit(self, mode="auto", **extra):
+        import subprocess
+        payload = {"hook_event_name": "PreToolUse", "tool_name": "Write", "permission_mode": mode, "cwd": self.root,
+                   "tool_input": {"file_path": os.path.join(self.root, ".codex/hooks.json"), "content": "{}"}, **extra}
+        env = {k: v for k, v in os.environ.items() if k not in ("TR_ROLE", "FULLCHICO_ROLE")}
+        out = subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/guard.py")], input=json.dumps(payload),
+                             capture_output=True, text=True, env=dict(env, CLAUDE_PROJECT_DIR=self.root))
+        return json.loads(out.stdout)["hookSpecificOutput"] if out.stdout.strip() else None
+
+    def test_the_owner_approves_a_harness_config_edit_inside_the_session(self):
+        """O arquivo é protegido, mas pode fazer parte do trabalho: a decisão é do dono, na sessão, e vale uma vez."""
+        first = self.edit()
+        self.assertEqual(first["permissionDecision"], "deny")
+        self.assertIn("Você aprova, como dono, `edit .codex/hooks.json`?", first["permissionDecisionReason"])
+        registry.grant_owner(self.root, "edit .codex/hooks.json")  # o dono respondeu Aprovo
+        self.assertIsNone(self.edit(), "com a aprovação, a gravação passa")
+        self.assertEqual(self.edit()["permissionDecision"], "deny", "a aprovação vale uma vez")
+        self.assertEqual(self.edit(mode="default")["permissionDecision"], "ask", "no modo normal, é o diálogo do Claude")
+        registry.grant_owner(self.root, "edit .codex/hooks.json")
+        fish = self.edit(agent_type="general-purpose")
+        self.assertEqual(fish["permissionDecision"], "deny", "um peixe não pergunta ao dono: reporta o bloqueio")
+        self.assertIn("BLOCKED", fish["permissionDecisionReason"])
+
+
+class TerminalCommandTest(unittest.TestCase):
+    def test_the_prompt_is_never_taken_for_an_option_value(self):
+        """Com `.mcp.json` no projeto entra `--mcp-config <arquivo>`, que aceita vários valores: o pedido vem depois de `--`."""
+        import tempfile
+        import terminal
+        folder = tempfile.mkdtemp()
+        open(os.path.join(folder, ".mcp.json"), "w").write("{}")
+        line = terminal.command("claude", "sonnet", "/tmp/pedido.txt", root=folder)
+        self.assertIn(".mcp.json -- \"$(cat /tmp/pedido.txt)\"", line)
+        self.assertTrue(terminal.command("claude", "sonnet", "/tmp/pedido.txt").endswith('-- "$(cat /tmp/pedido.txt)"'))
+
+
+class RequirementsTest(unittest.TestCase):
+    def run_hook(self, path):
+        import subprocess
+        return subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/requirements.py")], input="{}",
+                              capture_output=True, text=True, env=dict(os.environ, PATH=path))
+
+    def test_the_session_starts_with_a_warning_when_a_required_program_is_missing(self):
+        from tests.helpers import _tmpdir, fake_claude
+        fake = fake_claude(_tmpdir())  # traz tmux e rtk de mentira
+        self.assertEqual(self.run_hook(str(fake)).stdout.strip(), "", "com os dois na máquina, silêncio")
+        (fake / "tmux").unlink()
+        out = json.loads(self.run_hook(str(fake)).stdout)
+        self.assertIn("`tmux`", out["systemMessage"])
+        self.assertNotIn("`rtk`", out["systemMessage"])
+        self.assertIn("brew install tmux", out["hookSpecificOutput"]["additionalContext"])
 
 
 class EvidenceTest(Base):
@@ -295,6 +364,15 @@ class EvidenceTest(Base):
         self.assertEqual(self.cli("ports").returncode, 1, "sem porta escutando, o ambiente não está no ar")
         from tests.helpers import git
         self.assertEqual(git(self.repo, "status", "--porcelain"), " M src/soma.py", "a prova fica fora do Git")
+
+    def test_listing_evidence_works_on_a_read_only_disk(self):
+        """O revisor Codex roda num sandbox somente leitura: listar a prova não pode falhar nem virar motivo de reprovação."""
+        import stat
+        os.chmod(self.root, stat.S_IRUSR | stat.S_IXUSR | stat.S_IRGRP | stat.S_IXGRP)
+        self.addCleanup(os.chmod, self.root, 0o755)
+        out = self.cli("evidence")
+        self.assertEqual(out.returncode, 0, out.stderr)
+        self.assertIn("nenhuma prova gravada", out.stdout)
 
 
 class RescueTest(Base):

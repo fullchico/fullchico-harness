@@ -92,7 +92,8 @@ def command(cli, model, prompt_file, env=None, root=None):
         mcp = " --strict-mcp-config" + (f" --mcp-config {shlex.quote(registered)}" if registered and os.path.isfile(registered) else "")
         return (f"env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT {sets} claude"
                 + (f" --model {shlex.quote(model)}" if model else "")
-                + f" {flags}{extra} --setting-sources project,local{mcp} {prompt}")
+                + f" {flags}{extra} --setting-sources project,local{mcp} -- {prompt}")  # `--`: a opção
+        # `--mcp-config` aceita vários arquivos; sem o separador ela engole o pedido como se fosse mais um
     # num worktree o commit grava na pasta `.git` do repositório, fora da pasta de trabalho: ela entra como gravável
     git_dir = _git_dir(root) if root else None
     extra = f" --add-dir {shlex.quote(git_dir)}" if git_dir and not git_dir.startswith(os.path.realpath(root)) else ""
