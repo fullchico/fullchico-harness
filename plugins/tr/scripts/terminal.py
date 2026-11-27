@@ -11,7 +11,9 @@ import subprocess
 
 # telas que só uma pessoa responde: o agente fica parado até lá, então quem vigia leva a tela ao dono
 HUMAN = ("Yes, I trust this folder", "Trust and continue", "Hooks need review", "Do you want to proceed",
-         "Trust this folder", "Enter to confirm")
+         "Trust this folder", "Enter to confirm",
+         # o CLI recusou o modelo ou a conta: ninguém vai trabalhar ali, e só o dono resolve
+         "is not supported when using Codex", "model_not_found", "Invalid model")
 
 
 class Unavailable(Exception):
