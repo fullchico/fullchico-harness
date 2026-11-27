@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Mascote do Codex">
-  <defs><linearGradient id="b" x2="0" y2="1"><stop stop-color="#a5b3ff"/><stop offset="1" stop-color="#4540ee"/></linearGradient></defs>
-  <path fill="url(#b)" stroke="#7e82ee" stroke-width="2" d="M15 19q3-15 17-15 9 0 15 7 12-1 13 13 5 7 0 14 2 14-10 17-9 10-21 3-13 3-19-7Q0 47 3 35q-3-12 12-16z"/>
-  <path d="m23 23 10 10-10 10M37 43h12" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>

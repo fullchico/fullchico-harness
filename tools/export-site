@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Publica a página do projeto (`site/`) na branch `gh-pages` do repositório público.
+# Uso: tools/export-site <pasta do repositório público> "<mensagem do commit>"
+#
+# A página não mora na branch principal pública: o `install` baixa aquela branch inteira, e imagem de página não
+# tem o que fazer na máquina de quem instala. Aqui o conteúdo de `site/` vira a raiz da `gh-pages`, num worktree
+# temporário, conferido contra os mesmos termos privados, e é enviado.
+set -uo pipefail
+
+[ "$#" -eq 2 ] || { echo 'uso: tools/export-site <pasta do repositório público> "<mensagem do commit>"' >&2; exit 2; }
+SRC="$(cd "$(dirname "$0")/.." && pwd -P)"
+REPO="$(cd "$1" && pwd -P)" MESSAGE="$2"
+AUTHOR_NAME="FullChico"
+AUTHOR_EMAIL="62688167+fullchico@users.noreply.github.com"
+TERMS="${HARNESS_PRIVATE_TERMS:-$HOME/.config/fullchico-harness/private-terms}"
+
+cd "$SRC" || exit 1
+[ -z "$(git status --porcelain -- site)" ] || { echo "export-site: há alteração sem commit em site/; faça o commit antes." >&2; exit 1; }
+[ -f "$TERMS" ] || { echo "export-site: falta a lista de termos privados em $TERMS." >&2; exit 1; }
+
+WORK="$(mktemp -d)/pages"
+git -C "$REPO" fetch -q origin gh-pages 2>/dev/null
+if git -C "$REPO" rev-parse -q --verify origin/gh-pages >/dev/null; then
+  git -C "$REPO" worktree add -q -B gh-pages "$WORK" origin/gh-pages || exit 1
+else
+  git -C "$REPO" worktree add -q --orphan -b gh-pages "$WORK" || exit 1
+fi
+trap 'git -C "$REPO" worktree remove --force "$WORK" 2>/dev/null' EXIT
+
+cd "$WORK" || exit 1
+find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+(cd "$SRC/site" && git ls-files -z | xargs -0 tar -cf - ) | tar -xf - || exit 1
+touch .nojekyll
+python3 -I "$SRC/tools/private_check.py" "$WORK" "$TERMS" || { echo "export-site: nada foi commitado." >&2; exit 1; }
+
+git add -A
+if git diff --cached --quiet; then echo "export-site: a página não mudou."; exit 0; fi
+git -c user.name="$AUTHOR_NAME" -c user.email="$AUTHOR_EMAIL" -c core.hooksPath=/dev/null commit -q -m "$MESSAGE" || exit 1
+git push -q origin gh-pages || exit 1
+echo "Página publicada na gh-pages ($(git rev-parse --short HEAD)), $(du -sh . | cut -f1) no total."

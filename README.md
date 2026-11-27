@@ -1,4 +1,4 @@
-<img src="site/mascote.png" alt="" width="72" align="right">
+<img src="https://fullchico.github.io/fullchico-harness/mascote.png" alt="" width="72" align="right">
 
 # FullChico Harness
 
@@ -57,7 +57,7 @@ As execuções e seus manifestos ficam fora do repositório.
 
 ## O elefante conduz, os peixinhos executam, o tubarão valida
 
-<img src="site/img/elefante-peixes-tubarao.png" alt="" width="720">
+<img src="https://fullchico.github.io/fullchico-harness/img/elefante-peixes-tubarao.png" alt="" width="720">
 
 | Papel | Bicho | O que faz | Memória |
 |---|---|---|---|
