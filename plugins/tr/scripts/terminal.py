@@ -203,6 +203,15 @@ def stop(session, log=None):
     return closed
 
 
+def tell(session, text):
+    """Escreve uma mensagem no terminal do agente e a envia: é como quem o coordena responde a ele."""
+    if _run("send-keys", "-t", session, "-l", " ".join(text.split())).returncode:
+        raise Unavailable(f"o terminal `{session}` não existe mais")
+    import time
+    time.sleep(0.5)  # o colado e o Enter em chamadas separadas: juntos, alguns CLIs tratam o Enter como texto
+    _run("send-keys", "-t", session, "Enter")
+
+
 def settle(session, screen):
     """Perguntas de abertura que o próprio isolamento responde, sempre pela opção que dá menos acesso.
     O peixe carrega só o projeto: se o Claude pergunta se pode importar um arquivo de fora da pasta (uma

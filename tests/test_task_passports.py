@@ -544,6 +544,11 @@ class TestTaskPassports(unittest.TestCase):
         self.assertNotEqual(self.hook("Bash", {"command": "git commit -m 'docs: explain --no-verify'"}, "general-purpose")
                             .get("permissionDecision"), "allow-never")
 
+    def test_the_project_cli_is_the_same_command_for_the_owner_rail(self):
+        self.assertEqual(self.owner_hook("./tr gates --parallel 8")["permissionDecision"], "ask")
+        self.assertNotEqual(self.hook("Bash", {"command": "tr gates --parallel 8"}).get("permissionDecision"), "ask",
+                            "o `tr` solto é o do sistema")
+
     def test_the_owner_registers_how_a_seat_is_prepared(self):
         import gates_cli
         with mock.patch.dict(os.environ, {"CLAUDECODE": ""}):

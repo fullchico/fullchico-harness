@@ -62,24 +62,36 @@ def list_all(root, reg):
 TAIL = 40  # linhas da saída que o portão mostra; o resto fica no log
 
 
-def run(command, root, *args):
+def run(command, root, *args, name="command"):
     """Roda o comando e mostra só o fim da saída: com saída longa o Claude Code entrega ao hook um trecho,
-    e a linha `gate <x>: passou` some (o carimbo não sai). A saída inteira fica num log no diretório temporário
-    (o verificador roda em sandbox)."""
+    e a linha `gate <x>: passou` some (o carimbo não sai). A saída inteira fica guardada por portão, junto da
+    evidência do estado (`.harness-run/evidence/<estado>/gate-<portão>.log`): quem reprova, quem coordena e o
+    maestro leem o mesmo arquivo, e um portão não apaga o log do outro. Sem poder gravar ali (o verificador pode
+    rodar em sandbox), cai no diretório temporário."""
     import hashlib, tempfile
     result = subprocess.run(["bash", "-c", command, "_", *args], cwd=root,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace")
     lines = result.stdout.splitlines()
     key = hashlib.sha1(os.path.realpath(root).encode()).hexdigest()[:12]
-    log = os.path.join(tempfile.gettempdir(), f"tr-gate-{key}.log")
+    log = None
     try:
-        with open(log, "w", encoding="utf-8") as stream:
-            stream.write(result.stdout)
-    except OSError:
-        log = None
+        import evidence_cli
+        places = [os.path.join(evidence_cli.folder(root, create=True), f"gate-{name}.log")]
+    except Exception:
+        places = []
+    for place in places + [os.path.join(tempfile.gettempdir(), f"tr-gate-{key}-{name}.log")]:
+        try:
+            with open(place, "w", encoding="utf-8") as stream:
+                stream.write(result.stdout)
+            log = place
+            break
+        except OSError:
+            continue
     if len(lines) > TAIL:
-        print(f"… {len(lines) - TAIL} linhas omitidas" + (f" (saída inteira em {log})" if log else ""))
+        print(f"… {len(lines) - TAIL} linhas omitidas")
     print("\n".join(lines[-TAIL:]))
+    if result.returncode and log:
+        print(f"saída inteira: {os.path.relpath(log, root) if log.startswith(os.path.realpath(root)) or log.startswith(root) else log}")
     return result.returncode
 
 
@@ -126,7 +138,7 @@ def verify(root, reg, name, ticket=None):
         return 2
     if gate["signs"] == "command":
         lock = checkout_lock(root)  # noqa: F841 (solta quando o processo termina)
-        code, reason_text = run(gate["command"], root), gate["command"]
+        code, reason_text = run(gate["command"], root, name=name), gate["command"]
     else:
         files = registry.artifact_files(root, gate)
         if not files:
@@ -137,7 +149,7 @@ def verify(root, reg, name, ticket=None):
             return 1
         code, reason_text = 0, ""
         if gate.get("check"):
-            code, reason_text = run(gate["check"] + ' "$@"', root, *files), gate["check"]
+            code, reason_text = run(gate["check"] + ' "$@"', root, *files, name=name), gate["check"]
     print()
     if code == 0:
         print(f"gate {name}{' ticket ' + ticket if ticket else ''}: passou")

@@ -274,6 +274,11 @@ def audit_too_early(root, gates):
 OWNER_FLAGS = {"--write", "--set", "--register", "--remove", "--approve", "--parallel", "--accept", "--prepare-seat"}
 
 
+def is_tr(word):
+    """`tr-harness`, ou a CLI do projeto chamada pelo caminho (`./tr`, `/x/projeto/tr`). O `tr` solto é o do sistema."""
+    return os.path.basename(word) == "tr-harness" or (os.path.basename(word) == "tr" and "/" in word)
+
+
 def owner_write(command):
     """`tr-harness gates --write|--set|--register|--approve …` ou `tr-harness models configure …`, sozinho
     na chamada: o comando que grava o que é do dono. Devolve as palavras depois de `tr-harness`."""
@@ -292,7 +297,7 @@ def owner_write(command):
     if words[:2] == ["claude", "plugin"] and "--scope" in words and words[words.index("--scope") + 1:][:1] == ["project"] \
             and words[2:3] in (["install"], ["uninstall"], ["enable"], ["disable"]):
         return words  # muda os plugins do projeto (.claude/settings.json): também é decisão do dono
-    if not words or os.path.basename(words[0]) != "tr-harness":
+    if not words or not is_tr(words[0]):
         return None
     rest = words[1:]
     if rest[:1] == ["gates"] and OWNER_FLAGS & set(rest) or rest[:2] == ["models", "configure"]:
@@ -310,7 +315,7 @@ def owner_combined(command):
     for words in parts if len(parts) > 1 else []:
         while words and (words[0] in WRAPPERS or re.fullmatch(r"\w+=.*", words[0])):
             words = words[1:]
-        if words and os.path.basename(words[0]) == "tr-harness":
+        if words and is_tr(words[0]):
             rest = [w for w in words[1:] if not re.match(r"\d*[<>]", w)]
             if rest[:1] == ["gates"] and OWNER_FLAGS & set(rest) or rest[:2] == ["models", "configure"]:
                 return "tr-harness " + shlex.join(rest)

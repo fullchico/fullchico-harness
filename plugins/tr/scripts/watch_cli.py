@@ -23,11 +23,71 @@ def sessions(root):
     return sorted(found, key=lambda n: (("orq", "exec", "rev").index(n.split("-")[0]), n))
 
 
+RAILS = [("maestro", "livre: é a sua sessão; delega o código e pede a sua aprovação nas decisões de dono"),
+         ("orquestrador", "dentro do projeto: coordena, concede pedidos, integra e valida; não empurra nem publica"),
+         ("executor", "dentro da demanda: o ticket, a branch e a vaga dele; o que a caixa nega, pede ao orquestrador"),
+         ("revisor", "só lê e julga o estado entregue; o carimbo sai do comando, não dele")]
+
+
+def topology(root, names):
+    """Quem está de pé e a quem responde, com o que cada executor faz agora (trabalha, pede, espera o dono)."""
+    import glob
+    import json
+    import models_cli
+    asks = {}
+    for path in glob.glob(os.path.join(models_cli._state_dir(root), "*", "dispatch.json")):
+        try:
+            with open(path, encoding="utf-8") as stream:
+                data = json.load(stream)
+        except (OSError, ValueError):
+            continue
+        if data.get("request") and os.path.isfile(data["request"]):
+            with open(data["request"], encoding="utf-8") as stream:
+                asks[data.get("session")] = stream.readline().strip()[:90]
+    out = ["topologia", "  maestro (a sua sessão do Claude)"]
+    orq = [n for n in names if n.startswith("orq-")]
+    out += [f"  └─ {n}" for n in orq] or ["  └─ (nenhum orquestrador aberto)"]
+    for name in [n for n in names if not n.startswith("orq-")]:
+        state = f"PEDE AO ORQUESTRADOR: {asks[name]}" if name in asks else ""
+        if not state:
+            try:
+                state = "ESPERA VOCÊ" if terminal.waiting_on_human(terminal.read(name, 60)) else "trabalhando"
+            except terminal.Unavailable:
+                state = "encerrado"
+        out.append(f"     └─ {name}   {state}")
+    return out
+
+
+def fired(root, limit=5):
+    """Os últimos trilhos que barraram alguma coisa neste projeto (o registro do próprio plugin)."""
+    import json
+    import ledger
+    folder = ledger.state_dir(root)
+    try:
+        with open(os.path.join(folder or "", "log.jsonl"), encoding="utf-8") as stream:
+            rows = [json.loads(line) for line in stream.readlines()[-400:] if line.strip()]
+    except (OSError, ValueError):
+        return []
+    hits = [r for r in rows if r.get("what") == "blocked"][-limit:]
+    def clock(at):
+        from datetime import datetime
+        try:
+            return datetime.fromisoformat(at).astimezone().strftime("%H:%M:%S")
+        except (TypeError, ValueError):
+            return "--:--:--"
+    return [f"  {clock(r.get('at'))}  {str(r.get('detail', ''))[:110]}" for r in hits]
+
+
 def frame(root, lines):
     out = [f"tr · {os.path.basename(root)} · {time.strftime('%H:%M:%S')}   (Ctrl-C sai; nada é interrompido)", ""]
     status = subprocess.run([sys.executable, "-I", os.path.join(HERE, "status.py")], cwd=root, capture_output=True, text=True)
     out += status.stdout.rstrip().splitlines()
     names = sessions(root)
+    out += [""] + topology(root, names)
+    out += ["", "trilhos de cada papel"] + [f"  {who:<13}{what}" for who, what in RAILS]
+    hits = fired(root)
+    if hits:
+        out += ["", "trilhos que barraram algo (últimos)"] + hits
     if not names:
         out += ["", "nenhum terminal aberto: o trem está parado (na estação, ou a demanda fechou)."]
     for name in names:
