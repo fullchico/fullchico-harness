@@ -406,6 +406,38 @@ class MaestroTest(Base):
         self.assertEqual(free.stdout.strip(), "")
 
 
+class JourneyTest(Base):
+    def test_the_panel_shows_the_trip_stage_by_stage(self):
+        """Caso real: o dono não achava no painel quem estava revisando nem quantas vezes um portão já tinha reprovado."""
+        from unittest import mock
+        import terminal
+        import watch_cli
+        text = "\n".join(watch_cli.journey(self.root, ["rev-quality-opus"]))
+        for stage in ("embarque", "partida", "caminho", "chegada"):
+            self.assertIn(stage, text)
+        self.assertIn("aceite", text)
+        self.assertIn("tickets 0/", text)
+        with mock.patch.object(terminal, "roster", return_value={"exec-01-x-terra": {"demand": "outra"}}), \
+                mock.patch.object(terminal, "read", return_value="trabalhando"):
+            tree = "\n".join(watch_cli.topology(self.root, ["orq-pedido-sonnet", "orq-outra-sonnet", "exec-01-x-terra"]))
+        other = tree.index("orq-outra-sonnet")
+        self.assertGreater(tree.index("exec-01-x-terra"), other, "o executor aparece no trem da demanda dele")
+        self.assertLess(tree.index("orq-pedido-sonnet"), other, "a demanda desta pasta vem primeiro")
+
+
+class AttachTest(unittest.TestCase):
+    def test_the_owner_names_an_agent_by_the_start_of_its_name(self):
+        import watch_cli
+        names = ["orq-fila-sonnet", "exec-01-worker-terra", "exec-02-wiring-terra", "rev-bugs-opus"]
+        self.assertEqual(watch_cli.pick(names, "orq"), ("orq-fila-sonnet", None))
+        self.assertEqual(watch_cli.pick(names, "exec-02"), ("exec-02-wiring-terra", None))
+        self.assertEqual(watch_cli.pick(names, "bugs"), ("rev-bugs-opus", None), "um trecho do nome também serve")
+        self.assertEqual(watch_cli.pick(names, "exec"), (None, ["exec-01-worker-terra", "exec-02-wiring-terra"]))
+        self.assertEqual(watch_cli.pick(names, "nada"), (None, []))
+        self.assertEqual(watch_cli.pick(names[:1], ""), ("orq-fila-sonnet", None), "um só aberto: entra direto")
+        self.assertEqual(watch_cli.pick(names, ""), (None, names))
+
+
 class PrivacyTest(Base):
     def test_a_certificate_never_carries_paths_of_the_machine(self):
         """O certificado é versionado: caminho pessoal, pasta temporária e nome de usuário não entram nele."""

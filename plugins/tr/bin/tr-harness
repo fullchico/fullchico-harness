@@ -17,6 +17,8 @@ if [ "$cmd" = "--demand" ]; then
 fi
 case "$cmd" in
   l)       exec python3 -I "$dir/scripts/watch_cli.py" --once "$@" ;;
+  v)       exec python3 -I "$dir/scripts/watch_cli.py" --view "$@" ;;
+  a)       exec python3 -I "$dir/scripts/watch_cli.py" --attach "$@" ;;
   w)       exec python3 -I "$dir/scripts/watch_cli.py" "$@" ;;
   ""|help|-h|--help)
     cat <<'TXT'
@@ -24,6 +26,8 @@ tr: a CLI do FullChico Harness neste projeto.   uso: ./tr <comando> [<sub-comand
 
   ./tr l                 o que está executando agora: tickets, topologia, trilhos e cada terminal
   ./tr w                 o mesmo, ao vivo (Ctrl-C sai; nada é interrompido)
+  ./tr v                 abre todos os agentes lado a lado, ao vivo, só para olhar (q fecha a visão)
+  ./tr a [nome]          entra no terminal de um agente (sem nome, lista para escolher; sair: Ctrl-b d)
   ./tr doctor            a máquina e o projeto têm o que o plugin precisa? o que falta e como resolver
   ./tr status            tickets e agentes da demanda
   ./tr deliver           valida os portões e os passaportes da entrega
