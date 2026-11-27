@@ -239,7 +239,7 @@ class MaestroTest(Base):
         call = (fake / "tmux-calls").read_text()
         self.assertIn("new-session -d -s orq-pedido-sol", call, "o nome diz papel, demanda e modelo")
         self.assertIn("TR_ROLE=orchestrator", call)
-        self.assertIn("codex --model sol", call)
+        self.assertRegex(call, r"codex --model \S*sol ", "o apelido vira o id mais novo que esta máquina conhece")
         self.assertIn("embarque - `quality`", out.stdout, "cada verificador de comando roda uma vez antes da partida")
         self.assertEqual(tasks.run_model(self.root, "executors"), ("claude", "haiku"), "a escolha é da demanda")
         self.assertEqual(registry.ticket_model(self.root, "docs/specs/pedido/issues/01-soma.md"), "haiku")
@@ -358,6 +358,24 @@ class MaestroTest(Base):
         self.assertIn("DOES NOT RUN", orchestrate_cli.preflight(self.root, reg)[0])
         self.assertEqual(len(orchestrate_cli.preflight(self.root, reg)), 1)
         self.assertEqual(len(orchestrate_cli.preflight(self.root, reg, every=True)), 2)
+
+    def test_a_codex_orchestrator_opens_with_the_newest_id_of_the_alias(self):
+        """Caso real: `--agent codex --model sol` abriu o Codex com `sol`, que ele recusa, e o trem ficou parado."""
+        from unittest import mock
+        from tests.helpers import _tmpdir, fake_claude
+        import models_cli
+        import orchestrate_cli
+        import terminal
+        opened = []
+        with mock.patch.object(models_cli, "_codex_newest", return_value="gpt-9.9-sol"), \
+                mock.patch.object(terminal, "executable", return_value="tmux"), \
+                mock.patch.object(terminal, "open_agent", side_effect=lambda *a, **k: opened.append(a)), \
+                mock.patch.object(orchestrate_cli, "preflight", return_value=[]), \
+                mock.patch.object(os, "getcwd", return_value=self.root):
+            code = orchestrate_cli.main(["--agent", "codex", "--model", "sol", "--executors", "codex:terra", "--reviewers", "codex:terra"])
+        self.assertEqual(code, 0)
+        self.assertEqual(opened[0][3], "gpt-9.9-sol")
+        self.assertIsNotNone(terminal.waiting_on_human("■ The 'sol' model is not supported when using Codex with a ChatGPT account."))
 
     def test_boarding_warns_when_a_codex_executor_cannot_write_where_a_ticket_needs(self):
         import orchestrate_cli

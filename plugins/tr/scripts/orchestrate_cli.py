@@ -363,7 +363,9 @@ def main(argv):
     if os.path.isfile(report_cli.path(root)):
         os.remove(report_cli.path(root))  # o relato é desta partida
     try:
-        terminal.open_agent(root, session, choice["cli"], choice.get("model"), path,
+        # o nome do modelo é um apelido: no Codex vira o id mais novo (`sol` sozinho o Codex recusa)
+        model = models_cli._runtime_model(choice) if choice.get("model") else None
+        terminal.open_agent(root, session, choice["cli"], model, path,
                             {"TR_ROLE": "orchestrator", "TR_DEMAND": certs.demand(root)},
                             record=tasks.coordination(root, f"terminal-{session}.raw.log"))
     except terminal.Unavailable as error:
