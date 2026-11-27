@@ -16,6 +16,27 @@ if [ "$cmd" = "--demand" ]; then
   cmd=$1; shift
 fi
 case "$cmd" in
+  l)       exec python3 -I "$dir/scripts/watch_cli.py" --once "$@" ;;
+  w)       exec python3 -I "$dir/scripts/watch_cli.py" "$@" ;;
+  ""|help|-h|--help)
+    cat <<'TXT'
+tr: a CLI do FullChico Harness neste projeto.   uso: ./tr <comando> [<sub-comando>]
+
+  ./tr l                 o que está executando agora: tickets, topologia, trilhos e cada terminal
+  ./tr w                 o mesmo, ao vivo (Ctrl-C sai; nada é interrompido)
+  ./tr doctor            a máquina e o projeto têm o que o plugin precisa? o que falta e como resolver
+  ./tr status            tickets e agentes da demanda
+  ./tr deliver           valida os portões e os passaportes da entrega
+  ./tr cost              o que a entrega custou
+  ./tr gates <...>       portões do projeto: --check, --accept, --set, --register, --prepare-seat ...
+  ./tr models <...>      modelos por papel: show, configure ...
+  ./tr demand <...>      demandas em paralelo: open, list, path
+  ./tr ports | evidence  portas no ar e a pasta de evidência do estado atual
+
+Os agentes usam os mesmos comandos como `tr-harness <comando>` (mais os de coordenação: orchestrate, report,
+models run|wait|integrate|grant|refuse, balance).
+TXT
+    exit 0 ;;
   gates)   exec python3 -I "$dir/scripts/gates_cli.py" "$@" ;;
   models)  exec python3 -I "$dir/scripts/models_cli.py" "$@" ;;
   cost)    exec python3 -I "$dir/scripts/cost_report.py" "$@" ;;
@@ -28,7 +49,8 @@ case "$cmd" in
   evidence|ports) exec python3 -I "$dir/scripts/evidence_cli.py" "$cmd" "$@" ;;
   report)  exec python3 -I "$dir/scripts/report_cli.py" "$@" ;;
   orchestrate) exec python3 -I "$dir/scripts/orchestrate_cli.py" "$@" ;;
+  doctor)  exec python3 -I "$dir/scripts/doctor_cli.py" "$@" ;;
   watch)   exec python3 -I "$dir/scripts/watch_cli.py" "$@" ;;
   demand)  exec python3 -I "$dir/scripts/demand_cli.py" "$@" ;;
-  *) echo "uso: tr-harness gates|models|cost|deliver|status|skill|wait|balance|orchestrate|demand|report|evidence|ports|watch|owner <args>" >&2; exit 2 ;;
+  *) echo "comando desconhecido: $cmd (veja \`./tr help\`)" >&2; echo "uso: tr-harness gates|models|cost|deliver|status|skill|wait|balance|orchestrate|demand|report|evidence|ports|watch|doctor|owner <args>" >&2; exit 2 ;;
 esac

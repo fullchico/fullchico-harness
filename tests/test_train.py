@@ -300,6 +300,48 @@ class MaestroTest(Base):
         self.assertFalse(seat.exists())
         self.assertNotIn("tr-exec-aaaa1111", git(self.repo, "branch"))
 
+    def test_a_boxed_executor_asks_and_the_orchestrator_grants_or_refuses(self):
+        """O peixe fica na caixa: o que ela nega, ele pede a quem o coordena, e o dono não é interrompido."""
+        from unittest import mock
+        import models_cli
+        import terminal
+        seat = self.repo / ".claude/worktrees/tr-seat-9"
+        (seat / ".harness-run").mkdir(parents=True)
+        asking = seat / ".harness-run/request-bbbb2222.md"
+        folder = os.path.join(models_cli._state_dir(self.root), "20260101T000000Z-bbbb2222")
+        os.makedirs(folder)
+        with open(os.path.join(folder, "dispatch.json"), "w") as stream:
+            json.dump({"worktree": str(seat), "branch": "tr-exec-bbbb2222", "session": "exec-x", "request": str(asking),
+                       "report": str(seat / ".harness-run/executor-bbbb2222.md")}, stream)
+        run, told = "20260101T000000Z-bbbb2222", []
+        with mock.patch.object(terminal, "alive", return_value=True), \
+                mock.patch.object(terminal, "tell", side_effect=lambda session, text: told.append(text)):
+            asking.write_text("RUN: touch instalado.txt\nthe sandbox has no network\n")
+            state, text = models_cli._terminal_state(self.root, run, folder)
+            self.assertEqual(state, "request")
+            self.assertIn("touch instalado.txt", text)
+            self.assertEqual(models_cli._terminal_wait(self.root, [run], 5), 6, "volta a quem coordena, sem virar bloqueio do dono")
+            self.assertEqual(models_cli.answer_request(self.root, run, True), 0)
+            self.assertTrue((seat / "instalado.txt").is_file(), "o comando rodou na vaga do executor")
+            self.assertFalse(asking.exists())
+            self.assertIn("exit 0", told[-1])
+            asking.write_text("RUN: git push origin HEAD\nwant to publish\n")
+            self.assertEqual(models_cli.answer_request(self.root, run, True), 1, "o que sai do projeto não se concede")
+            self.assertTrue(asking.exists())
+            self.assertEqual(models_cli.answer_request(self.root, run, False, "not part of the ticket"), 0)
+            self.assertIn("Refused", told[-1])
+            asking.write_text("RUN: true\n")
+            with mock.patch.dict(os.environ, {"FULLCHICO_ROLE": "execution"}):
+                self.assertEqual(models_cli.answer_request(self.root, run, True), 1, "o executor não concede a si mesmo")
+        payload = json.dumps({"hook_event_name": "Stop", "cwd": str(seat)})
+        script = [sys.executable, str(ROOT / "plugins/tr/scripts/delivery_stop.py")]
+        env = dict(os.environ, TR_REPORT=str(seat / ".harness-run/executor-bbbb2222.md"), TR_REQUEST=str(asking))
+        import subprocess
+        self.assertEqual(subprocess.run(script, input=payload, capture_output=True, text=True, env=env).stdout.strip(), "",
+                         "com pedido aberto, parar é esperar a resposta")
+        asking.unlink()
+        self.assertIn("block", subprocess.run(script, input=payload, capture_output=True, text=True, env=env).stdout)
+
     def test_no_executor_leaves_while_the_criterion_is_not_accepted(self):
         """Caso real: o orquestrador ampliou os Files de um ticket e despachou antes de o dono aceitar."""
         import models_cli
@@ -344,6 +386,20 @@ class MaestroTest(Base):
         (self.repo / ".harness-run/report.md").write_text("DONE\n")
         free = subprocess.run(script, input=payload, capture_output=True, text=True, env=dict(os.environ, TR_ROLE="orchestrator"))
         self.assertEqual(free.stdout.strip(), "")
+
+
+class DoctorTest(Base):
+    def test_the_doctor_says_what_is_missing_and_how_to_fix_it(self):
+        import subprocess
+        from tests.helpers import _tmpdir
+        empty = _tmpdir()
+        script = [sys.executable, str(ROOT / "plugins/tr/scripts/doctor_cli.py"), self.root]
+        out = subprocess.run(script, capture_output=True, text=True, env=dict(os.environ, PATH=f"{empty}:/usr/bin:/bin"))
+        self.assertEqual(out.returncode, 1)
+        self.assertIn("✗ tmux: falta", out.stdout)
+        self.assertIn("brew install tmux", out.stdout)
+        self.assertIn("máquina", out.stdout)
+        self.assertIn("projeto", out.stdout)
 
 
 class OwnerEditTest(Base):
@@ -415,6 +471,21 @@ class EvidenceTest(Base):
         self.assertEqual(self.cli("ports").returncode, 1, "sem porta escutando, o ambiente não está no ar")
         from tests.helpers import git
         self.assertEqual(git(self.repo, "status", "--porcelain"), " M src/soma.py", "a prova fica fora do Git")
+
+    def test_a_failed_gate_keeps_its_own_output_where_everyone_reads_it(self):
+        """Caso real: o e2e reprovou duas vezes e só chegou "FALHOU"; o log era um só por projeto, e o portão seguinte o apagou."""
+        import gate_cli
+        import io
+        from contextlib import redirect_stdout
+        with redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(gate_cli.run("echo 'teste X quebrou'; exit 3", self.root, name="e2e"), 3)
+            self.assertEqual(gate_cli.run("echo tudo certo", self.root, name="build"), 0)
+        import evidence_cli
+        kept = os.path.join(evidence_cli.folder(self.root), "gate-e2e.log")
+        self.assertIn("teste X quebrou", open(kept).read(), "o log do e2e continua lá depois de outro portão rodar")
+        self.assertIn("saída inteira: .harness-run/evidence/", out.getvalue())
+        from tests.helpers import git
+        self.assertNotIn(".harness-run", git(self.repo, "status", "--porcelain"), "o log fica fora do Git")
 
     def test_listing_evidence_works_on_a_read_only_disk(self):
         """O revisor Codex roda num sandbox somente leitura: listar a prova não pode falhar nem virar motivo de reprovação."""

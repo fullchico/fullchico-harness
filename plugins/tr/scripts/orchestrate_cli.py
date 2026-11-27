@@ -177,6 +177,17 @@ def brief(root, cli="claude", executors=None, reviewers=None, checks=(), overlap
            "give these to a Claude executor, or report the block to the maestro before dispatching:", *unwritable]
           if unwritable else []),
         "",
+        f"An executor that cannot run a command where it is (no network, a folder it cannot write) asks you instead "
+        f"of giving up: `{cli_path} models wait` returns with `pede um comando` and exit 6. You decide, without "
+        "asking the owner: grant what its ticket needs and stays inside the project (install a dependency the "
+        "ticket adds, run a test that needs the database), with the command it asked or a better one; refuse what "
+        "does not belong to its ticket. Then wait again. Report BLOCKED only when the work needs something beyond "
+        "your own limits.",
+        "",
+        "A command gate that fails keeps its whole output in `.harness-run/evidence/<state>/gate-<name>.log` "
+        f"(`{cli_path} evidence` lists it). Read it before opening an adjustment or reporting: say which test or "
+        "step failed, not only that the gate failed.",
+        "",
         f"Integrate an executor that ran in a terminal ONLY with `{cli_path} models integrate <run> [<run>...]`: it "
         "commits what a Codex executor left, merges into the demand branch and dismantles the seat only after "
         "checking the work is in. Never remove a seat or delete an executor branch by hand, and never mark a "

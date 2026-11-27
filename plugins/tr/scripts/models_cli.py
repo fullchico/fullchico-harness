@@ -505,6 +505,55 @@ def _free_dead_seats(root, seats):
             subprocess.run(["git", "branch", "-D", data["branch"]], cwd=root, capture_output=True)
 
 
+def answer_request(root, run_id, granted, text=""):
+    """Quem coordena responde ao pedido de um executor: `grant` roda o comando na vaga dele, fora do sandbox dele,
+    e o avisa no terminal; `refuse` o avisa do motivo. O comando concedido obedece aos limites de quem concede:
+    nada que saia do projeto, nada que pule os hooks do projeto."""
+    import terminal
+    import guard
+    if os.environ.get("FULLCHICO_ROLE") == "execution":
+        print("um executor não concede o próprio pedido: quem avalia é o orquestrador", file=sys.stderr)
+        return 1
+    try:
+        with open(os.path.join(_state_dir(root), run_id, "dispatch.json"), encoding="utf-8") as stream:
+            data = json.load(stream)
+    except (OSError, ValueError):
+        print(f"{run_id}: execução não encontrada", file=sys.stderr)
+        return 1
+    asking = data.get("request") or ""
+    if not os.path.isfile(asking):
+        print(f"{run_id}: não há pedido aberto", file=sys.stderr)
+        return 1
+    with open(asking, encoding="utf-8") as stream:
+        asked = stream.read()
+    if not granted:
+        os.replace(asking, asking + ".refused")
+        terminal.tell(data["session"], f"Refused by the orchestrator: {text or 'not allowed'}. Do not retry it; "
+                      "finish what you can and report.")
+        print(f"{run_id}: pedido recusado; o executor foi avisado")
+        return 0
+    command = text or next((line.split(":", 1)[1].strip() for line in asked.splitlines()
+                            if line.strip().upper().startswith("RUN:")), "")
+    if not command:
+        print(f"{run_id}: o pedido não traz `RUN: <comando>`; conceda dizendo o comando ou recuse", file=sys.stderr)
+        return 1
+    crossed = guard.leaves_the_project(command) or guard.skips_project_hooks(command) or guard.leaves_the_demand(command)
+    if crossed:
+        print(f"{run_id}: {crossed} não se concede a um executor (sai do projeto ou da demanda dele). Recuse, ou "
+              "reporte BLOCKED ao maestro se o trabalho depende disso.", file=sys.stderr)
+        return 1
+    try:
+        ran = subprocess.run(command, shell=True, cwd=data["worktree"], capture_output=True, text=True, timeout=900)
+        code, tail = ran.returncode, (ran.stdout + ran.stderr).strip().splitlines()[-6:]
+    except subprocess.TimeoutExpired:
+        code, tail = 124, ["passou de 15 minutos"]
+    os.replace(asking, asking + ".granted")
+    terminal.tell(data["session"], f"The orchestrator ran `{command}` for you in this worktree, outside your sandbox: "
+                  f"exit {code}. Last lines: {' | '.join(tail)[:600]}. Continue your ticket.")
+    print(f"{run_id}: `{command}` rodou na vaga (saída {code}); o executor foi avisado\n" + "\n".join(tail))
+    return 0
+
+
 def unfinished_operation(root):
     """Nome da operação do Git deixada pela metade no checkout (merge, rebase, cherry-pick, revert), ou None.
     Um commit feito com ela aberta a conclui: é assim que trabalho de uma viagem cancelada entra sem ninguém pedir."""
@@ -615,16 +664,23 @@ def terminal_execute(root, prompt, ticket=None):
                      f"orchestrator: as the LAST thing you do, write `{report}` with a first line DONE or BLOCKED and "
                      "up to 8 lines of what you did, the checks you ran and what is left. Do not ask questions in "
                      "this terminal: nobody answers them here.\n")
+    asking = os.path.join(work, ".harness-run", f"request-{short}.md")
+    with open(request, "a", encoding="utf-8") as stream:
+        stream.write("\nWhen a command you need is refused where you run (no network, a folder you cannot write, a "
+                     "permission denied), do NOT look for another way around it. Write "
+                     f"`{asking}` with a first line `RUN: <the exact command>` and a second line saying why you need it, "
+                     "then end your turn and wait. The orchestrator evaluates it, runs it for you in this worktree and "
+                     "answers here; then continue. If it refuses, finish what you can and report BLOCKED.\n")
     subject = os.path.basename(ticket)[:-3] if ticket and ticket.endswith(".md") else (ticket or short)
     session = terminal.name("exec", subject, choice["model"])
     import time
     started = time.time()
     terminal.open_agent(work, session, choice["cli"], _runtime_model(choice), request,
-                        {"FULLCHICO_ROLE": "execution", "FULLCHICO_RUN_DIR": folder, "TR_REPORT": report},
+                        {"FULLCHICO_ROLE": "execution", "FULLCHICO_RUN_DIR": folder, "TR_REPORT": report, "TR_REQUEST": asking},
                         record=os.path.join(folder, "terminal.raw.log"))
     with open(os.path.join(folder, "dispatch.json"), "w", encoding="utf-8") as stream:
         json.dump({"session": session, "report": report, "ticket": ticket, "branch": branch, "worktree": work,
-                   "cli": choice["cli"], "started": started}, stream)
+                   "cli": choice["cli"], "started": started, "request": asking}, stream)
     print(json.dumps({"id": run_id, "status": "running", "terminal": session, "branch": branch,
                       "wait": f"tr-harness models wait {run_id}"}, ensure_ascii=False))
     return 0
@@ -652,6 +708,10 @@ def _terminal_state(root, run_id, folder):
         return ("done" if text.lstrip().upper().startswith("DONE") else "blocked"), head + work + trail + text
     if not terminal.alive(dispatch["session"]):
         return "dead", head + "encerrou sem gravar o relato"
+    asking = dispatch.get("request")
+    if asking and os.path.isfile(asking):
+        with open(asking, encoding="utf-8") as stream:
+            return "request", head + "pede um comando que não consegue rodar onde está:\n" + stream.read().strip()
     try:
         screen = terminal.read(dispatch["session"])
         if terminal.settle(dispatch["session"], screen):
@@ -753,7 +813,7 @@ def _terminal_wait(root, run_ids, timeout):
             if states.get(run_id, ("running",))[0] == "running":
                 states[run_id] = _terminal_state(root, run_id, os.path.join(_state_dir(root), run_id))
         kinds = [states[r][0] for r in run_ids]
-        if all(k in ("done", "blocked") for k in kinds) or any(k in ("dead", "human") for k in kinds):
+        if all(k in ("done", "blocked") for k in kinds) or any(k in ("dead", "human", "request") for k in kinds):
             break
         if time.monotonic() >= deadline:
             print(json.dumps({"status": "running", "running": [r for r in run_ids if states[r][0] == "running"],
@@ -761,7 +821,17 @@ def _terminal_wait(root, run_ids, timeout):
             return 3
         time.sleep(1)
     for run_id in run_ids:
-        print(states[run_id][1].rstrip() + "\n")
+        if states[run_id][0] != "running":
+            print(states[run_id][1].rstrip() + "\n")
+    asking = [r for r in run_ids if states[r][0] == "request"]
+    if asking and not any(k in ("dead", "human") for k in kinds):
+        # não é bloqueio do dono: quem coordena avalia, concede ou recusa, e volta a esperar
+        print("Um executor pede um comando. Avalie: é do ticket dele e fica dentro do projeto? Então conceda com "
+              "`tr-harness models grant <run>` (roda o comando pedido na vaga dele e o avisa) ou "
+              "`tr-harness models grant <run> \"<comando>\"` para rodar outro mais adequado; senão "
+              "`tr-harness models refuse <run> \"<motivo>\"`. Depois espere de novo: tr-harness models wait "
+              + " ".join(run_ids) + "\nrun: " + ", ".join(asking))
+        return 6
     if any(k in ("dead", "human") for k in kinds):
         waiting = [r for r in run_ids if states[r][0] == "human"]
         print("Um executor não consegue seguir: é bloqueio do dono. Reporte ao maestro; não troque de executor por "
@@ -801,11 +871,11 @@ def execute(root, role, prompt, ticket=None):
 
 
 def main(argv):
-    if not argv or argv[0] not in ("configure", "show", "run", "validate-gate", "wait", "integrate"):
+    if not argv or argv[0] not in ("configure", "show", "run", "validate-gate", "wait", "integrate", "grant", "refuse"):
         print("uso: fullchico-harness models configure [role cli:model ...] [gate:<name> cli:model ...] | show | "
               "run <role> [--prompt texto] [--ticket caminho] [--detach] | "
               "validate-gate <gate> [--ticket caminho] [--prompt texto] [--detach] | wait <id> [--timeout <s>] | "
-              "integrate <id> [<id>...]",
+              "integrate <id> [<id>...] | grant <id> [\"<comando>\"] | refuse <id> \"<motivo>\"",
               file=sys.stderr)
         return 2
     root, args = os.path.abspath("."), argv[1:]
@@ -838,6 +908,10 @@ def main(argv):
             print(error, file=sys.stderr)
             return 2
     try:
+        if argv[0] in ("grant", "refuse"):
+            if not args or (argv[0] == "refuse" and len(args) < 2):
+                raise ValueError('use: grant <run> ["<comando>"] | refuse <run> "<motivo>"')
+            return answer_request(root, args[0], argv[0] == "grant", " ".join(args[1:]))
         if argv[0] == "integrate":
             if not args:
                 raise ValueError("informe o id da execução")

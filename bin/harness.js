@@ -21,6 +21,8 @@ const RENAMED_AGENTS = { "bugs:cacador": "tr:bug-hunter" };
 const usage = "uso: fullchico-harness install [pasta do projeto] [--target claude|codex|both] [--default] [--migrate] [--sandbox]\n" +
   "     fullchico-harness install-codex [pasta do projeto] [--default]   (portões e memória no Codex)\n" +
   "     fullchico-harness gates [--analyze] [--write] [--default] [--approve <gate>] [--set <gate> \"<command>\"] [--register <draft.json>] [--remove <gate>] [--accept] [--project <pasta>]\n" +
+  "     fullchico-harness doctor [pasta do projeto]   (a máquina e o projeto têm o que o plugin precisa?)\n" +
+  "     fullchico-harness watch                    (painel ao vivo dos terminais da demanda)\n" +
   "     fullchico-harness models configure [role cli:model ...] | show | run <role> [--prompt <texto>] [--ticket <caminho>] [--detach] | validate-gate <gate> [--ticket <caminho>] [--prompt <texto>] [--detach] | wait <id> [--timeout <s>] [--project <pasta>]\n" +
   "     fullchico-harness deliver [pasta do projeto]   (valida portões e passaportes na entrega)\n" +
   "     fullchico-harness add <plugin> [<plugin>...] [--project <pasta>]   (tr, memory)\n" +
@@ -50,6 +52,11 @@ if (command === "install-codex") {
 } else if (command === "gates") {
   // Propõe (--analyze, o padrão) ou grava (--write) o registro de portões do projeto em .claude/harness.json.
   process.exit(python("plugins/tr/scripts/gates_cli.py", rest));
+} else if (command === "doctor") {
+  process.exit(python("plugins/tr/scripts/doctor_cli.py", rest));
+} else if (command === "watch") {
+  // o painel do dono: fora da sessão o `tr-harness` não está no PATH, e é daqui que ele olha os terminais
+  process.exit(python("plugins/tr/scripts/watch_cli.py", rest));
 } else if (command === "models") {
   process.exit(python("plugins/tr/scripts/models_cli.py", rest));
 } else if (command === "deliver") {
@@ -145,9 +152,11 @@ if (command === "install-codex") {
     ["ponytail", "DietrichGebert/ponytail", "ponytail"],
     ["claude-plugins-official", "anthropics/claude-plugins-official", "mattpocock-skills"],
   ]);
+  offerMissing();
   if (!addRtkHook(project)) status = status || 1;
   if (!requireTmux()) status = status || 1;
   writeFlowInstructions(project);
+  writeProjectCli(project);
   writeLocalModels(project);
   // Instalar ferramentas não decide os portões do projeto. Só --default, pedido explícito do dono,
   // grava o modelo de exemplo; um registro existente nunca é reescrito.
@@ -167,6 +176,9 @@ if (command === "install-codex") {
     status = addPlugins(agents, project) || status;
   }
   pinMarketplace(project);
+  // O install termina dizendo o que a máquina e o projeto ainda não têm (é o `./tr doctor`).
+  console.log("\nDiagnóstico (o mesmo de `./tr doctor`):\n");
+  python("plugins/tr/scripts/doctor_cli.py", [project]);
   const ok = !status && gates.status === 0;
   if (legacy.length && !rest.includes("--migrate")) {
     console.log("\nAviso: o projeto ainda tem o harness antigo (" + legacy.join("; ") + ").\n" +
@@ -185,7 +197,7 @@ if (command === "install-codex") {
     "  2. Abra o projeto com `claude`. Na primeira vez, o Claude pergunta se você confia na pasta: responda\n" +
     "     \"Yes, I trust this folder\"; sem isso, o settings do projeto (e os hooks do harness) não carregam.\n" +
     "  3. Na sessão, peça `/tr:configure`: a entrevista propõe os portões e você aprova a gravação no diálogo.\n" +
-    "  4. Confira com `gate` o que cada etapa pede; ao final, rode `fullchico-harness deliver`.\n" +
+    "  4. Confira com `gate` o que cada etapa pede; ao final, rode `./tr deliver`. Acompanhe a demanda com `./tr l` (ou `./tr w`, ao vivo).\n" +
     "  5. Cada demanda começa com `/tr:process-plan` (entrevista, spec, tickets); os portões de fim\n" +
     "     são validados por `/tr:quality-check` e `/tr:bugs-hunt`.\n" +
     "  Modelo por papel em .claude/settings.local.json: a sessão em opus planeja; subagentes em sonnet ou haiku." +
@@ -447,6 +459,35 @@ function enableSandbox(project) {
 
 // O fluxo do projeto, dito onde o agente sempre lê: CLAUDE.md (Claude) e AGENTS.md (Codex). Proibir outras
 // skills não adianta; elas entram como ferramenta dentro do fluxo. Só o bloco entre os marcadores é do harness.
+// A CLI do dono mora no projeto: `./tr l`, `./tr doctor`. Não é global (um `tr` no PATH esconderia o `tr` do
+// sistema, que os scripts usam), e roda a versão do plugin que o projeto fixou.
+function writeProjectCli(project) {
+  const file = path.join(project, "tr");
+  const mark = "# fullchico-harness: CLI do projeto (gerada pelo install; não edite)";
+  try {
+    if (fs.existsSync(file) && !fs.readFileSync(file, "utf8").includes(mark)) {
+      console.log("\nAviso: já existe um arquivo `tr` na raiz que não é do harness; a CLI do projeto não foi escrita.");
+      return;
+    }
+  } catch (e) { return; }
+  fs.writeFileSync(file, [
+    "#!/bin/sh",
+    mark,
+    "# uso: ./tr l | ./tr doctor | ./tr help",
+    'here=$(cd "$(dirname "$0")" && pwd)',
+    'base="$HOME/.claude/plugins/cache/fullchico/tr"',
+    "# a versão do plugin que este projeto usa: a que o Claude Code instalou por último para ele",
+    'v=$(ls "$base" 2>/dev/null | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)',
+    'if [ ! -x "$base/$v/bin/tr-harness" ]; then',
+    '  echo "o plugin tr ainda não está nesta máquina: abra o Claude neste projeto uma vez (ele instala), ou rode npx @fullchico/harness install" >&2',
+    "  exit 1",
+    "fi",
+    'cd "$here" && exec "$base/$v/bin/tr-harness" "$@"',
+    ""].join("\n"));
+  fs.chmodSync(file, 0o755);
+  console.log("\nCLI do projeto: `./tr l` (o que está executando), `./tr doctor`, `./tr help`.");
+}
+
 function writeFlowInstructions(project) {
   const begin = "<!-- fullchico-harness:begin -->";
   const finish = "<!-- fullchico-harness:end -->";
@@ -482,6 +523,18 @@ function requireTmux() {
     return false;
   }
   return true;
+}
+
+// Programa obrigatório que falta na máquina: no terminal do dono, com o Homebrew, o install pergunta e instala.
+// Fora disso (CI, sessão de agente, sem Homebrew) não instala nada: os erros adiante dizem o comando.
+function offerMissing() {
+  const has = (name) => spawnSync("sh", ["-c", `command -v ${name}`]).status === 0;
+  const want = ["tmux", "rtk"].filter((name) => !has(name));
+  if (!want.length || !process.stdin.isTTY || !process.stdout.isTTY || !has("brew")) return;
+  process.stdout.write(`\nFalta nesta máquina: ${want.join(" e ")}. Instalar agora com \`brew install ${want.join(" ")}\`? [s/N] `);
+  const answer = spawnSync("sh", ["-c", 'read -r a; printf %s "$a"'], { stdio: ["inherit", "pipe", "inherit"], encoding: "utf8" });
+  if (!["s", "sim", "y", "yes"].includes(String(answer.stdout || "").trim().toLowerCase())) return;
+  spawnSync("brew", ["install", ...want], { stdio: "inherit" });
 }
 
 function addRtkHook(project) {

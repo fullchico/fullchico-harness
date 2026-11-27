@@ -1,3 +1,5 @@
+import tempfile
+import pathlib
 """O `install` monta o harness do projeto no modelo novo: plugins por projeto e registro de portões.
 
 O dono escolhe o padrão do plugin ou a análise do que o projeto já usa; o `--migrate` tira o harness antigo
@@ -186,6 +188,30 @@ class TestInstall(unittest.TestCase):
                            capture_output=True, text=True, env=dict(os.environ, PATH=f"{self.bin}:{system}"))
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("o tmux é obrigatório", r.stdout)
+
+    def test_the_project_gets_its_own_cli(self):
+        """`./tr l`, `./tr doctor`: a CLI do dono mora no projeto, não no PATH (um `tr` global esconderia o do sistema)."""
+        self.assertEqual(self.install("--target", "claude").returncode, 0)
+        cli = self.repo / "tr"
+        self.assertTrue(os.access(cli, os.X_OK))
+        again = self.install("--target", "claude")
+        self.assertIn("Diagnóstico", again.stdout, "o install termina com o doctor: o que falta e como resolver")
+        self.assertIn("portões não configurados", again.stdout)
+        home = pathlib.Path(tempfile.mkdtemp())
+        missing = subprocess.run([str(cli), "l"], capture_output=True, text=True, env=dict(os.environ, HOME=str(home)))
+        self.assertEqual(missing.returncode, 1)
+        self.assertIn("ainda não está nesta máquina", missing.stderr)
+        for version in ("3.0.3", "3.0.10"):
+            target = home / ".claude/plugins/cache/fullchico/tr" / version / "bin"
+            target.mkdir(parents=True)
+            (target / "tr-harness").write_text(f'#!/bin/sh\necho "{version} $* em $(pwd)"\n')
+            (target / "tr-harness").chmod(0o755)
+        got = subprocess.run([str(cli), "doctor"], capture_output=True, text=True, cwd="/", env=dict(os.environ, HOME=str(home)))
+        self.assertIn("3.0.10 doctor", got.stdout, "a versão mais nova, comparada como número")
+        self.assertIn(os.path.realpath(self.repo), os.path.realpath(got.stdout.strip().split(" em ")[1]))
+        cli.write_text("#!/bin/sh\necho do projeto\n")
+        self.install("--target", "claude")
+        self.assertIn("do projeto", cli.read_text(), "um `tr` que não é do harness não é sobrescrito")
 
     def test_running_it_twice_does_not_duplicate_the_rtk_hook(self):
         self.install()

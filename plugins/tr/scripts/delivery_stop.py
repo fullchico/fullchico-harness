@@ -12,7 +12,9 @@ import tasks  # noqa: E402
 def main():
     payload = json.load(sys.stdin)
     wanted = os.environ.get("TR_REPORT")
-    if wanted and not payload.get("stop_hook_active") and not os.path.isfile(wanted):
+    asking = os.environ.get("TR_REQUEST")  # pediu um comando a quem o coordena: parar aqui é esperar a resposta
+    if wanted and not payload.get("stop_hook_active") and not os.path.isfile(wanted) \
+            and not (asking and os.path.isfile(asking)):
         # o executor aberto em terminal devolve o trabalho pelo relato; parar sem ele deixa quem o abriu no escuro
         print(json.dumps({"decision": "block", "reason": (
             f"You have not reported. Finish your work; then, as the last thing, write `{wanted}` the way your "
