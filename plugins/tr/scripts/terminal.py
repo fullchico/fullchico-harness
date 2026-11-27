@@ -4,6 +4,7 @@ O conceito fica nos comandos do tr: abrir outro agente numa pasta com a instruç
 O aviso para o nível de cima não vem do terminal: é o relato que o agente grava (`tr-harness report`), e quem
 espera olha o arquivo. Se a ferramenta de terminal mudar, troca-se só este arquivo."""
 import os
+import time
 import re
 import shlex
 import shutil
@@ -141,7 +142,37 @@ def open_agent(root, session, cli, model, prompt_file, env=None, record=None):
             _run("pipe-pane", "-o", "-t", session, f"cat >> {shlex.quote(record)}")
         except (OSError, Unavailable):
             pass
+    remember(root, session)
     return session
+
+
+def _roster(root):
+    import ledger
+    folder = ledger.state_dir(root)
+    return os.path.join(folder, "terminals.json") if folder else None
+
+
+def remember(root, session):
+    """De qual demanda é este terminal: com dois trens na mesma pasta, o painel mostra cada peixe no trem dele."""
+    import json
+    try:
+        import certs
+        path = _roster(root)
+        known = roster(root)
+        known[session] = {"demand": certs.demand(root) or "", "at": time.time()}
+        with open(path, "w", encoding="utf-8") as stream:
+            json.dump(dict(sorted(known.items(), key=lambda item: item[1].get("at", 0))[-300:]), stream)
+    except Exception:
+        pass  # é só para o painel: nunca impede um terminal de abrir
+
+
+def roster(root):
+    import json
+    try:
+        with open(_roster(root), encoding="utf-8") as stream:
+            return json.load(stream)
+    except (OSError, ValueError, TypeError):
+        return {}
 
 
 def alive(session):
