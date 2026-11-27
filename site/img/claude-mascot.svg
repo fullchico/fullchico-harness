@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Mascote do Claude">
-  <path fill="#ef7800" d="M12 14h40v12h8v20h-8v10H12V46H4V26h8z"/>
-  <rect x="22" y="26" width="5" height="12" rx="2" fill="#191919"/>
-  <rect x="37" y="26" width="5" height="12" rx="2" fill="#191919"/>
-  <path d="M20 56v5M44 56v5" stroke="#ef7800" stroke-width="6" stroke-linecap="round"/>
-</svg>

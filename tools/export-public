@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Monta a versão pública do repositório numa pasta à parte, com histórico próprio.
+# A branch principal pública leva SÓ o plugin e o instalador: é ela que o `install` baixa inteira na máquina de
+# quem instala. A página (`site/`) vai para a branch `gh-pages`, com `tools/export-site`.
 # Uso: tools/export-public <pasta de destino> "<mensagem do commit>"
 #
 # A branch de trabalho, com as notas de desenho e o histórico, fica local. O que vai a público é
-# o conteúdo versionado menos `docs/` e `internal/`, num commit assinado com o e-mail anônimo do GitHub. Antes
+# o conteúdo versionado menos `docs/`, `internal/` e `site/`, num commit assinado com o e-mail anônimo do GitHub. Antes
 # do commit, cada arquivo é conferido contra padrões genéricos (caminho de pasta pessoal, e-mail
 # pessoal) e contra uma lista de termos privados que fica fora do repositório, em
 # ~/.config/fullchico-harness/private-terms (um por linha).
@@ -24,34 +26,9 @@ mkdir -p "$DEST" && cd "$DEST" || exit 1
 [ -d .git ] || git init -q -b main
 # Sai tudo o que estava, menos o histórico: arquivo removido na origem some no destino.
 find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-(cd "$SRC" && git ls-files -z | grep -zvE '^(docs|internal)/' | xargs -0 tar -cf - ) | tar -xf - || exit 1
+(cd "$SRC" && git ls-files -z | grep -zvE '^(docs|internal|site)/' | xargs -0 tar -cf - ) | tar -xf - || exit 1
 
-python3 -I - "$DEST" "$TERMS" <<'PY' || { echo "export-public: nada foi commitado." >&2; exit 1; }
-import os, re, sys
-dest, terms_file = sys.argv[1], sys.argv[2]
-terms = [t.strip().lower() for t in open(terms_file, encoding="utf-8") if t.strip() and not t.startswith("#")]
-generic = [re.compile(r"/Users/[a-z]|/home/[a-z]"), re.compile(r"[\w.+-]+@(?:gmail|hotmail|outlook|yahoo|icloud)\.\w+", re.I)]
-found = []
-for folder, dirs, files in os.walk(dest):
-    dirs[:] = [d for d in dirs if d != ".git"]
-    for name in files:
-        path = os.path.join(folder, name)
-        rel = os.path.relpath(path, dest)
-        text = open(path, encoding="utf-8", errors="ignore").read()
-        low = (rel + "\n" + text).lower()
-        for term in terms:
-            if term in low:
-                found.append(f"{rel}: termo privado")
-        if rel != os.path.join("tests", "test_package.py"):
-            for pattern in generic:
-                if pattern.search(text):
-                    found.append(f"{rel}: caminho ou e-mail pessoal")
-for line in sorted(set(found)):
-    print("  " + line, file=sys.stderr)
-if found:
-    print("export-public: conteúdo pessoal no que iria a público.", file=sys.stderr)
-sys.exit(1 if found else 0)
-PY
+python3 -I "$SRC/tools/private_check.py" "$DEST" "$TERMS" || { echo "export-public: nada foi commitado." >&2; exit 1; }
 
 git add -A
 if git diff --cached --quiet; then echo "export-public: nada mudou desde a última exportação."; exit 0; fi
