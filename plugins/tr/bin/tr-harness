@@ -28,6 +28,7 @@ case "$cmd" in
   evidence|ports) exec python3 -I "$dir/scripts/evidence_cli.py" "$cmd" "$@" ;;
   report)  exec python3 -I "$dir/scripts/report_cli.py" "$@" ;;
   orchestrate) exec python3 -I "$dir/scripts/orchestrate_cli.py" "$@" ;;
+  watch)   exec python3 -I "$dir/scripts/watch_cli.py" "$@" ;;
   demand)  exec python3 -I "$dir/scripts/demand_cli.py" "$@" ;;
-  *) echo "uso: tr-harness gates|models|cost|deliver|status|skill|wait|balance|orchestrate|demand|report|evidence|ports|owner <args>" >&2; exit 2 ;;
+  *) echo "uso: tr-harness gates|models|cost|deliver|status|skill|wait|balance|orchestrate|demand|report|evidence|ports|watch|owner <args>" >&2; exit 2 ;;
 esac
