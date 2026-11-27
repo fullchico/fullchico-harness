@@ -176,6 +176,12 @@ missing env file, a service that is down) is not configured yet: fix it now, or 
 needs and get an explicit "leave it pending" before closing. `runs and fails` on an existing project is a
 finding: show it to the owner, because the first delivery that needs that gate will stop there.
 
+**A gate that shares something with the others runs alone.** When a command gate uses a resource the other
+checks also use (one test database, fixed ports), give it `"exclusive": true` in the sketch: the tr runs it
+last, with no executor in flight. When exclusive gates must follow an order among themselves, use a number
+instead: `"exclusive": 1` runs before `"exclusive": 2` (`true` counts as 1). Without it, two runs on the same database fail in places that change at
+every run and look like defects.
+
 **Preparing an executor's seat.** Each executor works in a fresh worktree, without installed dependencies, and a
 Codex executor has no network to install them. When the project needs a step before tests can run (install,
 code generation), register it with `tr-harness gates --prepare-seat "<command>"` (owner approval); the tr runs

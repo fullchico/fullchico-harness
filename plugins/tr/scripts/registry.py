@@ -215,6 +215,11 @@ def _validate(name, gate):
     for opt in ("check", "description"):
         if opt in gate and not isinstance(gate[opt], str):
             raise RegistryError(f"{where}: `{opt}` deve ser texto.")
+    turn = gate.get("exclusive", False)
+    if not isinstance(turn, bool) and (type(turn) is not int or turn < 1):
+        raise RegistryError(f"{where}: `exclusive` deve ser true, false ou a vez do portão (um inteiro a partir de 1).")
+    if turn and gate["stage"] != "end":
+        raise RegistryError(f"{where}: `exclusive` só se aplica a portões finais.")
     if "always" in gate and not isinstance(gate["always"], bool):
         raise RegistryError(f"{where}: `always` deve ser true ou false.")
     if "attempts" in gate and (type(gate["attempts"]) is not int or gate["attempts"] < 0):

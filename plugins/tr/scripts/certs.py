@@ -206,13 +206,28 @@ def version():
         return "unknown"
 
 
+def _clean(summary, root):
+    """O texto do certificado entra no Git: nada da máquina de quem rodou vai junto. Caminhos do projeto viram
+    relativos, a pasta pessoal vira `~` e a pasta temporária vira `<tmp>` (o nome do usuário mora nesses caminhos)."""
+    import tempfile
+    text = " ".join((summary or "").split())
+    swaps = [(os.path.realpath(root), "."), (root, "."), (os.path.expanduser("~"), "~"),
+             (os.path.realpath(tempfile.gettempdir()), "<tmp>"), (tempfile.gettempdir(), "<tmp>")]
+    for found, shown in sorted(swaps, key=lambda pair: -len(pair[0])):
+        if found and found not in ("/", "."):
+            text = text.replace(found.rstrip("/"), shown)
+    text = re.sub(r"/(?:Users|home)/[^/\s]+", "~", text)            # a pasta pessoal de outra máquina
+    text = re.sub(r"(?:/private)?/var/folders/\S+?/T(?=/|\b)", "<tmp>", text)  # a temporária do macOS, por usuário
+    return text[:300]
+
+
 def certify(root, name, key, verdict, by, summary, ticket=None):
     """`record` sem repetir o mesmo veredito (o relatório e o fecho do subagente trazem o mesmo bloco)."""
     doc = document(root, ticket)
     found = [e for e in entries(root, doc) if e["name"] == name]
     last = found[-1] if found else {}
     if (last.get("key"), last.get("verdict"), last.get("by"), last.get("summary")) == \
-            (key, verdict, by, " ".join((summary or "").split())[:300]) and signed(root, doc, last):
+            (key, verdict, by, _clean(summary, root)) and signed(root, doc, last):
         return None  # já está assinado; uma linha que ficou sem commit é escrita de novo
     return record(root, name, key, verdict, by, version(), summary, ticket)
 
@@ -257,7 +272,7 @@ def _record(root, name, key, verdict, by, version, summary, ticket=None):
             return f"{doc} tem alteração sem commit; faça o commit do documento antes do certificado"
         if committed is not None:
             text = committed  # linha de certificado sem commit (assinatura que falhou) não pega carona
-    summary = " ".join((summary or "").split())[:300]
+    summary = _clean(summary, root)
     at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     line = f"- `{name}` · {verdict} · {key} · `{by}` · tr {version} · {at} · {summary}"
     base = text if text is not None else ""
