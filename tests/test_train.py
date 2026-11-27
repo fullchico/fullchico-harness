@@ -300,6 +300,23 @@ class MaestroTest(Base):
         self.assertFalse(seat.exists())
         self.assertNotIn("tr-exec-aaaa1111", git(self.repo, "branch"))
 
+    def test_no_executor_leaves_while_the_criterion_is_not_accepted(self):
+        """Caso real: o orquestrador ampliou os Files de um ticket e despachou antes de o dono aceitar."""
+        import models_cli
+        ticket = self.repo / "docs/specs/pedido/issues/01-soma.md"
+        ticket.write_text(ticket.read_text().replace("Files:", "Files: src/**,"))
+        with self.assertRaises(ValueError) as error:
+            models_cli.terminal_execute(self.root, "faça", "docs/specs/pedido/issues/01-soma.md")
+        self.assertIn("aceite", str(error.exception))
+
+    def test_a_missing_env_file_means_the_gate_does_not_run(self):
+        import orchestrate_cli
+        reg = {"gates": {"e2e": {"stage": "end", "signs": "command", "command": "echo 'node: .env: not found' >&2; exit 9"},
+                         "lint": {"stage": "start", "signs": "command", "command": "true"}}}
+        self.assertIn("DOES NOT RUN", orchestrate_cli.preflight(self.root, reg)[0])
+        self.assertEqual(len(orchestrate_cli.preflight(self.root, reg)), 1)
+        self.assertEqual(len(orchestrate_cli.preflight(self.root, reg, every=True)), 2)
+
     def test_boarding_warns_when_a_codex_executor_cannot_write_where_a_ticket_needs(self):
         import orchestrate_cli
         issues = self.repo / "docs/specs/pedido/issues"

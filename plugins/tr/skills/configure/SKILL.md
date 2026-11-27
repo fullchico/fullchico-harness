@@ -170,6 +170,17 @@ A command gate runs exactly the registry's command, via `gate <name>`, with no v
 front. If the check needs environment (port, URL, browser), it reads it from a file the project already
 loads (for example `.env`), not from the command line.
 
+**Every command gate runs once before the configuration closes.** Run `tr-harness gates --check`: it runs each
+command gate and says `passes`, `runs and fails` or `DOES NOT RUN`. A gate that does not run (missing script,
+missing env file, a service that is down) is not configured yet: fix it now, or tell the owner exactly what it
+needs and get an explicit "leave it pending" before closing. `runs and fails` on an existing project is a
+finding: show it to the owner, because the first delivery that needs that gate will stop there.
+
+**Preparing an executor's seat.** Each executor works in a fresh worktree, without installed dependencies, and a
+Codex executor has no network to install them. When the project needs a step before tests can run (install,
+code generation), register it with `tr-harness gates --prepare-seat "<command>"` (owner approval); the tr runs
+it when it creates the seat.
+
 When done, run `gate` and show the result to the owner. If any gate fails on the first
 check, explain what is missing without rewriting the registry.
 
@@ -184,5 +195,7 @@ on your own: the project leaves the configuration with its code map, and every s
 - [ ] Each proposed gate has evidence, timing, signing mode and a concrete verifier.
 - [ ] Sketch outside the repository; `--register`/`--set`/`models configure` run by me and approved by the owner in the session (dialog or question), never `Write`/`Edit`.
 - [ ] I remembered to review the registry before stamping.
+- [ ] I ran `tr-harness gates --check`; no command gate is left as `DOES NOT RUN` without the owner saying so.
+- [ ] I registered `--prepare-seat` when tests need installed dependencies.
 - [ ] I ran `gate` at the end and showed the state.
 - [ ] With the `memory` plugin, I ran `/tr:memory-map` so the project starts with its map.

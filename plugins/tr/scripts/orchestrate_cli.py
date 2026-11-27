@@ -28,12 +28,12 @@ def _flag(argv, name):
     return argv[argv.index(name) + 1] if name in argv and argv.index(name) + 1 < len(argv) else None
 
 
-def preflight(root, reg):
+def preflight(root, reg, every=False):
     """Embarque: roda uma vez cada verificador de comando dos portões de fim, para saber antes de partir se ele
     funciona. `não roda` (comando ou script inexistente) é diferente de `reprova` (o trabalho ainda não existe)."""
     lines = []
     for gate, spec in sorted((reg.get("gates") or {}).items()):
-        if spec.get("signs") != "command" or spec.get("stage") != "end" or not spec.get("command"):
+        if spec.get("signs") != "command" or not spec.get("command") or (spec.get("stage") != "end" and not every):
             continue
         try:
             run = subprocess.run(spec["command"], shell=True, cwd=root, capture_output=True, text=True, timeout=300)
@@ -41,7 +41,7 @@ def preflight(root, reg):
         except subprocess.TimeoutExpired:
             text, code = "timeout", 124
         missing = code in (126, 127) or any(mark in text for mark in (
-            "command not found", "Missing script", "No such file or directory", "ENOENT", "not recognized"))
+            "command not found", "Missing script", "No such file or directory", "ENOENT", "not recognized", ": not found"))
         state = "passes" if code == 0 else ("DOES NOT RUN" if missing else "runs and fails")
         rows = [r.strip() for r in text.strip().splitlines() if r.strip()]
         # a linha que explica: a primeira que fala de erro, não o rodapé do gerenciador de pacotes

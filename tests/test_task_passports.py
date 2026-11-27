@@ -520,6 +520,37 @@ class TestTaskPassports(unittest.TestCase):
         self.assertEqual(registry.load(str(self.repo))["max_parallel"], 3)
         self.assertEqual(self.owner_hook("tr-harness gates --parallel 8")["permissionDecision"], "ask")
 
+    def test_the_orchestrator_acts_inside_the_project_and_the_executor_inside_the_demand(self):
+        deny = lambda got: got.get("permissionDecision") == "deny"
+        for command in ("git push origin HEAD", "gh pr create --fill", "gh pr merge 5 --merge", "npm publish"):
+            self.assertTrue(deny(self.hook("Bash", {"command": command}, "tr:orchestrator")), command)
+            self.assertTrue(deny(self.hook("Bash", {"command": command}, "general-purpose")), command)
+            self.assertFalse(deny(self.hook("Bash", {"command": command}, None)), "o maestro é livre: " + command)
+        self.assertFalse(deny(self.hook("Bash", {"command": "gh pr view 5"}, "tr:orchestrator")), "ler não sai do projeto")
+        self.assertFalse(deny(self.hook("Bash", {"command": "git merge --no-ff tr-exec-1"}, "tr:orchestrator")),
+                         "integrar é o trabalho do orquestrador")
+        away = self.hook("Write", {"file_path": os.path.expanduser("~/fora-do-projeto.txt"), "content": "x"}, "general-purpose")
+        self.assertTrue(deny(away))
+        self.assertIn("fora do projeto", away["permissionDecisionReason"])
+        with mock.patch.dict(os.environ, {"FULLCHICO_ROLE": "execution"}):
+            for command in ("git merge main", "git switch main", "git worktree add ../x"):
+                self.assertTrue(deny(self.hook("Bash", {"command": command}, None)), command)
+            self.assertFalse(deny(self.hook("Bash", {"command": "git commit -m 'feat: x'"}, None)))
+
+    def test_the_project_git_hooks_cannot_be_skipped(self):
+        for command in ("git commit --no-verify -m x", "git -c core.hooksPath=/dev/null commit -m x", "HUSKY=0 git commit -m x"):
+            got = self.hook("Bash", {"command": command}, "general-purpose")
+            self.assertEqual(got.get("permissionDecision"), "deny", command)
+        self.assertNotEqual(self.hook("Bash", {"command": "git commit -m 'docs: explain --no-verify'"}, "general-purpose")
+                            .get("permissionDecision"), "allow-never")
+
+    def test_the_owner_registers_how_a_seat_is_prepared(self):
+        import gates_cli
+        with mock.patch.dict(os.environ, {"CLAUDECODE": ""}):
+            self.assertEqual(gates_cli.main(["--project", str(self.repo), "--prepare-seat", "echo ok"]), 0)
+        self.assertEqual(registry.load(str(self.repo))["prepare_seat"], "echo ok")
+        self.assertEqual(self.owner_hook("tr-harness gates --prepare-seat 'pnpm install'")["permissionDecision"], "ask")
+
     def test_processes_of_other_projects_cannot_be_killed(self):
         import tempfile
         outside_dir = tempfile.mkdtemp()

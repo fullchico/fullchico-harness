@@ -1,6 +1,6 @@
 {
   "name": "tr",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "description": "Single entry point of the harness: diagnosis, grilling interview (Matt Pocock), gates, validators and memory.",
   "skills": "./codex-skills/",
   "hooks": "./codex-hooks/hooks.json"
