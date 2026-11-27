@@ -81,7 +81,50 @@ def shared_files(root):
     return lines
 
 
-def brief(root, cli="claude", executors=None, reviewers=None, checks=(), overlaps=(), terminals=False):
+def running_executors(root):
+    """Executores em terminal que seguem vivos de uma partida anterior (o orquestrador deles relatou um bloqueio
+    e foi desmontado; o dono destravou depois). O próximo orquestrador os adota em vez de despachar de novo."""
+    import glob
+    lines = []
+    runs = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=root,
+                          capture_output=True, text=True).stdout.strip()
+    for path in sorted(glob.glob(os.path.join(runs, "harness-runs", "*", "dispatch.json"))):
+        try:
+            with open(path, encoding="utf-8") as stream:
+                data = json.load(stream)
+        except (OSError, ValueError):
+            continue
+        report = data.get("report") or ""
+        report = report if os.path.isabs(report) else os.path.join(root, report)
+        if data.get("session") and (terminal.alive(data["session"]) or os.path.isfile(report)) and data.get("worktree") \
+                and os.path.isdir(data["worktree"]):
+            run_id = os.path.basename(os.path.dirname(path))
+            lines.append(f"- `{data.get('ticket') or run_id}`: terminal `{data['session']}`, run `{run_id}`")
+    return lines
+
+
+def unwritable_for_codex(root, executors):
+    """Um executor Codex roda num sandbox que não grava em `.git`, `.codex` nem `.agents`: ticket que declara
+    arquivo ali não fecha com ele. Devolve as linhas de aviso (vazio se nenhum executor é Codex)."""
+    import re
+    if "codex:" not in (executors or ""):
+        return []
+    lines = []
+    for path in sorted(tasks.open_tickets(root)):
+        try:
+            with open(os.path.join(root, path), encoding="utf-8") as stream:
+                files = re.search(r"(?mi)^\s*files:\s*(.+)$", stream.read())
+        except OSError:
+            continue
+        hit = sorted({f.strip() for f in (files.group(1) if files else "").split(",")
+                      if re.match(r"\.?/?(\.git|\.codex|\.agents)(/|$)", f.strip())})
+        if hit:
+            lines.append(f"- `{os.path.basename(path)}` declares `{', '.join(hit)}`")
+    return lines
+
+
+def brief(root, cli="claude", executors=None, reviewers=None, checks=(), overlaps=(), terminals=False,
+          adopted=(), unwritable=()):
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     instructions = (os.path.join(here, "agents", "orchestrator.md") if cli == "claude"
                     else "the `tr-orchestrator` agent in `.codex/agents/` and the `tr-process-plan` skill, section 5")
@@ -126,6 +169,12 @@ def brief(root, cli="claude", executors=None, reviewers=None, checks=(), overlap
         *(["", "Tickets of the same wave that declare the same file (a parallel merge will conflict there):", *overlaps,
            "Integrate those one at a time: merge the first, then have the next executor start from the updated "
            "branch, or tell each executor exactly which lines of the shared file are its own."] if overlaps else []),
+        *(["", "Executors still running from a previous departure (do NOT dispatch these tickets again: wait for "
+           f"them with `{cli_path} models wait <run> ... --timeout 540` and integrate what they report):", *adopted]
+          if adopted else []),
+        *(["", "Tickets a Codex executor cannot finish (its sandbox does not write to `.git`, `.codex` or `.agents`); "
+           "give these to a Claude executor, or report the block to the maestro before dispatching:", *unwritable]
+          if unwritable else []),
         "",
         f"Read and follow the orchestrator instructions of the tr harness: {instructions}. They describe the trip, "
         "the arrival audit and the adjustment trains, until `tr-harness deliver` passes. The same rails apply to "
@@ -256,7 +305,9 @@ def main(argv):
     terminals = "--terminals" in argv
     if terminals and not executors:
         executors = "claude:sonnet"
-    text = brief(root, choice["cli"], executors, reviewers, checks, overlaps, terminals)
+    adopted = running_executors(root)
+    unwritable = unwritable_for_codex(root, executors)
+    text = brief(root, choice["cli"], executors, reviewers, checks, overlaps, terminals, adopted, unwritable)
     session = terminal.name("orq", certs.demand(root), choice.get("model") or choice["cli"])
     if "--print" in argv:
         print(text + "\n\n$ tmux new-session -d -s " + session + " ...")
@@ -285,6 +336,10 @@ def main(argv):
         print("embarque " + line)
     for line in overlaps:
         print("embarque: mesma onda, mesmo arquivo " + line)
+    for line in unwritable:
+        print("embarque: um executor Codex não grava ali " + line)
+    for line in adopted:
+        print("embarque: executor já rodando, será adotado " + line)
     print(f"orquestrador {choice['cli']}{':' + choice['model'] if choice.get('model') else ''} aberto no terminal "
           f"`{session}` (para ver: `tmux attach -t {session}`).\nAgora rode `tr-harness orchestrate --wait` em segundo "
           "plano: ele volta quando o orquestrador gravar o relato, ou se ele parar numa tela que só o dono responde.")

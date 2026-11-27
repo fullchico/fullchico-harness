@@ -344,6 +344,33 @@ def ask_owner(root, payload, words):
     return 0
 
 
+def owner_edit(root, payload, rel, agent_name):
+    """Um arquivo de configuração do harness que faz parte do trabalho da demanda (tirar um hook antigo do projeto,
+    por exemplo): quem decide é o dono, e ele decide na sessão, como nos comandos dele. Só a sessão do maestro
+    pergunta; peixe não tem a quem perguntar. Devolve None (não se aplica), True (aprovado: segue) ou o código de
+    uma decisão já impressa."""
+    if agent_name or os.environ.get("TR_ROLE") or os.environ.get("FULLCHICO_ROLE") or payload.get("harness_client") == "codex":
+        return None
+    canonical = f"edit {rel}"
+    if payload.get("permission_mode") in ("bypassPermissions", "dontAsk", "auto"):
+        if registry.owner_approved(root, canonical):
+            ledger.log(root, "tr", "owner_edit", rel)
+            return True  # o dono respondeu "Aprovo" na pergunta da sessão; vale para esta gravação
+        return deny(root, f"edição do dono: {rel}", panel("aprovação do dono", [
+            ("arquivo", rel),
+            ("motivo", "é configuração do harness; só muda com a decisão do dono"),
+        ], ["  → diga ao dono, em uma linha, o que muda no arquivo e por quê",
+            "  → pergunte, sozinho na mensagem, com AskUserQuestion:",
+            f"      pergunta: {registry.owner_question(canonical)}",
+            f"      opções: {registry.OWNER_YES} / {registry.OWNER_NO}",
+            "    com a resposta Aprovo, faça a mesma gravação de novo (vale uma vez)"]))
+    ledger.log(root, "tr", "asked", canonical)
+    print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask",
+                                             "permissionDecisionReason": f"Aprovação do dono: esta gravação muda a configuração do harness ({rel}). "
+                                             "Aprove só se for a sua decisão."}}, ensure_ascii=False))
+    return 0
+
+
 def foreign_kill(root, command):
     """Matar processo que não é deste projeto: outro projeto da máquina pode estar na mesma porta.
 
@@ -507,6 +534,12 @@ def main():
                 ("arquivo", ".claude/harness.json"),
                 ("motivo", f"só o dono altera, por `{registry.owner_command(root, 'gates')}` no terminal"),
             ], footer="o plugin tr escreve ali; o agente não"))
+        if rel in (".codex/hooks.json", ".codex/config.toml"):  # a configuração do projeto no outro CLI
+            decided = owner_edit(root, payload, rel, payload.get("agent_type"))
+            if decided is True:
+                continue
+            if decided is not None:
+                return decided
         if rel in (".claude/settings.json", ".claude/settings.local.json"):
             return deny(root, f"configuração: {t}", panel("configuração protegida", [
                 ("arquivo", rel), ("motivo", "define plugins e hooks do projeto; só o dono altera"),
@@ -521,7 +554,7 @@ def main():
                 ".codex/agents/memory-extractor.toml"):
             return deny(root, f"configuração Codex: {t}", panel("harness protegido", [
                 ("arquivo", rel), ("motivo", "contém os hooks ou validadores que aplicam os portões"),
-            ], footer="o dono atualiza com `fullchico-harness install-codex` no terminal"))
+            ], footer="isto é decisão do dono: reporte como BLOCKED ao orquestrador, e o maestro pede a aprovação dele na sessão"))
 
     if tool == "AskUserQuestion" and (ti.get("answers") or ti.get("annotations")):
         # a resposta vem da interface, do dono; o agente que já manda respondida está respondendo por ele

@@ -23,7 +23,8 @@ def main():
     if os.environ.get("TR_ROLE") == "orchestrator" and not payload.get("stop_hook_active"):
         # quem conduz a demanda avisa o maestro pelo relato; parar sem ele deixa o dono sem saber
         here = registry.toplevel(payload.get("cwd") or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
-        if not os.path.isfile(os.path.join(here, ".harness-run", "report.md")):
+        waiting = bool(tasks._raw_in_flight(here))  # com executor em voo, parar é esperar o aviso dele: não é sumir
+        if not waiting and not os.path.isfile(os.path.join(here, ".harness-run", "report.md")):
             print(json.dumps({"decision": "block", "reason": (
                 "You are the orchestrator of this demand and have not reported. Keep working until "
                 "`tr-harness deliver` passes; when it passes, or when you truly cannot continue, run "

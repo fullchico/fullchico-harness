@@ -15,15 +15,21 @@ import ledger  # noqa: E402
 import registry  # noqa: E402
 
 
-def folder(root):
-    """`.harness-run/evidence/<hash do conteúdo>`: fora do Git e fora do hash."""
+def folder(root, create=False):
+    """`.harness-run/evidence/<hash do conteúdo>`: fora do Git e fora do hash. Quem só lê (um revisor num sandbox
+    somente leitura) recebe o caminho sem que nada seja gravado; `create` é de quem prepara ou produz a prova."""
     base = os.path.join(root, ".harness-run")
-    os.makedirs(base, exist_ok=True)
-    ignore = os.path.join(base, ".gitignore")
-    if not os.path.exists(ignore):
-        with open(ignore, "w", encoding="utf-8") as stream:
-            stream.write("*\n")
-    return os.path.join(base, "evidence", (ledger.head(root) or "sem-estado")[:12])
+    path = os.path.join(base, "evidence", (ledger.head(root) or "sem-estado")[:12])
+    if create:
+        try:
+            os.makedirs(path, exist_ok=True)
+            ignore = os.path.join(base, ".gitignore")
+            if not os.path.exists(ignore):
+                with open(ignore, "w", encoding="utf-8") as stream:
+                    stream.write("*\n")
+        except OSError:
+            pass  # disco somente leitura: listar continua funcionando
+    return path
 
 
 def listening(root):
@@ -51,11 +57,13 @@ def main(argv):
     root = registry.toplevel(os.getcwd())
     command = argv[0] if argv else ""
     if command == "evidence":
-        path = folder(root)
-        os.makedirs(path, exist_ok=True)  # quem revisa em modo só leitura precisa encontrar a pasta pronta
+        path = folder(root, create=True)
         print(os.path.relpath(path, root))
-        for name in sorted(os.listdir(path)):
+        names = sorted(os.listdir(path)) if os.path.isdir(path) else []
+        for name in names:
             print("  " + name)
+        if not names:
+            print("  (nenhuma prova gravada para este estado: julgue pelo estado entregue, código e testes)")
         return 0
     if command == "ports":
         ports = listening(root)
