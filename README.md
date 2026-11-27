@@ -32,13 +32,13 @@ iniciais Opus/Sol, Sonnet/Luna, Haiku/Terra e Fable/Astra. A configuração regi
 `models run <role> --prompt "<text>" [--ticket <path>]` inicia a CLI escolhida,
 grava um manifesto fora do repositório e passa ao modelo de apoio se a primeira CLI retornar
 erro de limite. Com `--detach`, a execução roda à parte e devolve um id na hora;
-`models wait <id>` espera no máximo 100 s por chamada (sai com 3 enquanto ainda roda). O subagente
+`models wait <id> [<id>...]` espera uma onda inteira (sai com 3 enquanto ainda roda). O
 orquestrador sempre usa `--detach`: uma chamada de terminal longa seria cortada pelo limite de
-tempo da ferramenta. Ele faz isso para cada ticket liberado pelo grafo e devolve as reprovações
-ao executor antes de avançar.
-O executor aberto via Codex CLI usa `workspace-write` com revisão automática. Se Docker ou
-localhost forem bloqueados, ele deve solicitar elevação para o comando específico ao revisor
-automático antes de declarar bloqueio. A sessão Claude usa a configuração efetiva do projeto;
+tempo da ferramenta. Com `--terminals` na partida, cada executor abre num terminal e num worktree
+próprios, e cada revisor de portão de agente também.
+O executor aberto via Codex CLI usa `workspace-write`: nesse modo ele não grava em `.git` nem
+escuta numa porta, então entrega os arquivos e o relato, e o orquestrador roda as conferências que
+precisam de porta e faz o commit do worktree dele. A sessão Claude usa a configuração efetiva do projeto;
 o fiscal Codex continua em modo de revisão.
 A entrevista (`grilling`) identifica os serviços e comandos necessários, como subir o Compose, acessar
 uma API local ou abrir o navegador. Quando a plataforma exigir permissão, o executor solicita
@@ -55,15 +55,63 @@ O harness exige veredito, hash do estado examinado e processo bem sucedido antes
 Se o modelo do portão for Codex, o hook impede que um Agent Claude assine no lugar dele.
 As execuções e seus manifestos ficam fora do repositório.
 
+## O maestro, o orquestrador e os peixes
+
+<img src="site/img/maestro-tubarao-peixes.png" alt="" width="640">
+
+| Papel | Bicho | O que faz | Memória |
+|---|---|---|---|
+| **Maestro** | elefante | conversa com o dono, fecha a definição e guarda o que foi entregue; pode olhar e interferir, sempre delegando | guarda tudo |
+| **Orquestrador** | tubarão | coordena a demanda e confere o que volta; reporta ao maestro | nenhuma: é montado para a demanda e desmontado ao fim |
+| **Executores e revisores** | peixes | executam os tickets e validam os portões; reportam ao orquestrador | nenhuma: cada um é desmontado ao relatar |
+
+Cada peixe é uma sessão inteira num **terminal próprio** (tmux), com o contexto só dele: o executor gasta o
+contexto no ticket e some; o orquestrador recebe só o relato de cada um; o maestro recebe só o relato do
+orquestrador. O nome do terminal diz quem é, então `tmux ls` vira o painel da demanda:
+
+```
+orq-clinica-api-opus
+exec-02-tutores-terra
+exec-03-gatos-haiku
+rev-bugs-sonnet
+```
+
+`tmux attach -t <nome>` entra em qualquer um para assistir (`Ctrl+b` `d` sai sem encerrar).
+
+- **Modelos por demanda.** Quando a definição fecha, o dono escolhe três coisas para aquela demanda: o modelo do
+  orquestrador, o dos executores e o dos revisores. A escolha vai no comando de partida
+  (`tr-harness orchestrate --agent claude --model opus --executors claude:haiku,codex:terra --reviewers
+  claude:sonnet --terminals`) e não muda o registro do projeto. Vários modelos de executor se revezam. Um nome
+  de modelo é um apelido para a versão mais nova (`terra`, `sol`, `haiku`); só um id com versão fixa a versão.
+- **O peixe só leva o que é do projeto.** Skills, instruções, plugins, hooks e conectores MCP registrados no
+  projeto chegam a todo peixe (é onde o instalador põe o plugin, as skills do Matt Pocock, o `rtk` e o
+  ponytail). O ambiente do usuário não entra. No Codex o isolamento é parcial: os conectores MCP do usuário
+  saem, mas os plugins de usuário do Codex ainda carregam.
+- **O aviso é um relato em arquivo.** O peixe grava o relato ao terminar, e o hook de parada não o deixa parar
+  sem isso. Quem espera (`tr-harness orchestrate --wait` no maestro, `tr-harness models wait <id>...` no
+  orquestrador) volta na hora. O relato do orquestrador traz o resultado do `gate delivery` e o balanço
+  calculados pelo comando, não pela palavra dele.
+- **Nada escapa.** Cada terminal é gravado desde a abertura, e o relato aponta para o registro que o próprio
+  agente guarda da sessão. O orquestrador só abre um log por critério (relato bloqueado ou contradito por uma
+  conferência, terminal que encerrou sem relato, reprovação que ele não consegue explicar) e nunca inteiro.
+- **O trilho é limite, não procedimento.** A garantia mora nos portões: os critérios são levantados na partida
+  e validados na chegada. No caminho, o peixe é livre dentro do ticket; o hook só barra o que a chegada não
+  desfaz (dano fora do projeto, reescrever histórico sobre um certificado) e cobra o relato.
+
+Requisitos da máquina: Git, Node 18+, Python 3, **tmux**, **rtk** e o Claude Code; o Codex só para quem usar
+modelos dele. O instalador cobra o tmux e o rtk.
+
 ## Execução em paralelo
 
-O orquestrador despacha a fronteira de tickets em ondas, cada executor no próprio worktree, com portas e
-banco próprios (derivados do número do ticket). O hook garante o resto:
+O orquestrador despacha a fronteira de tickets em ondas, cada executor no próprio worktree. No embarque, o
+comando avisa quando dois tickets da mesma onda declaram o mesmo arquivo em `Files:` (merge em paralelo
+conflita ali) e roda uma vez cada verificador de comando, para saber antes da viagem se ele funciona.
 
-- **até `max_parallel` executores ao mesmo tempo** (3 por padrão; cada um sobe servidores, banco e navegador);
+- **até `max_parallel` executores ao mesmo tempo** quando são subagentes (3 por padrão); em terminais, as vagas
+  são pastas fixas (`tr-seat-N`), reaproveitadas entre tickets;
 - **nenhum portão de fim roda no meio da viagem**: o ticket integrado já libera quem depende dele, e os
   portões de fim auditam o estado final uma vez, na chegada (o hook barra antes disso);
-- **a máquina não dorme** enquanto há subagente trabalhando (`caffeinate` no macOS, `systemd-inhibit` no
+- **a máquina não dorme** enquanto há peixe trabalhando (`caffeinate` no macOS, `systemd-inhibit` no
   Linux); o pedido expira sozinho quando a entrega para. Desligue com `"keep_awake": false`;
 - **retomada depois de queda**: a sessão nova libera os tickets presos e retoma pelo quadro;
 - `tr-harness status` mostra tickets, executores ativos, contêineres esquecidos e até quando a máquina fica acordada.
@@ -74,7 +122,7 @@ banco próprios (derivados do número do ticket). O hook garante o resto:
 |---|---|
 | **Embarque** | só parte com todos a bordo: o dono aceita o critério escrito (uma pergunta na própria sessão, `Aprovo` ou `Não aprovo`; no terminal, `gates --accept`), os pré-requisitos do dono foram derivados do verificador de cada portão, e os portões de início estão certificados |
 | **Viagem** | automática: tickets em paralelo, cada executor alinhado à branch da demanda, sem portão de fim no caminho |
-| **Socorro** | a sessão principal vigia com `tr-harness wait` (o orquestrador fica parado esperando os executores); quem trava ou bloqueia deixa um handoff em `docs/specs/<demanda>/progress/`, e o próximo continua dali, em Claude ou Codex |
+| **Socorro** | o maestro espera com `tr-harness orchestrate --wait`, que também volta se o terminal do orquestrador parar numa tela que só o dono responde ou travar; `--read` mostra a tela e `--stop` desmonta; quem trava ou bloqueia deixa um handoff em `docs/specs/<demanda>/progress/`, e o próximo continua dali, em Claude ou Codex |
 | **Chegada** | auditoria: todos os portões de fim ao mesmo tempo; cada revisor valida o delta entre o planejado (spec, tickets, artefatos aprovados) e o entregue, com a prova vinda do estado entregue; `tr-harness balance --write` grava o balanço |
 | **Trem de ajuste** | cada reprovação vira um ajuste em `progress/adjust-NN-*.md` (andamento, não critério: o aceite do dono continua); revalida só o portão que reprovou e os de comando se o código mudou; a aprovação de um revisor segue valendo se o ajuste ficou nos arquivos que declarou |
 | **Limite** | cada portão de fim tem um limite de reprovações (3 por padrão; falha de comando também conta); passou dele, o dono decide |
@@ -190,10 +238,10 @@ Tickets com `Blocked by:` formam um grafo. A fronteira contém os tickets cujos 
 já foram concluídos e carimbados; o hook impede o disparo antecipado de um executor, e o
 orquestrador só dispara executor com o caminho do ticket no pedido. **Quem planeja não executa:**
 enquanto a demanda tem tickets abertos, o hook barra escrita de código pela sessão principal e
-pelo orquestrador; o código é dos executores (subagentes ou `models run`). Tickets
-independentes podem avançar em contextos isolados. Após o planejamento aprovado, a sessão
-principal lança o subagente `tr:orchestrator` em segundo plano. Ele coordena executores,
-fiscais e integração; a sessão principal continua disponível para o dono. A confirmação final
+pelo orquestrador; o código é dos executores (em terminais próprios, ou subagentes). Tickets
+independentes podem avançar em contextos isolados. Após o planejamento aprovado, o maestro
+abre o orquestrador com `tr-harness orchestrate`, num terminal próprio. Ele coordena executores,
+fiscais e integração; o maestro continua livre para o dono. A confirmação final
 da entrevista autoriza o plano recomendado até a entrega. Reprovações voltam ao executor para
 correção e nova validação. Cada portão final aceita `"attempts": 3` por padrão; na quarta
 reprovação, o orquestrador solicita intervenção humana. O limite pode ser aumentado por portão.
@@ -209,7 +257,7 @@ enfrentar um bloqueio sem alternativa permitida.
 Cada fiscal valida o estado atual do ticket. Se reprovar, o implementador corrige e o fiscal
 reexamina. Só o trabalho aprovado entra no passaporte e libera os dependentes.
 
-*Status: conduzido pelo subagente orquestrador; a conferência final é aplicada pelo hook.*
+*Status: conduzido pelo orquestrador; a conferência final é aplicada pelo hook.*
 
 ### 5. Guardrails
 
@@ -220,7 +268,7 @@ shell do Claude. O sandbox nativo do Claude Code é opcional (perfil `isolado`,
 
 - escreve o pedido de cada validador (o que quem escreveu o código disse é descartado);
 - mantém o validador só leitura;
-- mantém a seleção existente por complexidade do ticket (haiku ou sonnet) nos subagentes Claude;
+- aplica o modelo de executor escolhido para a demanda, ou, sem escolha, a complexidade do ticket (haiku ou sonnet);
   `fullchico-harness models configure` registra os modelos por papel e permite escolher Claude
   ou Codex e o modelo próprio de cada portão de agente;
 - barra `gate <name>` combinado com pipe ou `&&` (rodaria sem carimbar) e os scripts do harness
@@ -305,7 +353,7 @@ sessão só é marcada quando todas as partes passaram pelo extrator.
 | `tr` | entrevista, orquestrador, grafo de tickets, portões, fiscais independentes, passaporte e modelos por papel | disponível |
 | `memory` | mapa, grafo local e notas ancoradas, compartilhados entre Claude e Codex | disponível |
 
-O orquestrador é um subagente do `tr`. A automação dedicada de múltiplos worktrees ainda é uma evolução futura; não há plugin separado de orquestração.
+O orquestrador abre num terminal próprio (tmux), montado para a demanda. Uma segunda demanda em paralelo viaja num worktree filho (`tr-harness demand open <slug>`), que nasce da branch do pai e volta a ela por merge; não há plugin separado de orquestração.
 
 ## Core e ferramentas integradas
 
@@ -548,6 +596,11 @@ também põe `.claude/harness.json` no `denyWrite`.
 - Sem o sandbox nativo, comandos arbitrários podem contornar hooks e alterar arquivos;
   os portões funcionam como guardrails de fluxo, não como isolamento do sistema.
 - O certificado prova que a etapa aconteceu contra o critério aceito, não que o revisor foi bom.
+- No Codex o peixe não fica isolado como no Claude: os conectores MCP do usuário saem, mas os plugins e skills
+  de usuário do Codex ainda carregam. E, no modo protegido, o Codex não grava em `.git` nem escuta numa porta:
+  o orquestrador faz o commit e roda essas conferências por ele.
+- Uma tela que só uma pessoa responde (confiar numa pasta nova, revisar um hook que mudou) para o peixe até o
+  dono responder; o maestro mostra a tela, mas não responde por ele.
 
 ## Licença
 

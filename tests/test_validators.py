@@ -56,7 +56,7 @@ class TestValidatorPrompt(Case):
 
     def test_verifier_for_unknown_gate_is_denied(self):
         self.assertDenied(self.agent("tr:quality-checker", "gate: inexistente"), "não é portão de comando ou artefato")
-        self.assertDenied(self.agent("tr:quality-checker", "rode a quality"), "não é portão de comando ou artefato")
+        self.assertDenied(self.agent("tr:quality-checker", "rode a verificação"), "não é portão de comando ou artefato")
 
     def test_validator_on_dirty_tree_is_denied(self):
         (self.repo / "b.py").write_text("y\n")
@@ -82,10 +82,13 @@ class TestRoleModel(Case):
 
     def test_executor_model_from_ticket(self):
         self.ticket("simple")
-        out = self.agent("general-purpose", "Implemente docs/specs/a/issues/01-x.md com tdd", model="opus")
+        job = dict(isolation="worktree", run_in_background=True)  # quem dispara executor com ticket segue as regras
+        out = self.agent("general-purpose", "Implemente docs/specs/a/issues/01-x.md com tdd", model="opus", **job)
         self.assertEqual(out["updatedInput"]["model"], "haiku")
+        import tasks
+        tasks.finish_executor(str(self.repo), "docs/specs/a/issues/01-x.md")  # o executor voltou
         self.ticket("complex")
-        self.assertEqual(self.agent("general-purpose", "ticket: docs/specs/a/issues/01-x.md")["updatedInput"]["model"],
+        self.assertEqual(self.agent("general-purpose", "ticket: docs/specs/a/issues/01-x.md", **job)["updatedInput"]["model"],
                          "sonnet")
 
     def test_without_ticket_only_opus_is_replaced(self):

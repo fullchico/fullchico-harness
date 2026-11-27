@@ -67,7 +67,8 @@ def owner_canonical(words):
 
 
 def _approvals(root):
-    return os.path.join(ledger.state_dir(root), "owner-approvals.json")
+    import tasks
+    return tasks.coordination(root, "owner-approvals.json")  # a aprovação vale para a demanda em que foi dada
 
 
 def _load_approvals(root):
@@ -100,7 +101,9 @@ def owner_question(canonical):
 
 
 def owner_from_question(text):
-    m = re.fullmatch(r"Você aprova, como dono, `([^`]+)`\?", (text or "").strip())
+    # a pergunta canônica na primeira linha; uma explicação abaixo dela não muda o que o dono aprovou
+    first = ((text or "").strip().splitlines() or [""])[0].strip()
+    m = re.match(r"Você aprova, como dono, `([^`]+)`\?(\s|$)", first)
     return m.group(1) if m else None
 
 
@@ -348,6 +351,8 @@ def carried(root, name, gate):
     found = [e for e in certs.entries(root, doc) if e["name"] == name]
     if not found or found[-1]["verdict"] != "APPROVED" or found[-1]["by"] != responsible(gate):
         return False
+    if not certs.signed(root, doc, found[-1]):
+        return False  # a linha tem de estar no commit do responsável: histórico reescrito apaga a assinatura
     sha = certs.commit_of(root, doc, found[-1])
     if not sha or certs.criterion_at(root, sha) != certs.criterion(root):
         return False
@@ -474,6 +479,10 @@ _COMPLEXITY = re.compile(r"(?mi)^\s*complexity:\s*(\w+)")
 
 def ticket_model(root, prompt):
     """`haiku` ou `sonnet` pela linha `Complexity:` do primeiro `.md` do repositório citado no pedido."""
+    import tasks
+    chosen = tasks.run_model(root, "executors")  # a escolha da partida vale para a demanda inteira
+    if chosen and chosen[0] == "claude" and any(relative(root, ref) for ref in _MD.findall(prompt or "")):
+        return chosen[1]
     for ref in _MD.findall(prompt or ""):
         rel = relative(root, ref)
         if not rel:

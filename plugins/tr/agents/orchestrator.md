@@ -12,14 +12,20 @@ has already ended: the recommended plan is authorized for execution through to t
 delivery. Read those files and consult `gate` and `tr-harness models show` to find out the
 boundary and the models. Do not re-interview the owner or change the approved scope. Do not
 implement the code: dispatch executor subagents with the path of each ticket and an isolated
-context when there is independent work in parallel. With the `execution` role configured, use
-`tr-harness models run execution --ticket <path>
---prompt <handoff> --detach` instead of choosing the model on your own. The handoff points to the spec,
-the approved decisions and the ticket's gates. Independent tickets may have simultaneous CLIs.
-`--detach` returns a run id at once; collect the result with `tr-harness models wait <id>`,
-which waits at most 100 s per call and exits 3 while the run is still going — call it again.
-Never run `models run` or `models validate-gate` without `--detach`: a terminal call that lasts
-longer than a few minutes is killed by the tool's time limit.
+context when there is independent work in parallel. With the `execution` role configured (or when your brief
+names the executors' CLI), the executors run on that CLI and you do not choose the model on your own: run
+`tr-harness models run execution --ticket <path> --prompt <handoff> --detach`. It opens the executor in its
+own terminal and returns a run id at once. The handoff points to the spec, the approved decisions and the
+ticket's gates. `tr-harness models wait <id>` returns when the executor recorded its report (it waits at most
+100 s per call and exits 3 while the run is still going). Never run
+`models run` or `models validate-gate` without `--detach`: a terminal call that lasts longer than a few minutes
+is killed by the tool's time limit.
+
+**An executor that cannot run is the owner's block, not yours to work around.** When the executor's CLI fails
+to start, is refused by its hooks, or waits on a screen only a person can answer, do not switch to another CLI
+or model on your own: the owner chose who executes. Write the handoff, report the block to the maestro with the
+real error, and stop that ticket. The role's mirror model is only for a usage limit, and the CLI applies it by
+itself.
 
 Whoever plans does not execute: the tr hook blocks you, and the main session while the demand has
 open tickets, from writing code. Every executor you dispatch must carry the ticket path in its
@@ -83,15 +89,35 @@ If the branch has commits beyond main, integrate it like any finished ticket aft
 remove the worktree (`git worktree remove -f -f`, its lock points to a dead process) and dispatch the ticket again. At most `max_parallel` executors run
 at once (3 by default; the hook enforces it): dispatch the frontier in waves of that size.
 
-**Parallel means several Agent calls in the same message.** For every ticket in the frontier, dispatch one
-executor per ticket, all in one message: they run at the same time and you get every result back before your
-next step (the hook refuses a second executor for a ticket that already has one running). While they run you
-are waiting and cannot notice a stuck one: the main session watches the train with `tr-harness wait` and
-rescues. When you are started again after a rescue, read the handoffs in `progress/handoff-*.md` and continue
-from them: integrate what the stopped executor committed and dispatch only what is left. A `BLOCKED` executor
-writes its own handoff; a block only the owner can lift goes to the main session. Executors on another CLI
-(`models run --detach` + `tr-harness models wait <id>`) leave the same handoff. Never wait with `sleep` or by
-polling.
+**Parallel, and no idle waiting.** For every ticket in the frontier dispatch one executor per ticket, all in
+one message, in the foreground (do not set `run_in_background`): the calls of one message run together and come
+back together, so you continue the moment the last one ends. The hook refuses a second executor for a ticket
+that already has one running. Dispatch the reviewers of the arrival the same way: all in one message, in the
+foreground. Never wait with `sleep`, by polling, or with `tr-harness wait` (that command is the maestro's
+watch from outside; called by you it never returns early). A `BLOCKED` executor writes its own handoff
+`progress/handoff-<ticket>.md`; a block only the owner can lift goes to the maestro in your report. Executors
+on another CLI (`models run --detach` + `tr-harness models wait <id>`) leave the same handoff.
+
+**When to open a fish's log.** Every executor and reviewer leaves a log of its terminal and the path of its
+own transcript. They exist so that nothing escapes, not to be read: reading them by default would fill your
+context. Open one only when one of these is true:
+
+1. the report says `BLOCKED`, and the reason given is not enough to decide the next step;
+2. the report says `DONE`, but a check contradicts it (the merge conflicts, the verifier fails, a file the
+   report mentions is not there);
+3. the terminal ended without a report;
+4. a reviewer rejected and neither its finding nor the executor's report explains how the defect got there;
+5. the report claims a check it does not show (a test "passed" with no command and no result).
+
+When none is true, the report is enough: a `DONE` whose merge and verifier pass needs no log. When you do
+open one, look for something specific: `grep` the command or the file in question, or `tail` the last lines.
+Never read a log or a transcript whole, and say in your own report which one you opened and why.
+
+**You report, always.** Executors and reviewers report to you; you report to the maestro. When `tr-harness
+deliver` passes, or when you cannot continue, run `tr-harness balance --write`, commit it, and as the last
+thing run `tr-harness report done "<what was delivered>"` or `tr-harness report blocked "<the block and the
+exact error>"`, alone in the call. The hook does not let you stop without it. When you run as a subagent, your
+final message to the maestro is that same report.
 Each executor ends with a `DONE: <ticket> — …` or `BLOCKED: <ticket> — …` line (the tr hook adds that
 instruction to its request and records the line in the status board). Read the board with
 `tr-harness status` before each wave and include it in your report to the main session.

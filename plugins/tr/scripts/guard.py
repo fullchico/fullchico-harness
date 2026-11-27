@@ -114,11 +114,14 @@ def dispatch(root, reg, ti, caller=None):
             return deny(root, f"ticket fora da fronteira: {kind_name}", panel("execução barrada", [
                 ("motivo", blocked),
             ], ["  → confira `gate` para ver a fronteira liberada"]))
-        if caller in registry.ORCHESTRATORS and kind_name not in tasks.READ_ONLY_AGENTS:
-            # Paralelo é várias chamadas de Agent na mesma mensagem, em primeiro plano: o orquestrador espera
-            # todas voltarem. Em segundo plano ele não é avisado do fim e acaba disparando o mesmo ticket de novo.
-            # O Agent de um subagente não tem `run_in_background`: o orquestrador dispara em primeiro plano, vários
-            # na mesma mensagem, e fica esperando. Quem vigia executor travado é a sessão principal (`tr-harness wait`).
+        # Quem dispara um executor com ticket segue as regras de executor: o orquestrador subagente, ou a sessão
+        # inteira aberta num terminal como orquestrador (a principal, que não tem tipo de agente).
+        # O maestro despachando o próprio orquestrador (subagente) não é um executor: ele coordena na pasta da demanda.
+        orchestrating = kind_name not in registry.ORCHESTRATORS and (
+            caller in registry.ORCHESTRATORS or (caller is None and tasks.ticket_refs(root, ti.get("prompt"))))
+        if orchestrating and kind_name not in tasks.READ_ONLY_AGENTS:
+            # O Agent de um subagente não tem `run_in_background`: ele dispara vários na mesma mensagem e espera. A
+            # sessão inteira dispara em segundo plano e vigia com `tr-harness wait`. O hook aceita os dois.
             if ti.get("isolation") != "worktree":
                 # Executores em paralelo na mesma pasta disputam package.json, lockfile e migrations.
                 return deny(root, f"executor sem worktree: {kind_name}", panel("execução barrada", [
@@ -160,6 +163,14 @@ def dispatch(root, reg, ti, caller=None):
     if kind_name == registry.CHECKER:
         m = re.search(r"(?m)^\s*gate:\s*([\w.-]+)", ti.get("prompt") or "")
         gate_name = m.group(1) if m else None
+        if gate_name is None:
+            # o pedido não trouxe a linha `gate:`; se ele cita um único portão deste verificador, é esse
+            text = " ".join(str(ti.get(k) or "") for k in ("prompt", "description"))
+            named = [g for g in validators[kind_name] if re.search(rf"(?<![\w.-]){re.escape(g)}(?![\w.-])", text)]
+            if len(named) == 1:
+                gate_name = named[0]
+                new_item["prompt"] = f"gate: {gate_name}\n" + (ti.get("prompt") or "")
+                ti = dict(ti, prompt=new_item["prompt"])
         if gate_name not in validators[kind_name]:
             return deny(root, f"verificador sem portão: {gate_name}", panel("validação barrada", [
                 ("validador", kind_name), ("motivo", f"`{gate_name}` não é portão de comando ou artefato do registro"),
@@ -210,7 +221,43 @@ GATE_TIMEOUT = 600000  # o máximo do Bash; um portão que passa disso precisa f
 
 DELTA = ("Validate the delta between the planned (the accepted spec, its tickets and the artifacts approved at "
          "the start) and the delivered, observed in the delivered state: the running product, the code and the "
-         "tests that exercise it. An artifact of the plan is the reference to compare against, never the evidence.")
+         "tests that exercise it. An artifact of the plan is the reference to compare against, never the evidence. "
+         "Evidence captured for this exact state is listed by `tr-harness evidence`; anything produced for another "
+         "state (older captures, reports, logs) is not evidence: ask for a new one instead of judging it.")
+
+
+def erases_signatures(root, command):
+    """Reescrever o histórico por cima de commits de certificado (`reset` para antes deles, `--amend`, `rebase`)
+    apaga a assinatura: o commit do responsável é a assinatura. Devolve os commits que sumiriam, ou None."""
+    import certs
+    try:
+        parts = ledger._split(ledger.strip_heredocs(command))
+    except ValueError:
+        return None
+    for words in parts:
+        while words and (words[0] in WRAPPERS or re.fullmatch(r"\w+=.*", words[0])):
+            words = words[1:]
+        if not words or os.path.basename(words[0]) != "git":
+            continue
+        args = [w for w in words[1:] if w not in ("-q", "--quiet")]
+        while args[:1] == ["-C"]:
+            args = args[2:]
+        target = None
+        if args[:1] == ["reset"] and "--" not in args:
+            refs = [a for a in args[1:] if not a.startswith("-")]
+            target = refs[0] if refs else None
+        elif args[:1] == ["rebase"]:
+            refs = [a for a in args[1:] if not a.startswith("-")]
+            target = refs[0] if refs else None
+        elif args[:1] == ["commit"] and "--amend" in args:
+            target = "HEAD~1"
+        if not target:
+            continue
+        log = registry._git(root, "log", f"{target}..HEAD", "--format=%h %s%n%b") or ""
+        lost = re.findall(rf"(?m)^([0-9a-f]{{7,}}) (.*)\n(?:.*\n)*?{certs.TRAILER}: ", log)
+        if lost:
+            return [f"{sha} {subject}" for sha, subject in lost][:4]
+    return None
 
 
 def audit_too_early(root, gates):
@@ -230,6 +277,9 @@ OWNER_FLAGS = {"--write", "--set", "--register", "--remove", "--approve", "--par
 def owner_write(command):
     """`tr-harness gates --write|--set|--register|--approve …` ou `tr-harness models configure …`, sozinho
     na chamada: o comando que grava o que é do dono. Devolve as palavras depois de `tr-harness`."""
+    # um filtro de saída no fim (`2>&1 | tail -20`) não é outro comando: só corta o que o agente lê
+    command = re.sub(r"\s+\d*>&\d+", "", command)
+    command = re.sub(r"\s*\|\s*(tail|head)(\s+-n\s*\d+|\s+-\d+)?\s*$", "", command)
     try:
         parts = ledger._split(ledger.strip_heredocs(command))
     except ValueError:
@@ -441,6 +491,15 @@ def main():
         targets_pre = bash_targets(ti["command"])
     else:
         targets_pre = []
+    own = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+    for t in targets_pre:
+        absolute = os.path.realpath(t if os.path.isabs(t) else os.path.join(payload.get("cwd") or root, t))
+        if absolute == own or absolute.startswith(own + os.sep) or \
+                (os.sep + os.path.join(".claude", "plugins", "cache") + os.sep) in absolute + os.sep:
+            # o código do trilho (e de qualquer plugin instalado) não é do agente: defeito do plugin se relata, não se remenda
+            return deny(root, f"plugin: {t}", panel("plugin protegido", [
+                ("arquivo", t), ("motivo", "o agente não altera o código dos plugins instalados (os hooks e portões saem dali)"),
+            ], ["  → relate o defeito ao dono como BLOCKER; a correção vem por uma versão do plugin"]))
     for t in targets_pre:
         rel = registry.relative(root, t)
         if rel == ".claude/harness.json":
@@ -541,6 +600,13 @@ def main():
             return deny(root, f"kill alheio: {command[:100]}", panel("processo de outro projeto", [
                 ("comando", command[:80]), ("motivo", foreign),
             ], ["  → use outra porta (a do seu ticket); só pare processos que você mesmo subiu, por `kill <pid>`"]))
+        lost = erases_signatures(root, command)
+        if lost:
+            return deny(root, f"histórico com certificado: {command[:100]}", panel("assinatura protegida", [
+                ("comando", command.strip()[:80]),
+                ("motivo", "o commit do certificado é a assinatura; reescrever o histórico por cima dele a apaga"),
+                ("sumiriam", "; ".join(lost)),
+            ], ["  → deixe os commits como estão; juntar commits é decisão do merge do PR, não da entrega"]))
         if combined_gate(command):
             return deny(root, f"gate combinado: {command[:100]}", panel("gate sozinho", [
                 ("comando", command[:80]), ("motivo", "com pipe, `&&` ou redirecionamento o portão roda mas não carimba"),

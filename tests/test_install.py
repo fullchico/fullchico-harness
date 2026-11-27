@@ -177,6 +177,16 @@ class TestInstall(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0, "sem rtk a instalação não termina bem")
         self.assertIn("o `rtk` é obrigatório", r.stdout)
 
+    def test_tmux_is_required(self):
+        self.assertEqual(self.install("--target", "claude").returncode, 0)
+        (self.bin / "tmux").unlink()
+        system = os.pathsep.join(d for d in os.environ["PATH"].split(os.pathsep)
+                                 if not os.path.exists(os.path.join(d, "tmux")))
+        r = subprocess.run([shutil.which("node"), str(ROOT / "bin/harness.js"), "install", str(self.repo), "--target", "claude"],
+                           capture_output=True, text=True, env=dict(os.environ, PATH=f"{self.bin}:{system}"))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("o tmux é obrigatório", r.stdout)
+
     def test_running_it_twice_does_not_duplicate_the_rtk_hook(self):
         self.install()
         self.install()

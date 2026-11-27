@@ -283,9 +283,19 @@ READ_ONLY_AGENTS = {"Explore", "Plan", "claude-code-guide"}
 IN_FLIGHT_TTL = 4 * 3600  # um executor que não voltou em 4 h não segura mais o ticket
 
 
-def _in_flight_path(root):
+def coordination(root, name):
+    """O arquivo de coordenação `name` desta demanda. O estado é do repositório (todos os worktrees o enxergam,
+    inclusive os dos executores), mas cada demanda tem o seu trem: vagas, quadro, orquestrador e aprovações
+    ficam numa pasta por demanda, para dois trens rodarem ao mesmo tempo sem um apagar o outro."""
+    import certs
     import ledger
-    return os.path.join(ledger.state_dir(root), "in-flight.json")
+    slug = re.sub(r"[^\w.-]", "_", certs.demand(root) or "")
+    base = ledger.state_dir(root)
+    return os.path.join(base, "demands", slug, name) if slug else os.path.join(base, name)
+
+
+def _in_flight_path(root):
+    return coordination(root, "in-flight.json")
 
 
 PENDING_TTL = 90  # disparo que não abriu subagente nesse tempo foi negado depois do guard (classificador, outro hook)
@@ -386,8 +396,7 @@ def wait(root, seconds=540, stale=STALE_WAIT):
 
 
 def _board_path(root):
-    import ledger
-    return os.path.join(ledger.state_dir(root), "board.json")
+    return coordination(root, "board.json")
 
 
 BOARD_AGENT_TTL = 2 * 3600  # subagente sem atividade há mais que isso já acabou (sessão encerrada)
@@ -606,3 +615,54 @@ def dispatch_problem(root, reg, prompt, caller=None, kind=None):
                 return plan_problem
             return f"{path}: ticket fora da fronteira; conclua e carimbe os bloqueadores antes de executar"
     return None
+
+
+def run_choice(root, new=None):
+    """Os modelos escolhidos para esta demanda na partida (`tr-harness orchestrate --executors/--reviewers`).
+    Valem para o trem, não para o projeto: ficam no estado da demanda, fora do registro versionado."""
+    import json
+    path = coordination(root, "run.json")
+    if new is not None:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as stream:
+            json.dump({k: v for k, v in new.items() if v}, stream)
+        return new
+    try:
+        with open(path, encoding="utf-8") as stream:
+            data = json.load(stream)
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def run_models(root, role):
+    """[(cli, modelo)] escolhidos para `executors` ou `reviewers` nesta demanda (um, ou vários separados por vírgula)."""
+    found = []
+    for value in (run_choice(root).get(role) or "").split(","):
+        cli, _, model = value.strip().partition(":")
+        if cli in ("claude", "codex") and model:
+            found.append((cli, model))
+    return found
+
+
+def run_model(root, role):
+    """`(cli, modelo)` escolhido para `executors` ou `reviewers` nesta demanda, ou None (o primeiro, se há vários)."""
+    return (run_models(root, role) or [None])[0]
+
+
+def next_executor(root):
+    """Com vários modelos de executor na demanda, cada despacho pega o seguinte, em rodízio."""
+    import json
+    models = run_models(root, "executors")
+    if len(models) < 2:
+        return models[0] if models else None
+    path = coordination(root, "executor-turn.json")
+    try:
+        with open(path, encoding="utf-8") as stream:
+            turn = int(json.load(stream))
+    except (OSError, ValueError, TypeError):
+        turn = 0
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as stream:
+        json.dump(turn + 1, stream)
+    return models[turn % len(models)]

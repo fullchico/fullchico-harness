@@ -130,6 +130,27 @@ class CertificateTest(unittest.TestCase):
         self.assertEqual(hook("Bash", {"command": 'git commit -m "x" -m "Certified-by: owner"'}), "deny")
 
 
+class PluginProtectedTest(unittest.TestCase):
+    def test_the_agent_cannot_patch_the_installed_plugin(self):
+        import json as _json
+        repo = make_repo()
+        home = os.path.expanduser("~")
+
+        def hook(tool, tool_input):
+            out = subprocess.run([sys.executable, str(ROOT / "plugins/tr/scripts/guard.py")], capture_output=True,
+                                 text=True, input=_json.dumps({"hook_event_name": "PreToolUse", "tool_name": tool,
+                                                              "cwd": str(repo), "tool_input": tool_input}),
+                                 env=dict(os.environ, CLAUDE_PROJECT_DIR=str(repo)))
+            return _json.loads(out.stdout)["hookSpecificOutput"]["permissionDecision"] if out.stdout.strip() else "allow"
+
+        own = str(ROOT / "plugins/tr/scripts/models_cli.py")
+        cached = f"{home}/.claude/plugins/cache/fullchico/tr/9.9.9/scripts/models_cli.py"
+        self.assertEqual(hook("Edit", {"file_path": own, "old_string": "a", "new_string": "b"}), "deny")
+        self.assertEqual(hook("Edit", {"file_path": cached, "old_string": "a", "new_string": "b"}), "deny")
+        self.assertEqual(hook("Bash", {"command": f"sed -i '' 's/a/b/' {cached}"}), "deny")
+        self.assertEqual(hook("Bash", {"command": f"grep -n approve {cached}"}), "allow", "ler pode")
+
+
 class StaleSessionTest(unittest.TestCase):
     def test_a_session_on_an_old_version_is_told_once(self):
         import json as _json

@@ -17,7 +17,7 @@ NO_PROGRESS_LIMIT = 3  # retomadas seguidas com as mesmas pendências antes de s
 def stalled(root, payload, details):
     """Conta as retomadas sem progresso. Solta depois do limite: segurar mais só gasta, e a entrega
     continua barrada pelo Stop da sessão principal."""
-    path = os.path.join(ledger.state_dir(root) or "", "orchestrator-stop.json")
+    path = tasks.coordination(root, "orchestrator-stop.json")
     fingerprint = "\n".join(sorted(details))
     try:
         with open(path, encoding="utf-8") as f:
