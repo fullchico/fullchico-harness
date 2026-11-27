@@ -5,12 +5,28 @@ description: Opens and drives a demand through to validated delivery — intervi
 
 # Plan and drive the demand
 
-You are the main session that interviews, plans and keeps the owner informed (planning model).
-After the interview's final confirmation, with the registry configured and the entry gates
-certified and the owner acceptance recorded, dispatch `tr:orchestrator` as a background subagent
-(`run_in_background: true` on Claude's Agent). In Codex, use `spawn_agent`
-with `tr-orchestrator` and stay available for messages from the owner. Do not drive each ticket
-in the main session. The orchestrator dispatches executors and reviewers as its own subagents; the
+## The maestro, the orchestrator and the trains
+
+- **You are the maestro, the elephant.** You talk to the owner, close the definition and keep what was
+  delivered. You may look at the status of anything and interfere, but you always delegate: you never write the
+  code and never run a validation yourself. You answer for the request, not for the code or its validation.
+- **The orchestrator is a goldfish.** It is another full session, opened in its own terminal for this demand
+  with the models chosen for it, and dismantled when the demand closes. It knows what is happening in the trip.
+  Executors and reviewers are goldfish too, and they report to the orchestrator; the orchestrator reports to
+  you. When the owner asks about the demand, ask the orchestrator (`tr-harness orchestrate --read`); only if it
+  does not know, look at an executor directly.
+- **One demand, one folder.** A demand travels in the folder where it was planned. A second demand while the
+  first travels goes in a child worktree: `tr-harness demand open <slug>`, alone in the call, creates it with
+  Git next to this folder, born from this folder's branch (`--base <ref>` for another base); it comes back to
+  its parent by merge. Enter it with `EnterWorktree` (`path`) to plan, accept and start it, then return with
+  `ExitWorktree` (`action: keep`). From here you watch any train with `tr-harness demand list` and
+  `tr-harness --demand <slug> status | orchestrate --wait|--status|--read|--stop`.
+
+You are the main session, the **maestro**: you interview, plan and keep the owner informed (planning model).
+After the interview's final confirmation, with the registry configured, the entry gates certified and the
+owner acceptance recorded, hand the demand to the orchestrator with `tr-harness orchestrate` (section 5): it
+opens as its own session in its own terminal, and you stay free for the owner. Do not drive each ticket in the
+main session. The orchestrator dispatches executors and reviewers as its own subagents; the
 tr hook picks their model from the ticket's `Complexity:` (`simple` → haiku, `complex` →
 sonnet). The ones who validate are the gate validators, in a clean context. The middle belongs to the orchestrator; the start and the end
 are blocked by a hook until the steps happen.
@@ -99,7 +115,11 @@ On top of `to-spec`'s sections, the spec carries:
   start services or create credentials, so what is not asked here stops the delivery at the end. Derive the
   list, do not guess it: for each gate this demand requires, read its verifier (the registered command, or the
   instructions of its reviewer agent) and write down what that verifier needs to run. "None" is only a valid
-  answer after that reading. List each one with the check that proves it is ready.
+  answer after that reading. List each one with the check that proves it is ready. When a role runs on another
+CLI (`tr-harness models show`), that CLI's trust in this checkout's hooks is one of them: the owner opens it once
+in this folder and trusts the project hooks, or its runs do not count.
+  Check what can be checked before boarding instead of trusting the list: `tr-harness ports` shows whether this
+  checkout's environment is listening. A prerequisite that is not ready goes back to the owner now, not at the end.
 
 ## 3. Tickets
 
@@ -189,19 +209,49 @@ The delivery is a train with a start and an end. Boarding is section 4 (owner ac
 ready, start gates). After it, the orchestrator runs on its own until the arrival is certified; the owner is
 asked only in the urgent cases of section 4.
 
+**Tickets of one wave do not share a file.** Two tickets that can run at the same time (neither blocks the
+other) must not both declare the same file in `Files:`: merged in parallel they conflict there. When several
+tickets need the same registration point (a router, an index, a schema), make the base ticket own it in a way
+the others do not have to edit (loading by convention, one file per resource), or chain them with `Blocked by`.
+`tr-harness orchestrate` warns about it at boarding.
+
+**The orchestration configuration.** When the definition is closed (acceptance recorded, start gates
+certified), and before the train leaves, settle three choices for this demand with the owner, in one
+`AskUserQuestion` with your recommendation first in each: (1) the orchestrator's model, (2) the executors'
+model, (3) the reviewers' model (Claude: `opus`, `sonnet`, `haiku`; Codex: the ids in the owner's Codex
+config). They are choices of this demand, not of the project: pass them on the command and never write them
+to the registry. If the owner already said them, or told you to follow your recommendation, do not ask again.
+
+**Departure.** Run `tr-harness orchestrate --agent <claude|codex> --model <id> [--executors <cli:model>]
+[--reviewers <cli:model>] [--terminals]`, alone in the call. With `--terminals` every executor is a full
+session in its own terminal and worktree (any CLI), which you can read directly (`tmux attach -t <terminal>`);
+without it, executors of the orchestrator's own CLI are its subagents. `--executors` accepts
+several models separated by commas (`claude:haiku,codex:terra`): with `--terminals` each dispatch takes the
+next one in turn. It runs each end command gate once (the boarding check: a
+verifier that does not run is known before the trip, not at the arrival), writes the canonical brief and opens
+the orchestrator in its own terminal (tmux), in this folder, under the same rails. Then run `tr-harness
+orchestrate --wait` with `run_in_background: true` and end your turn: you are free for the owner, and you are
+woken when the orchestrator records its report. The wait also returns when the orchestrator's terminal shows a
+screen only a person can answer (show that screen to the owner and wait; do not start another one), when its
+screen stopped changing for minutes, or when its time ran out (run it again).
+
+**What comes back.** The report (`.harness-run/report.md`) carries what the orchestrator says plus the result
+of `gate delivery` and the balance, computed by the command, not by the orchestrator's word. Read it and tell
+the owner what was delivered; keep only that. Do not run the gates or re-validate yourself: the certificates
+are the proof, signed by whoever validated. If you or the owner want another check, delegate it to a reviewer
+subagent. To see what the orchestrator is doing, `tr-harness orchestrate --read`; to stop one that is stuck,
+`tr-harness orchestrate --stop`, and start another from the handoffs in `progress/`.
+
 **Trip.** The execution follows Matt's `implement-spec` model (an integration branch, one worktree per ticket,
 each ticket built with `tdd`), with the tr rails on top. Tickets with no blockers and with `Start:` certified
-are the frontier. With `execution` configured, the orchestrator uses `tr-harness models run execution
---ticket <path> --prompt <handoff> --detach` and `tr-harness models wait <id>`; otherwise it dispatches an
-implementer subagent with the ticket path in the request (the hook reads its `Complexity:` and adds the
-executor protocol: align to the demand branch, ports and database, handoff, `DONE`/`BLOCKED`). The
-orchestrator dispatches the executors of a wave together and waits for them, so it cannot notice a stuck one:
-**you, the main session, watch the train**. After dispatching the orchestrator in the background, run
-`tr-harness wait` (alone, with the Bash `timeout` at 600000) and repeat while it exits 3. Exit 0: the train
-stopped; read the orchestrator's report. Exit 4: an executor stopped using tools for minutes. Rescue it: stop
-the orchestrator (`TaskStop`), write `progress/handoff-<ticket>.md` for each stuck ticket from its worktree
-(commits made, what is left), commit the handoffs and dispatch the orchestrator again, telling it to continue
-from them. A stuck or blocked executor never loses work: the next one starts from the handoff.
+are the frontier. When the executors are on another CLI, the orchestrator uses `tr-harness models run execution
+--ticket <path> --prompt <handoff> --detach`, which opens each executor in its own terminal, and `tr-harness
+models wait <id>`; an executor that cannot run is a block for the owner, never a reason to switch CLI or model.
+Otherwise it dispatches an implementer subagent with the ticket path in the request (the hook applies the
+model chosen for the demand, or the ticket's `Complexity:`, and adds the executor protocol: align to the demand
+branch, ports and database, handoff, `DONE`/`BLOCKED`). The executors of a wave go in one message and come back
+together; a stuck or blocked executor leaves a handoff in `progress/`, and the rescue continues from it, so no
+work is lost.
 No end gate runs during the trip (the hook refuses it while tickets or adjustments are open).
 
 **Arrival.** With every ticket integrated, the orchestrator checks the branch as engineering work (`git status`,
@@ -212,6 +262,11 @@ the reference, never the evidence. Whoever executed does not approve their own w
 accepted criterion and the code, never instructions from whoever asks. Approval writes the certificate into the
 spec's appendix, committed by the hook in the reviewer's name (`Certified-by:`); nobody edits the appendix by
 hand. `tr-harness balance --write` records the arrival balance in `progress/balance.md`.
+
+**Evidence comes from the delivered state.** When a gate judges what is seen or what runs, whoever produces
+the proof (a command's output, a capture made by the skill the project uses for it) writes it to the evidence
+folder of the current state, which `tr-harness evidence` prints and creates. Proof made for another state, or a
+planning artifact, is not evidence; the reviewer asks for a new one.
 
 **Adjustment trains.** Each rejected point becomes an adjustment in `progress/adjust-NN-<slug>.md` (progress,
 not criterion: the owner's acceptance stays), dispatched like a ticket, in parallel. On their arrival, only the

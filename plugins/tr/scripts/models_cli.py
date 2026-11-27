@@ -23,7 +23,7 @@ MIRRORS = {"claude": {"opus": ("codex", "sol"), "sonnet": ("codex", "luna"),
                        "haiku": ("codex", "terra"), "fable": ("codex", "astra")},
             "codex": {"sol": ("claude", "opus"), "luna": ("claude", "sonnet"),
                       "terra": ("claude", "haiku"), "astra": ("claude", "fable")}}
-ROLES = ("planning", "execution", "review", "support")
+ROLES = ("planning", "orchestration", "execution", "review", "support")
 PATH = os.path.join(".claude", "harness.json")
 CODEX_IDS = {"sol": "gpt-6.2-sol", "luna": "gpt-6-luna",
              "terra": "gpt-6.1-terra", "astra": "gpt-6.2-astra"}
@@ -129,6 +129,9 @@ def show(root):
         if role == "support" and not value:
             print("support: não configurado (usa o espelho inicial do papel que atingiu limite)")
             continue
+        if role == "orchestration" and not value:
+            print("orchestration: não configurado (o orquestrador abre como Claude; escolha por demanda em `tr-harness orchestrate`)")
+            continue
         if not value:
             print(f"{role}: não configurado")
             continue
@@ -141,9 +144,33 @@ def show(root):
         print(f"gate:{name}: {value['cli']}:{value['model']}")
 
 
+def _codex_newest(alias):
+    """O id mais novo do Codex para um apelido (`terra` → `gpt-6.1-terra`), pela lista de modelos que o Codex desta
+    máquina conhece. Um nome é sempre um apelido para a versão mais nova; só um id com versão fixa a versão."""
+    import re
+    try:
+        with open(os.path.join(os.path.expanduser("~"), ".codex", "models_cache.json"), encoding="utf-8") as stream:
+            models = json.load(stream).get("models") or []
+    except (OSError, ValueError, AttributeError):
+        return None
+    best = None
+    for item in models:
+        slug = str((item or {}).get("slug") or "")
+        m = re.fullmatch(rf"[a-z]+-(\d+(?:\.\d+)*)-{re.escape(alias)}", slug)
+        if m and (item.get("visibility") in (None, "list")):
+            version = tuple(int(n) for n in m.group(1).split("."))
+            if best is None or version > best[0]:
+                best = (version, slug)
+    return best[1] if best else None
+
+
 def _runtime_model(choice):
     model = choice["model"]
-    return CODEX_IDS.get(model.lower(), model) if choice["cli"] == "codex" else model
+    if choice["cli"] != "codex":
+        return model  # no Claude, `haiku`/`sonnet`/`opus` já são apelidos da versão mais nova
+    if any(ch.isdigit() for ch in model):
+        return model  # o dono disse a versão: vale a que ele disse
+    return _codex_newest(model.lower()) or CODEX_IDS.get(model.lower(), model)
 
 
 def _support(config, primary):
@@ -187,15 +214,21 @@ def detach(root, argv):
     return 0
 
 
-def wait(root, run_id, timeout=100):
+def wait(root, run_id, timeout=100, more=()):
     """Espera o fim de uma execução destacada. Sai com o código dela, ou 3 se ainda está rodando."""
     import re
     import time
-    if not re.fullmatch(r"\d{8}T\d{6}Z-[0-9a-f]{8}", run_id):
-        raise ValueError(f"id de execução inválido: {run_id}")
+    ids = [run_id, *more]
+    for one in ids:
+        if not re.fullmatch(r"\d{8}T\d{6}Z-[0-9a-f]{8}", one):
+            raise ValueError(f"id de execução inválido: {one}")
+        if not os.path.isdir(os.path.join(_state_dir(root), one)):
+            raise ValueError(f"execução não encontrada: {one}")
     folder = os.path.join(_state_dir(root), run_id)
-    if not os.path.isdir(folder):
-        raise ValueError(f"execução não encontrada: {run_id}")
+    if all(os.path.isfile(os.path.join(_state_dir(root), one, "dispatch.json")) for one in ids):
+        return _terminal_wait(root, ids, timeout)
+    if more:
+        return _detached_wait(root, ids, timeout)
     deadline = time.monotonic() + timeout
     while not os.path.isfile(os.path.join(folder, "exit")):
         if time.monotonic() >= deadline:
@@ -229,8 +262,8 @@ def _invoke(root, role, choice, prompt, folder, number, agent=None):
     else:
         command = [executable, "exec", "--model", model, "--json", "-o",
                    os.path.join(folder, f"{number}-last.txt"), "-"]
-        command += ["--approve-for-me"]
-        command += ["--sandbox", "read-only" if role == "review" else "workspace-write"]
+        # O codex recusa `--approve-for-me` junto de `--sandbox`: a aprovação automática já implica workspace-write.
+        command += ["--sandbox", "read-only"] if role == "review" else ["--approve-for-me"]
     try:
         # O hook reconhece o executor externo por aqui: ele escreve código mesmo sendo a sessão principal do CLI.
         environment = dict(os.environ, FULLCHICO_ROLE=role, FULLCHICO_RUN_DIR=folder)
@@ -253,8 +286,9 @@ def _invoke(root, role, choice, prompt, folder, number, agent=None):
     if cli == "codex" and role == "execution" and status == 0 and not os.path.isfile(os.path.join(folder, "hooks-alive")):
         # Hook de projeto não revisado não roda no `codex exec`, e nada avisa: o executor teria trabalhado sem trilho.
         status = 125
-        stderr += ("\nos hooks do tr não rodaram nesta execução Codex. Abra `codex` na pasta do projeto, "
-                   "revise e confie nos hooks do projeto, e rode de novo.\n")
+        stderr += ("\nos hooks do tr não rodaram nesta execução Codex: o trabalho pode ter sido feito, mas sem trilho, e "
+                   "por isso não conta. É um passo do dono, uma vez por checkout: abra `codex` nesta pasta, escolha "
+                   "confiar nos hooks do projeto e rode de novo. Não repita a execução antes disso.\n")
     with open(output, "w", encoding="utf-8") as stream:
         stream.write(stdout)
     with open(error, "w", encoding="utf-8") as stream:
@@ -263,14 +297,19 @@ def _invoke(root, role, choice, prompt, folder, number, agent=None):
             "output": output, "erros": error, "limit": status != 0 and any(s in (stderr + stdout).lower() for s in RATE_LIMIT)}
 
 
-def _agent_instructions(root, agent):
-    """Instruções do agente do portão para uma revisão Codex em CLI separada."""
+def _agent_instructions(root, agent, cli="codex"):
+    """Instruções do agente do portão para uma revisão em CLI separada. Para o Claude vale a definição inteira
+    do agente (a do projeto, ou a do plugin); a versão resumida do Codex é só para o Codex."""
     name = agent.split(":")[-1]
     if not name or not all(c.isalnum() or c in "-_" for c in name):
         raise ValueError(f"nome de agente inválido: {agent}")
     candidates = [os.path.join(root, ".codex", "agents", agent.replace(":", "-") + ".toml"),
                   os.path.join(root, ".claude", "agents", name + ".md"),
-                  os.path.join(root, ".codex", "harness", "tr", "agents", name + ".md")]
+                  os.path.join(root, ".codex", "harness", "tr", "agents", name + ".md"),
+                  os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "agents", name + ".md")]
+    if cli == "claude":
+        candidates = [c for c in candidates if c.endswith(".md") and "/.codex/" not in c] + \
+                     [c for c in candidates if not (c.endswith(".md") and "/.codex/" not in c)]
     for path in candidates:
         if os.path.isfile(path):
             with open(path, "rb") as stream:
@@ -317,6 +356,11 @@ def validate_gate(root, name, ticket=None, request=""):
             raise ValueError("ticket deve ser um arquivo dentro do projeto")
     config = reg.get("models") or {}
     choice = (config.get("gates") or {}).get(name) or config.get("review")
+    import tasks as _tasks
+    chosen = _tasks.run_model(root, "reviewers")
+    if chosen:  # o revisor escolhido para esta demanda, na partida
+        choice = {"cli": chosen[0], "model": chosen[1]}
+    in_terminal = bool(_tasks.run_choice(root).get("terminals")) and bool(__import__("terminal").executable())
     if not isinstance(choice, dict) or choice.get("cli") not in ("claude", "codex") or not choice.get("model"):
         raise ValueError(f"configure `gate:{name}` ou `review` antes de validar por CLI")
     if choice["cli"] == "codex":
@@ -346,14 +390,19 @@ def validate_gate(root, name, ticket=None, request=""):
               "Validate the delta between the planned (the accepted spec, its tickets and the artifacts approved "
               "at the start) and the delivered, observed in the delivered state: the running product, the code "
               "and the tests that exercise it. An artifact of the plan is the reference, never the evidence. "
+              "Evidence captured for this exact state is listed by `tr-harness evidence`; anything produced for "
+              "another state is not evidence: ask for a new one instead of judging it. "
               "Answer with concrete findings and end with exactly three lines: "
               "VERDICT: APPROVED or REJECTED, COMMIT: <the expected snapshot, verbatim>, SUMMARY: <one sentence>.\n"
               + (f"Agent instructions:\n{instructions}\n" if instructions else ""))
     _, folder = _run_folder(root)
     with open(os.path.join(folder, "pedido.txt"), "w", encoding="utf-8") as stream:
         stream.write(prompt)
-    attempts = [_invoke(root, "review", choice, prompt, folder, 1,
-                        gate["agent"] if choice["cli"] == "claude" else None)]
+    if in_terminal:
+        attempts = [_review_in_terminal(root, choice, prompt, folder, name, gate["agent"])]
+    else:
+        attempts = [_invoke(root, "review", choice, prompt, folder, 1,
+                            gate["agent"] if choice["cli"] == "claude" else None)]
     if attempts[0]["limit"]:
         support = _support(config, choice)
         if support:
@@ -365,7 +414,8 @@ def validate_gate(root, name, ticket=None, request=""):
                                     "\nHandoff: o modelo anterior atingiu limite. Revise o estado atual.",
                                     folder, 2, gate["agent"] if support["cli"] == "claude" else None))
     final = attempts[-1]
-    verdict_text = _final_text(final) if final["code"] == 0 else ""
+    verdict_text = (final.get("text") if "text" in final else _final_text(final)) if final["code"] == 0 else ""
+    final.pop("text", None)
     verdict = sign.once(r"^[ \t]*VERDICT: (APPROVED|REJECTED)[ \t]*$", verdict_text)
     commit = sign.once(r"^[ \t]*COMMIT: ([0-9a-f]{40})[ \t]*$", verdict_text)
     summary = sign.once(r"^[ \t]*SUMMARY: (\S.*?)[ \t]*$", verdict_text)
@@ -392,13 +442,8 @@ def validate_gate(root, name, ticket=None, request=""):
     return 0 if manifest["stamped"] else 1
 
 
-def execute(root, role, prompt, ticket=None):
-    if role not in ROLES[:3]:
-        raise ValueError("papel deve ser planning, execution ou review")
-    config = read_file(root).get("models") or {}
-    choice = config.get(role) if isinstance(config, dict) else None
-    if not isinstance(choice, dict) or choice.get("cli") not in ("claude", "codex") or not choice.get("model"):
-        raise ValueError(f"configure o papel `{role}` antes de executar")
+def _request(root, role, prompt, ticket=None):
+    """O pedido canônico do papel: a instrução, o ticket inteiro e o handoff de quem pediu."""
     if ticket:
         import pathlib
         file = (pathlib.Path(root) / ticket).resolve()
@@ -412,7 +457,213 @@ def execute(root, role, prompt, ticket=None):
         "execution": "You are the independent executor of this ticket. Read the spec cited in the handoff and respect Start, Gates, Files and Blocked by. Use TDD when applicable, run the ticket's checks and record evidence. Do not sign your own review; hand a summary to the orchestrator.",
         "review": "You are the independent reviewer. Do not edit files. Examine code and evidence, list concrete defects and conclude with VERDICT: APPROVED or REJECTED.",
     }
-    prompt = instructions[role] + "\n\n" + prompt
+    return instructions[role] + "\n\n" + prompt
+
+
+def _choice(root, role):
+    config = read_file(root).get("models") or {}
+    choice = config.get(role) if isinstance(config, dict) else None
+    import tasks
+    chosen = tasks.next_executor(root) if role == "execution" else tasks.run_model(root, {"review": "reviewers"}.get(role, ""))
+    if chosen:  # a escolha da partida vale para a demanda inteira, sem mudar o registro
+        choice = {"cli": chosen[0], "model": chosen[1]}
+    if not isinstance(choice, dict) or choice.get("cli") not in ("claude", "codex") or not choice.get("model"):
+        raise ValueError(f"configure o papel `{role}` antes de executar")
+    return choice
+
+
+def terminal_execute(root, prompt, ticket=None):
+    """O executor abre num terminal próprio (tmux) e num worktree próprio, nascido da branch da demanda: uma
+    sessão inteira, que o orquestrador (e o maestro) lê e encerra. Devolve o id na hora; o executor avisa
+    gravando o relato dele (o hook de parada cobra), e `models wait <id>...` espera por esse arquivo."""
+    import terminal
+    choice = _choice(root, "execution")
+    text = _request(root, "execution", prompt, ticket)
+    run_id, folder = _run_folder(root)
+    short = run_id[-8:]
+    # Vagas fixas: a pasta do executor é `tr-seat-<n>`, reaproveitada entre tickets. Um CLI que pede confiança
+    # por pasta (o Codex) pergunta uma vez por vaga, não uma vez por ticket.
+    seats = os.path.join(root, ".claude", "worktrees")
+    number = next(n for n in range(1, 100) if not os.path.exists(os.path.join(seats, f"tr-seat-{n}")))
+    branch, work = f"tr-exec-{short}", os.path.join(seats, f"tr-seat-{number}")
+    subprocess.run(["git", "worktree", "prune"], cwd=root, capture_output=True)
+    made = subprocess.run(["git", "worktree", "add", "-q", "-b", branch, work, "HEAD"], cwd=root, capture_output=True, text=True)
+    if made.returncode:
+        raise ValueError(f"o Git não criou o worktree do executor: {(made.stderr or made.stdout).strip()[-200:]}")
+    report = os.path.join(work, ".harness-run", f"executor-{short}.md")
+    os.makedirs(os.path.dirname(report), exist_ok=True)
+    with open(os.path.join(os.path.dirname(report), ".gitignore"), "w", encoding="utf-8") as stream:
+        stream.write("*\n")
+    request = os.path.join(folder, "pedido.txt")
+    with open(request, "w", encoding="utf-8") as stream:
+        stream.write(text + f"\n\nYou work in your own worktree, `{work}`, on branch `{branch}`, born from the demand "
+                     "branch. " + ("Do not commit: your sandbox cannot write to `.git`, and it may refuse to listen "
+                                   "on a port. Leave the files in place; if a check needs a port, say the exact command "
+                                   "in the report and the orchestrator runs it. " if choice["cli"] == "codex" else
+                                   "Commit your work there; ") + "do not merge and do not switch branches. You report to the "
+                     f"orchestrator: as the LAST thing you do, write `{report}` with a first line DONE or BLOCKED and "
+                     "up to 8 lines of what you did, the checks you ran and what is left. Do not ask questions in "
+                     "this terminal: nobody answers them here.\n")
+    subject = os.path.basename(ticket)[:-3] if ticket and ticket.endswith(".md") else (ticket or short)
+    session = terminal.name("exec", subject, choice["model"])
+    import time
+    started = time.time()
+    terminal.open_agent(work, session, choice["cli"], _runtime_model(choice), request,
+                        {"FULLCHICO_ROLE": "execution", "FULLCHICO_RUN_DIR": folder, "TR_REPORT": report},
+                        record=os.path.join(folder, "terminal.raw.log"))
+    with open(os.path.join(folder, "dispatch.json"), "w", encoding="utf-8") as stream:
+        json.dump({"session": session, "report": report, "ticket": ticket, "branch": branch, "worktree": work,
+                   "cli": choice["cli"], "started": started}, stream)
+    print(json.dumps({"id": run_id, "status": "running", "terminal": session, "branch": branch,
+                      "wait": f"tr-harness models wait {run_id}"}, ensure_ascii=False))
+    return 0
+
+
+HUMAN_GRACE = 90  # segundos que uma tela de confiança pode ficar aberta antes de virar bloqueio do dono
+
+
+def _terminal_state(root, run_id, folder):
+    """(estado, texto): `done`/`blocked` com o relato, `human`/`dead` com o motivo, ou `running`."""
+    import time
+    import terminal
+    with open(os.path.join(folder, "dispatch.json"), encoding="utf-8") as stream:
+        dispatch = json.load(stream)
+    report = dispatch["report"] if os.path.isabs(dispatch["report"]) else os.path.join(root, dispatch["report"])
+    head = f"== {dispatch.get('ticket') or run_id} · branch `{dispatch.get('branch', '')}` · terminal `{dispatch['session']}`\n"
+    if os.path.isfile(report):
+        with open(report, encoding="utf-8") as stream:
+            text = stream.read()
+        log = os.path.join(folder, "terminal.log")
+        terminal.stop(dispatch["session"], log)  # o executor é descartável: relatou, é desmontado
+        work = f"worktree: {dispatch['worktree']}\n" if dispatch.get("worktree") else ""
+        record = terminal.transcript(dispatch.get("cli", "claude"), dispatch.get("worktree") or root, dispatch.get("started", 0))
+        trail = f"log: {log}\n" + (f"transcript: {record}\n" if record else "")
+        return ("done" if text.lstrip().upper().startswith("DONE") else "blocked"), head + work + trail + text
+    if not terminal.alive(dispatch["session"]):
+        return "dead", head + "encerrou sem gravar o relato"
+    try:
+        screen = terminal.read(dispatch["session"])
+        if terminal.settle(dispatch["session"], screen):
+            return "running", head
+        human = terminal.waiting_on_human(screen)
+    except terminal.Unavailable:
+        return "dead", head + "encerrou sem gravar o relato"
+    if not human:
+        return "running", head
+    # o dono pode estar olhando e responder em seguida: só vira bloqueio se a tela ficar parada
+    mark = os.path.join(folder, "human-since")
+    if not os.path.exists(mark):
+        open(mark, "w").close()
+    if time.time() - os.path.getmtime(mark) < HUMAN_GRACE:
+        return "running", head
+    return "human", head + "espera uma resposta que só o dono dá:\n" + human
+
+
+def _detached_wait(root, run_ids, timeout):
+    """Espera vários processos destacados (os revisores) de uma vez: volta quando todos saíram."""
+    import time
+    deadline = time.monotonic() + timeout
+    def done(one):
+        return os.path.isfile(os.path.join(_state_dir(root), one, "exit"))
+    while not all(done(one) for one in run_ids):
+        if time.monotonic() >= deadline:
+            print(json.dumps({"status": "running", "running": [r for r in run_ids if not done(r)],
+                              "wait": "tr-harness models wait " + " ".join(run_ids)}, ensure_ascii=False))
+            return 3
+        time.sleep(1)
+    worst = 0
+    for one in run_ids:
+        base = os.path.join(_state_dir(root), one)
+        with open(os.path.join(base, "exit"), encoding="utf-8") as stream:
+            worst = max(worst, int(stream.read().strip() or 1))
+        for name, out in (("result.out", sys.stdout), ("result.err", sys.stderr)):
+            with open(os.path.join(base, name), encoding="utf-8") as stream:
+                out.write(stream.read())
+    return worst
+
+
+def _review_in_terminal(root, choice, prompt, folder, gate_name, agent):
+    """O revisor do portão abre num terminal próprio; o veredito volta num arquivo, e quem assina é este comando."""
+    import time
+    import terminal
+    report = os.path.join(root, ".harness-run", f"review-{gate_name}-{os.path.basename(folder)[-8:]}.md")
+    os.makedirs(os.path.dirname(report), exist_ok=True)
+    ignore = os.path.join(os.path.dirname(report), ".gitignore")
+    if not os.path.exists(ignore):
+        with open(ignore, "w", encoding="utf-8") as stream:
+            stream.write("*\n")
+    try:
+        instructions = _agent_instructions(root, agent, choice["cli"])
+    except ValueError:
+        instructions = ""
+    request = os.path.join(folder, "pedido-terminal.txt")
+    with open(request, "w", encoding="utf-8") as stream:
+        base = prompt.split("Agent instructions:\n")[0]
+        stream.write(base + (f"Agent instructions (follow them in full: they say how deep this review goes):\n{instructions}\n" if instructions else "")
+                     + f"\nYou are in your own terminal; nobody answers questions here. You do not edit the project. As "
+                     f"the LAST thing you do, write your whole answer, ending with the three lines (VERDICT, COMMIT, "
+                     f"SUMMARY), to `{report}` (a folder ignored by git, outside the content you are judging).\n")
+    session = terminal.name("rev", gate_name, choice["model"])
+    terminal.open_agent(root, session, choice["cli"], _runtime_model(choice), request, {"TR_ROLE": "reviewer", "TR_REPORT": report},
+                        record=os.path.join(folder, "terminal.raw.log"))
+    deadline, since = time.monotonic() + 1500, None
+    while not os.path.isfile(report):
+        if not terminal.alive(session) or time.monotonic() >= deadline:
+            break
+        try:
+            screen = terminal.read(session)
+            human = None if terminal.settle(session, screen) else terminal.waiting_on_human(screen)
+        except terminal.Unavailable:
+            break
+        since = (since or time.monotonic()) if human else None
+        if since and time.monotonic() - since > HUMAN_GRACE:
+            break
+        time.sleep(1)
+    text = ""
+    if os.path.isfile(report):
+        with open(report, encoding="utf-8") as stream:
+            text = stream.read()
+        os.remove(report)  # o veredito já foi lido; o arquivo não fica na pasta do projeto
+    log = os.path.join(folder, "terminal.log")
+    terminal.stop(session, log)
+    output = os.path.join(folder, "1-terminal-review.out")
+    with open(output, "w", encoding="utf-8") as stream:
+        stream.write(text)
+    return {"cli": choice["cli"], "model": choice["model"], "model_id": _runtime_model(choice), "code": 0 if text else 1,
+            "output": output, "erros": log, "limit": False, "terminal": session, "text": text}
+
+
+def _terminal_wait(root, run_ids, timeout):
+    """Espera vários executores de uma vez: volta quando todos relataram, ou quando um precisa de gente."""
+    import time
+    deadline, states = time.monotonic() + timeout, {}
+    while True:
+        for run_id in run_ids:
+            if states.get(run_id, ("running",))[0] == "running":
+                states[run_id] = _terminal_state(root, run_id, os.path.join(_state_dir(root), run_id))
+        kinds = [states[r][0] for r in run_ids]
+        if all(k in ("done", "blocked") for k in kinds) or any(k in ("dead", "human") for k in kinds):
+            break
+        if time.monotonic() >= deadline:
+            print(json.dumps({"status": "running", "running": [r for r in run_ids if states[r][0] == "running"],
+                              "wait": "tr-harness models wait " + " ".join(run_ids)}, ensure_ascii=False))
+            return 3
+        time.sleep(1)
+    for run_id in run_ids:
+        print(states[run_id][1].rstrip() + "\n")
+    if any(k in ("dead", "human") for k in kinds):
+        print("Um executor não consegue seguir: é bloqueio do dono. Reporte ao maestro; não troque de executor por "
+              "conta própria.", file=sys.stderr)
+        return 1
+    return 0 if all(k == "done" for k in kinds) else 1
+
+
+def execute(root, role, prompt, ticket=None):
+    if role not in ("planning", "execution", "review"):
+        raise ValueError("papel deve ser planning, execution ou review")
+    config = read_file(root).get("models") or {}
+    choice = _choice(root, role)
+    prompt = _request(root, role, prompt, ticket)
     run_id, folder = _run_folder(root)
     with open(os.path.join(folder, "pedido.txt"), "w", encoding="utf-8") as stream:
         stream.write(prompt)
@@ -450,6 +701,20 @@ def main(argv):
         print(f"projeto não encontrado: {root}", file=sys.stderr)
         return 2
     if argv[0] in ("run", "validate-gate") and "--detach" in args:
+        if argv[0] == "run" and args and args[0] == "execution":
+            import terminal
+            rest = [a for a in args[1:] if a != "--detach"]
+            given = dict(zip(rest[::2], rest[1::2]))
+            if terminal.executable() and set(given) <= {"--prompt", "--ticket"} and len(rest) % 2 == 0:
+                try:
+                    return terminal_execute(root, given.get("--prompt", ""), given.get("--ticket"))
+                except terminal.Unavailable as error:
+                    print(f"o executor não abriu: {error}. É bloqueio do dono: reporte ao maestro; não troque de "
+                          "executor por conta própria.", file=sys.stderr)
+                    return 1
+                except ValueError as error:
+                    print(error, file=sys.stderr)
+                    return 2
         try:
             return detach(root, [argv[0]] + [a for a in args if a != "--detach"])
         except ValueError as error:
@@ -460,11 +725,13 @@ def main(argv):
             if not args:
                 raise ValueError("informe o id da execução")
             timeout = 100
-            if len(args) == 3 and args[1] == "--timeout" and args[2].isdigit():
-                timeout = int(args[2])
-            elif len(args) != 1:
-                raise ValueError("use: wait <id> [--timeout <segundos>]")
-            return wait(root, args[0], timeout)
+            if "--timeout" in args:
+                at = args.index("--timeout")
+                if at + 1 >= len(args) or not args[at + 1].isdigit():
+                    raise ValueError("use: wait <id> [<id>...] [--timeout <segundos>]")
+                timeout = int(args[at + 1])
+                del args[at:at + 2]
+            return wait(root, args[0], timeout, args[1:])
         if argv[0] == "configure":
             configure(root, args)
         elif argv[0] == "show":

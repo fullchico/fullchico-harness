@@ -74,13 +74,15 @@ class ModelsCliTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as bin_dir:
             fake = pathlib.Path(bin_dir) / "codex"
             fake.write_text("#!/bin/sh\n" +
-                            "approved=no\n" +
+                            "approved=no; sandbox=no\n" +
                             "while [ \"$#\" -gt 0 ]; do\n" +
                             "  if [ \"$1\" = --approve-for-me ]; then approved=yes; fi\n" +
+                            "  if [ \"$1\" = --sandbox ]; then sandbox=$2; fi\n" +
                             "  if [ \"$1\" = -o ]; then shift; output=$1; fi\n" +
                             "  shift\n" +
                             "done\n" +
-                            "[ \"$approved\" = yes ] || exit 9\n" +
+                            "# o codex recusa as duas flags juntas; o revisor roda só leitura\n" +
+                            "[ \"$approved\" = no ] && [ \"$sandbox\" = read-only ] || exit 9\n" +
                             "cat >/dev/null\n" +
                             f"printf 'VERDICT: APPROVED\\nCOMMIT: {snapshot}\\nSUMMARY: sem falhas\\n' > \"$output\"\n")
             fake.chmod(0o755)
@@ -190,7 +192,8 @@ class ModelsCliTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as bin_dir:
             fake = pathlib.Path(bin_dir) / "codex"
             fake.write_text("#!/bin/sh\n" +
-                            "case \" $* \" in *' --sandbox workspace-write '*);; *) exit 7;; esac\n" +
+                            "# o codex recusa --sandbox junto de --approve-for-me (que já implica workspace-write)\n" +
+                            "case \" $* \" in *' --sandbox '*) exit 7;; esac\n" +
                             "case \" $* \" in *' --approve-for-me '*);; *) exit 8;; esac\n" +
                             "cat > prompt.txt\n" +
                             "grep -q 'request escalation' prompt.txt || exit 9\n" +
@@ -224,7 +227,10 @@ class ModelsCliTest(unittest.TestCase):
             fake = pathlib.Path(bin_dir) / "claude"
             fake.write_text("#!/bin/sh\nsleep 2\necho '{\"result\":\"feito\"}'\n")
             fake.chmod(0o755)
-            env = dict(os.environ, PATH=bin_dir + os.pathsep + os.environ.get("PATH", ""))
+            # sem tmux nesta máquina, o executor destacado roda no processo próprio (sem terminal)
+            system = os.pathsep.join(d for d in os.environ.get("PATH", "").split(os.pathsep)
+                                     if not os.path.exists(os.path.join(d, "tmux")))
+            env = dict(os.environ, PATH=bin_dir + os.pathsep + system)
             started = self.run_cli(repo, "run", "execution", "--prompt", "Some", "--detach", env=env)
             self.assertEqual(started.returncode, 0, started.stderr)
             run_id = json.loads(started.stdout)["id"]

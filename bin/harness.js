@@ -146,6 +146,7 @@ if (command === "install-codex") {
     ["claude-plugins-official", "anthropics/claude-plugins-official", "mattpocock-skills"],
   ]);
   if (!addRtkHook(project)) status = status || 1;
+  if (!requireTmux()) status = status || 1;
   writeFlowInstructions(project);
   writeLocalModels(project);
   // Instalar ferramentas não decide os portões do projeto. Só --default, pedido explícito do dono,
@@ -473,6 +474,16 @@ function writeFlowInstructions(project) {
 // O rtk comprime a saída dos comandos e economiza token. É obrigatório: sem ele a instalação termina com erro
 // e diz como instalar. Não é plugin, é um programa da máquina; o hook do projeto confere se ele existe para o
 // clone ainda sem rtk não quebrar a sessão, e a instalação desse clone cobra o rtk de novo.
+// O tmux é obrigatório: é nele que o maestro abre o orquestrador (e os executores em outro CLI), cada um num
+// terminal próprio que ele lê e encerra. É um programa da máquina, de código aberto.
+function requireTmux() {
+  if (spawnSync("sh", ["-c", "command -v tmux"]).status !== 0) {
+    console.log("\nErro: o tmux é obrigatório e não está no PATH desta máquina. Instale (`brew install tmux`, ou o pacote `tmux` do sistema) e rode o install de novo.");
+    return false;
+  }
+  return true;
+}
+
 function addRtkHook(project) {
   const file = path.join(project, ".claude", "settings.json");
   let data = {};

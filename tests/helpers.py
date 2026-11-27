@@ -103,6 +103,9 @@ def fake_rtk(folder):
     path = pathlib.Path(folder) / "rtk"
     path.write_text("#!/bin/sh\nexit 0\n")
     path.chmod(path.stat().st_mode | stat.S_IEXEC)
+    tmux = pathlib.Path(folder) / "tmux"  # o tmux é obrigatório; o fake registra as chamadas e nunca tem sessão viva
+    tmux.write_text(f'#!/bin/sh\necho "$*" >> "{folder}/tmux-calls"\ncase "$1" in has-session) exit 1;; esac\nexit 0\n')
+    tmux.chmod(tmux.stat().st_mode | stat.S_IEXEC)
     return folder
 
 

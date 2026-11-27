@@ -211,6 +211,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
   <nav aria-label="Seções">
     <a href="#conceitos">Conceitos</a>
     <a href="#fluxo">Fluxo</a>
+    <a href="#maestro">Maestro</a>
     <a href="#trilhos">Trilhos</a>
     <a href="#plugins">Plugins</a>
     <a href="#core">Core e ferramentas</a>
@@ -296,6 +297,21 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
     </div>
   </section>
 
+  <section id="maestro" class="wash">
+    <div class="wrap">
+      <h2>O elefante, o tubarão e os peixes</h2>
+      <p class="intro">O maestro é o elefante: conversa com você, fecha a definição e guarda o que foi entregue. O orquestrador é o tubarão: coordena a demanda e confere o que volta. Os executores e revisores são os peixes: cada um num terminal próprio, com o contexto só dele, desmontado ao relatar.</p>
+      <figure class="art"><img src="img/maestro-tubarao-peixes.png" width="1536" height="1024" loading="lazy" alt="O elefante maquinista conduz a locomotiva; o tubarão fiscal confere a lista na plataforma; os peixes correm cada um no seu trenzinho."><figcaption>O nome de cada terminal diz o papel, o ticket e o modelo: <code>tmux ls</code> vira o painel da demanda.</figcaption></figure>
+      <h3 class="sub">Modelos por demanda</h3>
+      <p>Quando a definição fecha, você escolhe o modelo do orquestrador, o dos executores e o dos revisores para aquela demanda. Vários modelos de executor se revezam. O nome do modelo é um apelido para a versão mais nova.</p>
+      <div class="cmd" style="margin-top:2rem"><code id="c9">tr-harness orchestrate --agent claude --model opus --executors claude:haiku,codex:terra --reviewers claude:sonnet --terminals</code><button type="button" data-copy="c9">Copiar</button></div>
+      <h3 class="sub">O peixe só leva o que é do projeto</h3>
+      <p>Skills, instruções, hooks e conectores registrados no projeto chegam a todo peixe; o ambiente do seu usuário não entra. O aviso de que um peixe terminou é um relato em arquivo, cobrado pelo hook, e cada terminal é gravado desde a abertura.</p>
+      <h3 class="sub">O trilho é limite, não procedimento</h3>
+      <p>A garantia mora nos portões: os critérios são levantados na partida e validados na chegada. No caminho, o peixe é livre dentro do ticket.</p>
+    </div>
+  </section>
+
   <section id="trilhos">
     <div class="wrap">
       <h2>Uma locomotiva para cada trabalho independente</h2>
@@ -304,7 +320,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <h3 class="sub">Conferência antes de declarar a entrega</h3>
       <p>O executor produz o trabalho; outro agente examina a evidência. Se faltar um carimbo ou a revisão reprovar, a tarefa volta para correção e passa de novo pelo portão. A aprovação é automática por padrão. O projeto pode exigir uma assinatura humana para um portão final.</p>
       <div class="cmd" style="margin-top:2rem"><code id="c2">fullchico-harness models configure</code><button type="button" data-copy="c2">Copiar</button></div>
-      <p class="note" style="margin-top:0.8rem">Escolha quem planeja, quem executa, quem revisa e o modelo de apoio para erro de limite. A configuração vale para o projeto.</p>
+      <p class="note" style="margin-top:0.8rem">Registre os modelos padrão do projeto. A escolha de cada demanda (orquestrador, executores e revisores) vai no comando de partida e não muda o registro.</p>
     </div>
   </section>
 
@@ -347,7 +363,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
     <div class="wrap">
       <h2>Instalar</h2>
       <h3 class="sub">Tudo</h3>
-      <p>O <code>install</code> pergunta se o projeto usa Claude Code, Codex ou ambos; a opção padrão é ambos. Ele liga os plugins <code>tr</code> e <code>memory</code> no projeto e instala as skills de Ponytail e Matt Pocock para o ambiente escolhido.</p>
+      <p>A máquina precisa de Git, Node 18+, Python 3, <strong>tmux</strong> e <strong>rtk</strong>; o instalador cobra os dois últimos. O <code>install</code> pergunta se o projeto usa Claude Code, Codex ou ambos; a opção padrão é ambos. Ele liga os plugins <code>tr</code> e <code>memory</code> no projeto e instala as skills de Ponytail e Matt Pocock para o ambiente escolhido.</p>
       <ol class="steps">
         <li><div><h3>Instale</h3><div class="cmd"><code id="c3">npx @fullchico/harness@latest install</code><button type="button" data-copy="c3">Copiar</button></div></div></li>
         <li><div><h3>Entreviste e configure</h3><p>Na sessão, use <code>/tr:configure</code>. O diagnóstico mostra candidatos; a entrevista <code>grilling</code> refina quais portões o projeto realmente quer, seus critérios e as tentativas de correção.</p></div></li>

@@ -3,6 +3,18 @@
 # `tr-harness owner <args>` imprime o comando exato para o terminal do dono, com a versão fixada no projeto.
 dir=$(cd "$(dirname "$0")/.." && pwd)
 cmd=$1; shift 2>/dev/null
+if [ "$cmd" = "--demand" ]; then
+  # Da estação, o maestro olha um trem que viaja em outra pasta. Só leitura e socorro: o que escreve (aceite,
+  # registro, partida) roda de dentro da pasta da demanda, onde os hooks e a aprovação do dono a enxergam.
+  slug=$1; shift 2>/dev/null
+  case "$1 $2" in
+    "status "|"evidence "|"ports "|"orchestrate --status"|"orchestrate --read"|"orchestrate --stop"|"orchestrate --wait") ;;
+    *) echo "tr-harness --demand <slug> aceita: status | evidence | ports | orchestrate --wait|--status|--read|--stop. O resto roda de dentro da pasta da demanda (EnterWorktree)." >&2; exit 2 ;;
+  esac
+  target=$(python3 -I "$dir/scripts/demand_cli.py" path "$slug") || exit 1
+  cd "$target" || exit 1
+  cmd=$1; shift
+fi
 case "$cmd" in
   gates)   exec python3 -I "$dir/scripts/gates_cli.py" "$@" ;;
   models)  exec python3 -I "$dir/scripts/models_cli.py" "$@" ;;
@@ -13,5 +25,9 @@ case "$cmd" in
   skill)   exec python3 -I "$dir/scripts/skill_path.py" "$@" ;;
   wait)    exec python3 -I "$dir/scripts/wait_cli.py" "$@" ;;
   balance) exec python3 -I "$dir/scripts/balance_cli.py" "$@" ;;
-  *) echo "uso: tr-harness gates|models|cost|deliver|status|skill|wait|balance|owner <args>" >&2; exit 2 ;;
+  evidence|ports) exec python3 -I "$dir/scripts/evidence_cli.py" "$cmd" "$@" ;;
+  report)  exec python3 -I "$dir/scripts/report_cli.py" "$@" ;;
+  orchestrate) exec python3 -I "$dir/scripts/orchestrate_cli.py" "$@" ;;
+  demand)  exec python3 -I "$dir/scripts/demand_cli.py" "$@" ;;
+  *) echo "uso: tr-harness gates|models|cost|deliver|status|skill|wait|balance|orchestrate|demand|report|evidence|ports|owner <args>" >&2; exit 2 ;;
 esac
