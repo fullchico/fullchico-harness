@@ -55,15 +55,15 @@ O harness exige veredito, hash do estado examinado e processo bem sucedido antes
 Se o modelo do portão for Codex, o hook impede que um Agent Claude assine no lugar dele.
 As execuções e seus manifestos ficam fora do repositório.
 
-## O maestro, o orquestrador e os peixes
+## O elefante conduz, os peixinhos executam, o tubarão valida
 
-<img src="site/img/maestro-tubarao-peixes.png" alt="" width="640">
+<img src="site/img/elefante-peixes-tubarao.png" alt="" width="720">
 
 | Papel | Bicho | O que faz | Memória |
 |---|---|---|---|
-| **Maestro** | elefante | conversa com o dono, fecha a definição e guarda o que foi entregue; pode olhar e interferir, sempre delegando | guarda tudo |
-| **Orquestrador** | tubarão | coordena a demanda e confere o que volta; reporta ao maestro | nenhuma: é montado para a demanda e desmontado ao fim |
-| **Executores e revisores** | peixes | executam os tickets e validam os portões; reportam ao orquestrador | nenhuma: cada um é desmontado ao relatar |
+| **Maestro e orquestrador** | elefante | o modelo maior: pensa, conversa com o dono, fecha a definição e conduz o trem; o maestro guarda o que foi entregue, e o orquestrador coordena a demanda e reporta a ele | o maestro guarda tudo; o orquestrador é montado para a demanda e desmontado ao fim |
+| **Executores** | peixinhos | os modelos menores: cada um no seu vagão, executa o seu ticket e reporta ao orquestrador | nenhuma: cada um é desmontado ao relatar |
+| **Revisores** | tubarão | valida na chegada: confere cada vagão contra o critério aceito e assina o certificado | nenhuma: desmontado ao dar o veredito |
 
 Cada peixe é uma sessão inteira num **terminal próprio** (tmux), com o contexto só dele: o executor gasta o
 contexto no ticket e some; o orquestrador recebe só o relato de cada um; o maestro recebe só o relato do
