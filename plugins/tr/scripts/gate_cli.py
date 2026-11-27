@@ -117,6 +117,38 @@ def checkout_lock(root):
     return stream
 
 
+def end_refusal(root, reg, name, gate, ticket=None):
+    """Por que um portão de fim por comando não roda agora, ou None. Três trilhos, todos sobre a chegada:
+    - no limite de reprovações quem decide é o dono: rodar de novo seria insistir até passar;
+    - reprovado neste mesmo estado, não roda outra vez: o resultado só muda se o código mudar (um teste que
+      falha e passa sem mudança é instável, e isso é um achado para relatar, não para repetir);
+    - um portão `exclusive` usa algo que os outros também usam (o banco de teste): roda sozinho, depois dos
+      comuns, e na vez dele entre os exclusivos (`"exclusive": 1` antes de `"exclusive": 2`)."""
+    import attempts
+    import certs
+    if gate["stage"] != "end":
+        return None
+    if attempts.status(root, name, gate).get("intervention"):
+        return (f"passou do limite de {gate.get('attempts', 3)} reprovações: a decisão é do dono. Pare, relate o "
+                "bloqueio com o balanço e o que cada reprovação mostrou; não rode de novo nem abra outro ajuste")
+    key = registry.stamp_key(root, gate, ticket)
+    last = certs.current(root, name, key, ticket) if key else None
+    if last and last["verdict"] == "REJECTED":
+        return ("já reprovou neste mesmo estado do código; leia a saída guardada (`tr-harness evidence`). Rodar de novo "
+                "sem mudar nada não é correção: corrija por um ajuste, ou relate que o teste é instável")
+    if gate.get("exclusive"):
+        flying = tasks._raw_in_flight(root)
+        if flying:
+            return "é exclusivo e há executor em voo: espere todos relatarem e integre antes"
+        def turn(one):  # `true` vale 1; um número é a vez dele entre os exclusivos
+            value = reg["gates"][one].get("exclusive")
+            return 0 if not value else (1 if value is True else value)
+        others = [n for n in registry.missing(root, "end", reg) if n != name and turn(n) < turn(name)]
+        if others:
+            return "é exclusivo e espera a vez dele: faltam antes " + ", ".join(f"`{n}`" for n in others)
+    return None
+
+
 def verify(root, reg, name, ticket=None):
     gate = reg["gates"].get(name)
     if gate is None:
@@ -137,6 +169,10 @@ def verify(root, reg, name, ticket=None):
         print(f"gate {name}: FALHOU ({registry.howto(name, gate, root=root)})")
         return 2
     if gate["signs"] == "command":
+        refusal = end_refusal(root, reg, name, gate, ticket)
+        if refusal:
+            print(f"gate {name}: NÃO RODOU ({refusal})")
+            return 2
         lock = checkout_lock(root)  # noqa: F841 (solta quando o processo termina)
         code, reason_text = run(gate["command"], root, name=name), gate["command"]
     else:

@@ -264,6 +264,40 @@ class TestEndGateByCommand(Case):
         self.assertIn("quebrou", out.stdout)
         self.assertIn("gate quality: FALHOU (echo quebrou; false)", out.stdout)
 
+    def test_an_exclusive_gate_runs_last(self):
+        data = json.loads((self.repo / ".claude/harness.json").read_text())
+        data["gates"]["e2e"] = {"stage": "end", "signs": "command", "command": "true", "exclusive": True}
+        (self.repo / ".claude/harness.json").write_text(json.dumps(data))
+        commit_all(self.repo, "chore: portão exclusivo")
+        out = self.gate("e2e")
+        self.assertEqual(out.returncode, 2)
+        self.assertIn("NÃO RODOU", out.stdout)
+        self.assertIn("espera a vez dele", out.stdout)
+        self.assertIn("`quality`", out.stdout)
+
+    def test_exclusive_gates_follow_their_order(self):
+        from unittest import mock
+        import gate_cli
+        import attempts
+        import tasks
+        gates = {"build": {"stage": "end", "signs": "command", "command": "a"},
+                 "db": {"stage": "end", "signs": "command", "command": "b", "exclusive": 1},
+                 "e2e": {"stage": "end", "signs": "command", "command": "c", "exclusive": 2},
+                 "smoke": {"stage": "end", "signs": "command", "command": "d", "exclusive": 2}}
+        for name, gate in gates.items():
+            registry._validate(name, gate)
+        with self.assertRaises(registry.RegistryError):
+            registry._validate("x", dict(gates["db"], exclusive=0))
+
+        def refusal(name, pending):
+            with mock.patch.object(registry, "missing", return_value=pending), mock.patch.object(tasks, "_raw_in_flight", return_value=[]), \
+                    mock.patch.object(attempts, "status", return_value={}), mock.patch.object(registry, "stamp_key", return_value=None):
+                return gate_cli.end_refusal(str(self.repo), {"gates": gates}, name, gates[name])
+        self.assertIn("`build`", refusal("db", ["build", "db", "e2e"]))
+        self.assertIsNone(refusal("db", ["db", "e2e", "smoke"]), "o primeiro da ordem roda quando os comuns passaram")
+        self.assertIn("`db`", refusal("e2e", ["db", "e2e", "smoke"]), "o segundo espera o primeiro")
+        self.assertIsNone(refusal("e2e", ["e2e", "smoke"]), "dois na mesma vez não esperam um pelo outro")
+
     def test_a_long_command_output_still_ends_in_the_stamp_line(self):
         data = json.loads((self.repo / ".claude/harness.json").read_text())
         data["gates"]["quality"]["command"] = "seq 1 20000"

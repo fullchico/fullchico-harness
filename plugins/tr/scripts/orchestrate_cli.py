@@ -184,6 +184,10 @@ def brief(root, cli="claude", executors=None, reviewers=None, checks=(), overlap
         "does not belong to its ticket. Then wait again. Report BLOCKED only when the work needs something beyond "
         "your own limits.",
         "",
+        "What you commit is public to whoever reads the repository: in tickets, adjustments, the balance and commit "
+        "messages, write paths relative to the project and never a path of this machine (home folder, temp folder), "
+        "a user name, a token or the content of an env file.",
+        "",
         "A command gate that fails keeps its whole output in `.harness-run/evidence/<state>/gate-<name>.log` "
         f"(`{cli_path} evidence` lists it). Read it before opening an adjustment or reporting: say which test or "
         "step failed, not only that the gate failed.",

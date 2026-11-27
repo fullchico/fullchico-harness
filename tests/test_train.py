@@ -388,6 +388,21 @@ class MaestroTest(Base):
         self.assertEqual(free.stdout.strip(), "")
 
 
+class PrivacyTest(Base):
+    def test_a_certificate_never_carries_paths_of_the_machine(self):
+        """O certificado é versionado: caminho pessoal, pasta temporária e nome de usuário não entram nele."""
+        import certs
+        home = os.path.expanduser("~")
+        text = certs._clean(f"Full log: /var/folders/k4/abc123/T/tr-gate-1.log; see {home}/segredo/x.txt, "
+                            f"{self.root}/src/soma.py and /{'Users'}/outra.pessoa/www/app/a.ts", self.root)
+        self.assertNotIn(home, text)
+        self.assertNotIn(os.path.basename(home), text)
+        self.assertNotIn("/var/folders", text)
+        self.assertNotIn("outra.pessoa", text)
+        self.assertIn("./src/soma.py", text, "o caminho do projeto continua, relativo")
+        self.assertIn("<tmp>/tr-gate-1.log", text)
+
+
 class DoctorTest(Base):
     def test_the_doctor_says_what_is_missing_and_how_to_fix_it(self):
         import subprocess
