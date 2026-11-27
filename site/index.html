@@ -225,15 +225,15 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
 <main>
   <div class="wrap hero">
     <h1>Cada tarefa chega ao destino com seus carimbos.</h1>
-    <p class="lede">Um harness por projeto para Claude Code e Codex. Você define o destino e os portões; o plugin organiza o trabalho, mantém os agentes nos trilhos e confere a entrega.</p>
+    <p class="lede">Um harness por projeto para Claude Code e Codex. Você define o destino e os portões; o elefante conduz, os peixinhos executam cada um no seu vagão, e o tubarão confere a entrega.</p>
 
     <div class="yard">
     <img class="loco" src="mascote.png" width="1254" height="1254" alt="" aria-hidden="true">
     <ol class="line" aria-label="O caminho de uma entrega">
       <li class="gate"><b>Entrada</b><span>requisitos e plano</span></li>
-      <li><b>Vagões</b><span>tarefas em paralelo</span></li>
+      <li><b>Vagões</b><span>um peixinho por tarefa</span></li>
       <li><b>Trilhos</b><span>guardrails e memória</span></li>
-      <li class="gate"><b>Conferência</b><span>revisor independente</span></li>
+      <li class="gate"><b>Conferência</b><span>o tubarão valida</span></li>
       <li class="gate"><b>Destino</b><span>passaporte completo</span></li>
     </ol>
     </div>
@@ -273,8 +273,8 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <h2>Entrada, percurso e conferência</h2>
       <p class="intro">O portão de entrada confirma os requisitos. Cada tarefa percorre seu trilho, com validações próprias no meio quando necessárias. No destino, fiscais independentes conferem os carimbos exigidos para aquela entrega.</p>
       <figure class="art" tabindex="0">
-        <img src="img/passaporte-cartoon.png" width="1838" height="856" loading="lazy" alt="O dono, de óculos, aperta a mão do documento depois da entrevista; um vagão leva as tarefas; o fiscal examina o documento com uma lupa, com o selo ainda vazio; o documento sai com os selos e uma bandeira. Uma seta devolve a tarefa do fiscal para o vagão.">
-        <figcaption>O fiscal confere a evidência. Se faltar um carimbo, devolve a tarefa ao executor.</figcaption>
+        <img src="img/passaporte-cartoon.png" width="1839" height="855" loading="lazy" alt="Na partida, o dono aperta a mão do documento; o elefante maquinista sai com dois peixinhos nos vagões; na chegada, o tubarão fiscal examina o documento com uma lupa; o documento sai com os três selos e uma bandeira. Uma seta com a palavra ajuste volta do tubarão para os vagões.">
+        <figcaption>O tubarão confere na chegada. Se algo não bate com o critério, volta como ajuste para os peixinhos.</figcaption>
       </figure>
       <ol class="roles" aria-label="Quem conduz cada etapa no exemplo">
         <li><img src="img/claude-mascot.svg" alt="" width="32" height="32"><span><strong>Claude</strong>entrevista</span></li>
@@ -291,7 +291,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <h2>O carimbo é um certificado no documento</h2>
       <p class="intro">Como a assinatura de um especialista num documento revisado: o certificado vai no apêndice da spec da demanda e é assinado pelo commit de quem validou. O dono assina o critério; cada revisor assina o próprio veredito; quem executou não assina nada.</p>
       <figure class="art" tabindex="0">
-        <img src="img/certificado-cartoon.png" width="1838" height="856" loading="lazy" alt="O documento da demanda, sorridente, com três selos no apêndice; o dono, de óculos, assina o primeiro com uma caneta-tinteiro e o fiscal de quepe carimba o último. Cada selo desce por uma linha pontilhada até um marco no trilho.">
+        <img src="img/certificado-cartoon.png" width="1838" height="856" loading="lazy" alt="O documento da demanda, sorridente, com três selos no apêndice; o dono, de óculos, assina o primeiro com uma caneta-tinteiro e o tubarão fiscal carimba o último, de língua de fora. Cada selo desce por uma linha pontilhada até um marco no trilho; o elefante e dois peixinhos aplaudem.">
         <figcaption>Mudou o código ou o critério, o certificado cai. Está no Git: outra máquina, outro agente ou o CI conferem a mesma prova.</figcaption>
       </figure>
     </div>
@@ -299,9 +299,9 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
 
   <section id="maestro" class="wash">
     <div class="wrap">
-      <h2>O elefante, o tubarão e os peixes</h2>
-      <p class="intro">O maestro é o elefante: conversa com você, fecha a definição e guarda o que foi entregue. O orquestrador é o tubarão: coordena a demanda e confere o que volta. Os executores e revisores são os peixes: cada um num terminal próprio, com o contexto só dele, desmontado ao relatar.</p>
-      <figure class="art"><img src="img/maestro-tubarao-peixes.png" width="1536" height="1024" loading="lazy" alt="O elefante maquinista conduz a locomotiva; o tubarão fiscal confere a lista na plataforma; os peixes correm cada um no seu trenzinho."><figcaption>O nome de cada terminal diz o papel, o ticket e o modelo: <code>tmux ls</code> vira o painel da demanda.</figcaption></figure>
+      <h2>O elefante conduz, os peixinhos executam, o tubarão valida</h2>
+      <p class="intro">O elefante é o modelo maior: pensa, conversa com você, fecha a definição, conduz o trem e guarda o que foi entregue. Os peixinhos são os modelos menores: cada um no seu vagão, executa o seu ticket e esquece. O tubarão valida na chegada: confere cada vagão contra o critério aceito e carimba.</p>
+      <figure class="art"><img src="img/elefante-peixes-tubarao.png" width="1840" height="855" loading="lazy" alt="O elefante maquinista conduz a locomotiva pensando no trilho; atrás dele, quatro vagões, cada um com um peixinho ocupado com a sua tarefa; na plataforma de chegada, o tubarão fiscal espera com o carimbo erguido."><figcaption>Cada peixe abre num terminal próprio, e o nome do terminal diz o papel, o ticket e o modelo: <code>tmux ls</code> vira o painel da demanda.</figcaption></figure>
       <h3 class="sub">Modelos por demanda</h3>
       <p>Quando a definição fecha, você escolhe o modelo do orquestrador, o dos executores e o dos revisores para aquela demanda. Vários modelos de executor se revezam. O nome do modelo é um apelido para a versão mais nova.</p>
       <div class="cmd" style="margin-top:2rem"><code id="c9">tr-harness orchestrate --agent claude --model opus --executors claude:haiku,codex:terra --reviewers claude:sonnet --terminals</code><button type="button" data-copy="c9">Copiar</button></div>
@@ -314,9 +314,9 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
 
   <section id="trilhos">
     <div class="wrap">
-      <h2>Uma locomotiva para cada trabalho independente</h2>
-      <p class="intro">Claude e Codex podem conduzir tarefas em trilhos paralelos. Os vagões são tarefas e habilidades: uma tela leva acessibilidade; uma API leva testes de contrato. Cada passaporte exige apenas os carimbos que fazem sentido para aquela carga.</p>
-      <figure class="art"><img src="img/locomotivas-cartoon.png" width="1835" height="857" loading="lazy" alt="Duas locomotivas puxam vagões com tarefas em trilhos paralelos rumo ao fiscal, que segura o passaporte carimbado."><figcaption><img src="img/claude-mascot.svg" alt="" width="28" height="28" style="display:inline;vertical-align:middle;width:1.75rem;margin-right:.3rem"> Claude pode puxar a tela. <img src="img/codex-mascot.svg" alt="" width="28" height="28" style="display:inline;vertical-align:middle;width:1.75rem;margin:0 .3rem 0 .6rem"> Codex pode puxar a API. Você escolhe os modelos de cada papel; as skills do tr conduzem o fluxo.</figcaption></figure>
+      <h2>Cada peixinho no seu trilho</h2>
+      <p class="intro">Tarefas independentes correm em trilhos paralelos, cada peixinho no seu worktree e no seu terminal. O elefante troca os trilhos e vê os três de uma vez; todos chegam ao mesmo portão, onde o tubarão confere. Cada passaporte exige apenas os carimbos que fazem sentido para aquela carga.</p>
+      <figure class="art"><img src="img/locomotivas-cartoon.png" width="1837" height="856" loading="lazy" alt="Três peixinhos correm em trilhos paralelos, cada um no seu vagão: tela, API e testes. Na torre de sinais, o elefante maquinista aciona as alavancas; os trilhos se juntam no portão, onde o tubarão fiscal segura o passaporte e a placa de pare."><figcaption><img src="img/claude-mascot.svg" alt="" width="28" height="28" style="display:inline;vertical-align:middle;width:1.75rem;margin-right:.3rem"> Um peixinho Claude pode puxar a tela. <img src="img/codex-mascot.svg" alt="" width="28" height="28" style="display:inline;vertical-align:middle;width:1.75rem;margin:0 .3rem 0 .6rem"> Um peixinho Codex pode puxar a API. Você escolhe os modelos de cada demanda; as skills do tr conduzem o fluxo.</figcaption></figure>
       <h3 class="sub">Conferência antes de declarar a entrega</h3>
       <p>O executor produz o trabalho; outro agente examina a evidência. Se faltar um carimbo ou a revisão reprovar, a tarefa volta para correção e passa de novo pelo portão. A aprovação é automática por padrão. O projeto pode exigir uma assinatura humana para um portão final.</p>
       <div class="cmd" style="margin-top:2rem"><code id="c2">fullchico-harness models configure</code><button type="button" data-copy="c2">Copiar</button></div>
@@ -326,10 +326,10 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
 
   <section id="memoria" class="wash">
     <div class="wrap">
-      <h2>A memória aprende sozinha</h2>
-      <p class="intro">Ninguém precisa lembrar de um comando. O configure cria o mapa do código, cada demanda o confere antes da entrevista, e cada entrega termina num sonho: um extrator isolado lê as sessões inteiras, com o que cada subagente escreveu, e só fica a nota que o código confirma.</p>
+      <h2>O elefante nunca esquece</h2>
+      <p class="intro">Ninguém precisa lembrar de um comando. O configure cria o mapa do código, cada demanda o confere antes da entrevista, e cada entrega termina num sonho: um extrator isolado lê as sessões inteiras, com o que cada peixe escreveu, e só fica a nota que o código confirma.</p>
       <figure class="art" tabindex="0">
-        <img src="img/memoria-cartoon.png" width="1836" height="856" loading="lazy" alt="A locomotiva corre num trilho circular com três placas: um mapa (configurar), uma prancheta com lupa (planejar) e uma lua dormindo (o sonho depois da entrega). No centro, um caderno sorridente com um lápis e um visto.">
+        <img src="img/memoria-cartoon.png" width="1837" height="856" loading="lazy" alt="O elefante maquinista corre num trilho circular com três placas: um mapa (configurar), uma prancheta com lupa (planejar) e uma lua dormindo (sonhar, depois da entrega). No centro, um caderno sorridente com um lápis e um visto; nos vagões, dois peixinhos já esqueceram.">
         <figcaption>A memória fica na máquina, fora dos arquivos versionados. Não bloqueia a entrega: é o loop que a fecha.</figcaption>
       </figure>
     </div>
@@ -342,7 +342,7 @@ footer .wrap { display: flex; gap: 1.6rem; flex-wrap: wrap; }
       <dl class="facts">
         <div><dt><code>tr</code></dt><dd><strong>Disponível.</strong> Registro, portões de entrada, meio e fim, validadores em subagente limpo (<code>/tr:quality-check</code>, <code>/tr:bugs-hunt</code>, <code>/tr:scope-check</code>), passaporte por demanda, modelos por papel e <code>/tr:process-plan</code>.</dd></div>
         <div><dt><code>memory</code></dt><dd><strong>Disponível.</strong> Mapa do código, notas ancoradas e busca por grafo local, compartilhados entre Claude e Codex sem versionar o índice gerado.</dd></div>
-        <div><dt>Orquestração</dt><dd><strong>Disponível no <code>tr</code>.</strong> Um subagente coordena tickets liberados pelo grafo, executores e fiscais independentes, em segundo plano. Modelos Claude e Codex podem ser escolhidos por papel e por portão; execuções longas rodam com <code>models run --detach</code> e são consultadas com <code>models wait</code>.</dd></div>
+        <div><dt>Orquestração</dt><dd><strong>Disponível no <code>tr</code>.</strong> O orquestrador, num terminal próprio, coordena tickets liberados pelo grafo, executores e fiscais independentes. Modelos Claude e Codex podem ser escolhidos por papel e por portão; execuções longas rodam com <code>models run --detach</code> e são consultadas com <code>models wait</code>.</dd></div>
         <div><dt>Segurança</dt><dd><strong>Configurável pelo projeto.</strong> Registre um portão final com comando ou fiscal próprio se a entrega exigir essa revisão.</dd></div>
       </dl>
     </div>
