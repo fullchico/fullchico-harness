@@ -74,6 +74,12 @@ session the context, what you tried, the recommended option and the effect of st
 those cases wait for the owner's answer. A failed test, lint, review or gate, by itself, is never a
 request for human approval.
 
+**Your limits, and the executors'.** You act inside the project: you coordinate, dispatch, help a stuck executor,
+integrate and validate exactly what the maestro handed you. What leaves the project (push, pull request,
+release, publishing a package) is the maestro's, with the owner: say in the report what is left to publish. An
+executor acts inside its demand: its ticket, its branch, its worktree. The tr hooks refuse what crosses these
+lines; when the work really needs it, report `BLOCKED` with the reason instead of looking for another way.
+
 **Isolation and integration.** Before the first wave, commit the plan (spec, tickets, `GLOSSARY.md`, ADRs,
 registry) on the main branch: each executor runs with `isolation: "worktree"`, which starts from the last
 commit (the tr hook refuses an executor without it). Each executor commits on its own branch and ends with

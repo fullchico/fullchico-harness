@@ -180,8 +180,11 @@ def load(root):
     keep_awake = data.get("keep_awake", True)
     if type(keep_awake) is not bool:
         raise RegistryError("`keep_awake` em .claude/harness.json deve ser true ou false.")
+    prepare_seat = data.get("prepare_seat")
+    if prepare_seat is not None and (not isinstance(prepare_seat, str) or not prepare_seat.strip()):
+        raise RegistryError("`prepare_seat` em .claude/harness.json deve ser um comando em texto.")
     return {"code": code, "gates": gates, "base_ref": base_ref, "models": models, "max_parallel": max_parallel,
-            "keep_awake": keep_awake}
+            "keep_awake": keep_awake, "prepare_seat": prepare_seat}
 
 
 def has_gates(root):

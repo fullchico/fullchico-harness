@@ -99,7 +99,7 @@ def merge(project, entries_in, replace=False):
     return list(new_items) + (["code"] if new_code else [])
 
 
-USAGE_TEXT = ('uso: fullchico-harness gates [--analyze] [--write] [--default] [--approve <portão>] [--parallel <n>] [--set <portão> "<comando>"] '
+USAGE_TEXT = ('uso: fullchico-harness gates [--analyze] [--write] [--default] [--approve <portão>] [--parallel <n>] [--prepare-seat "<comando>"] [--check] [--set <portão> "<comando>"] '
        "[--register <esboço.json>] [--remove <portão>] [--accept] [--project <pasta>]")
 
 
@@ -314,6 +314,11 @@ def main(argv):
         elif argv[i] == "--parallel" and i + 1 < len(argv) and argv[i + 1].isdigit() and int(argv[i + 1]) >= 1:
             i += 1
             parallel = int(argv[i])
+        elif argv[i] == "--prepare-seat" and i + 1 < len(argv) and argv[i + 1].strip():
+            i += 1
+            return set_prepare_seat(os.path.abspath(project), argv[i])
+        elif argv[i] == "--check":
+            return check(os.path.abspath(project))
         elif argv[i] in ("--analyze", "--write", "--default", "--accept"):
             flags.add(argv[i])
         else:
@@ -336,6 +341,34 @@ def main(argv):
               "aprovação do dono ali mesmo.", file=sys.stderr)
         print(f"No terminal do dono: {registry.owner_command(os.path.abspath(project), ['gates', *argv])}", file=sys.stderr)
         return 1
+
+
+def set_prepare_seat(project, command):
+    """O comando que deixa a vaga de um executor pronta para testar (instalar dependências, gerar código). É do
+    dono; o plugin o roda fora do sandbox do executor, ao criar a vaga."""
+    path = os.path.join(project, ".claude", "harness.json")
+    data = read_json(path)
+    if not isinstance(data.get("gates"), dict):
+        print("o projeto ainda não tem registro de portões; rode /tr:configure.", file=sys.stderr)
+        return 2
+    try:
+        check_writable(project)
+    except NoPermission as e:
+        print(e, file=sys.stderr)
+        print(f"No terminal do dono: {registry.owner_command(project, ['gates', '--prepare-seat', command])}", file=sys.stderr)
+        return 1
+    data["prepare_seat"] = command
+    write_json(path, data)
+    print(f"preparo da vaga: `{command}`")
+    return 0
+
+
+def check(project):
+    """Roda uma vez cada portão de comando e diz qual passa, qual roda e reprova e qual NÃO RODA. Só lê."""
+    import orchestrate_cli
+    lines = orchestrate_cli.preflight(project, registry.load(project), every=True)
+    print("\n".join(lines) or "nenhum portão de comando registrado")
+    return 0
 
 
 def set_parallel(project, value):

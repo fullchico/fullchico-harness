@@ -91,7 +91,7 @@ def allow(ti):
 def planner_writes(root, agent_name, client=None):
     """Quem planeja não executa: o orquestrador nunca escreve código, e a sessão principal não escreve
     enquanto a demanda tem tickets abertos. O executor externo de `models run` chega com FULLCHICO_ROLE."""
-    if agent_name in registry.ORCHESTRATORS:
+    if agent_name in registry.ORCHESTRATORS or os.environ.get("TR_ROLE") == "orchestrator":
         return "o orquestrador coordena; o código é dos executores que ele dispara"
     # O subagente chega com `agent_type` no Claude e no Codex (conferido no Codex 0.171).
     if agent_name or os.environ.get("FULLCHICO_ROLE") == "execution":
@@ -271,7 +271,7 @@ def audit_too_early(root, gates):
     ], ["  → termine e integre o que está aberto; depois rode a auditoria, com os validadores em paralelo"]))
 
 
-OWNER_FLAGS = {"--write", "--set", "--register", "--remove", "--approve", "--parallel", "--accept"}
+OWNER_FLAGS = {"--write", "--set", "--register", "--remove", "--approve", "--parallel", "--accept", "--prepare-seat"}
 
 
 def owner_write(command):
@@ -369,6 +369,53 @@ def owner_edit(root, payload, rel, agent_name):
                                              "permissionDecisionReason": f"Aprovação do dono: esta gravação muda a configuração do harness ({rel}). "
                                              "Aprove só se for a sua decisão."}}, ensure_ascii=False))
     return 0
+
+
+def fish_role(payload):
+    """`orchestrator`, `executor`, `fish` (revisor ou outro subagente) ou None (a sessão do maestro, que é livre)."""
+    agent = payload.get("agent_type")
+    if os.environ.get("TR_ROLE") == "orchestrator" or agent in registry.ORCHESTRATORS:
+        return "orchestrator"
+    if os.environ.get("FULLCHICO_ROLE") == "execution":
+        return "executor"
+    return "fish" if agent or os.environ.get("TR_REPORT") or os.environ.get("FULLCHICO_ROLE") else None
+
+
+def leaves_the_project(command):
+    """O que sai do projeto (empurrar, abrir ou fechar PR, publicar) é do maestro, com o dono. Devolve o que foi visto."""
+    text = ledger.strip_heredocs(command)
+    # ponytail: reconhece git, gh e os publicadores de pacote; outro canal de publicação entra aqui quando aparecer
+    for pattern, what in ((r"\bgit\b[^|;&]*\bpush\b", "`git push`"),
+                          (r"\bgh\s+(pr\s+(create|merge|close|ready|edit|comment|review)|release\b|repo\s+(create|delete|edit)|"
+                           r"issue\s+(create|close|edit|comment)|api\b[^|;&]*(-X|--method)\s*(POST|PUT|PATCH|DELETE))", "`gh` que escreve no GitHub"),
+                          (r"\b(npm|pnpm|yarn|bun|cargo|twine|gem)\s+(publish|upload|push)\b", "publicação de pacote")):
+        if re.search(pattern, text):
+            return what
+    return None
+
+
+def leaves_the_demand(command):
+    """O executor vive na branch e no worktree do ticket dele: integrar, trocar de branch e montar worktree é do orquestrador."""
+    found = re.search(r"\bgit\b(?:\s+-[cC]\s+\S+)*\s+(merge|rebase|switch|worktree)\b", ledger.strip_heredocs(command))
+    return f"`git {found.group(1)}`" if found else None
+
+
+def outside(path, base):
+    import tempfile
+    real = os.path.realpath(path)
+    temps = {os.path.realpath(t) for t in (tempfile.gettempdir(), "/tmp", os.environ.get("TMPDIR") or "/tmp")}
+    return not any((real + os.sep).startswith(os.path.realpath(b) + os.sep) for b in (base, *temps))
+
+
+def skips_project_hooks(command):
+    """Pular os hooks de Git do projeto (commit-msg, pre-commit, pre-push): a regra é do projeto, não do agente."""
+    if not re.search(r"\bgit\b", command):
+        return None
+    for pattern, what in ((r"--no-verify\b", "`--no-verify`"), (r"core\.hooksPath", "`core.hooksPath`"),
+                          (r"\bHUSKY=0\b", "`HUSKY=0`")):
+        if re.search(pattern, ledger.strip_heredocs(command)):
+            return what
+    return None
 
 
 def foreign_kill(root, command):
@@ -514,6 +561,24 @@ def main():
     if tool in EDIT_TOOLS:
         path = ti.get("file_path") or ti.get("notebook_path")
         targets_pre = [path] if isinstance(path, str) else []
+        role = fish_role(payload)
+        if role and targets_pre:
+            # o orquestrador e os revisores agem dentro do projeto; o executor, dentro do worktree do ticket dele
+            base = payload.get("cwd") or os.getcwd()
+            if role == "executor":
+                import subprocess
+                base = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=base, capture_output=True,
+                                      text=True).stdout.strip() or base
+            else:
+                base = root
+            target = targets_pre[0] if os.path.isabs(targets_pre[0]) else os.path.join(payload.get("cwd") or root, targets_pre[0])
+            if outside(target, base):
+                return deny(root, f"fora do limite: {targets_pre[0][:100]}", panel(
+                    "fora da demanda" if role == "executor" else "fora do projeto", [
+                        ("arquivo", targets_pre[0][-80:]),
+                        ("motivo", "o executor grava só no worktree do ticket dele" if role == "executor"
+                         else "este papel grava só dentro do projeto"),
+                    ], ["  → se o trabalho precisa disso, reporte BLOCKED dizendo o arquivo e por quê"]))
     elif tool == "Bash" and isinstance(ti.get("command"), str):
         targets_pre = bash_targets(ti["command"])
     else:
@@ -628,6 +693,22 @@ def main():
                 ("comando", command.split()[0]), ("motivo", "os scripts de `.harness/` são do modelo antigo; os portões são do tr"),
             ], listing(reg, registry.missing(root, "end", reg), root) or ["  → valide a entrega com `gate delivery`"],
                 "estado: `gate`"))
+        role = fish_role(payload)
+        out = role and leaves_the_project(command)
+        if out:
+            return deny(root, f"sai do projeto: {command[:100]}", panel("fora do projeto", [
+                ("comando", command.strip()[:80]), ("motivo", f"{out} sai do projeto: é do maestro, com o dono"),
+            ], ["  → termine dentro do projeto e diga no relato o que falta publicar; o maestro faz"]))
+        away = role == "executor" and leaves_the_demand(command)
+        if away:
+            return deny(root, f"sai da demanda: {command[:100]}", panel("fora da demanda", [
+                ("comando", command.strip()[:80]), ("motivo", f"{away}: integrar e trocar de branch é do orquestrador"),
+            ], ["  → commite na sua branch e reporte; o orquestrador integra"]))
+        skipped = skips_project_hooks(command)
+        if skipped:
+            return deny(root, f"hook do projeto pulado: {command[:100]}", panel("hooks do projeto", [
+                ("comando", command.strip()[:80]), ("motivo", f"{skipped} desliga os hooks de Git do projeto"),
+            ], ["  → faça o commit no formato que o hook exige; se o hook estiver errado, reporte BLOCKED: mudar é do dono"]))
         foreign = foreign_kill(root, command)
         if foreign:
             return deny(root, f"kill alheio: {command[:100]}", panel("processo de outro projeto", [

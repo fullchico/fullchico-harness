@@ -48,7 +48,8 @@ def listening(root):
         elif line.startswith("n") and pid:
             cwd = subprocess.run(["lsof", "-a", "-p", pid, "-d", "cwd", "-Fn"], capture_output=True, text=True).stdout
             where = next((l[1:] for l in cwd.splitlines() if l.startswith("n")), "")
-            if os.path.realpath(where).startswith(real):
+            # sem pasta legível (processo de outro usuário, ou que acabou de sair) não é deste checkout
+            if where and (os.path.realpath(where) + os.sep).startswith(real + os.sep):
                 found.append((line.rsplit(":", 1)[-1], name))
     return sorted(set(found))
 

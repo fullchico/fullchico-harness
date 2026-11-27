@@ -560,11 +560,21 @@ def integrate(root, run_ids):
     return 0
 
 
+def _needs_acceptance(root):
+    """Um ticket editado depois do aceite (escopo, portões, dependências) mudou o critério: quem decide é o dono.
+    Sem aceite válido nenhum executor parte, o que obriga a reportar em vez de seguir com o critério novo."""
+    import certs
+    if not certs.accepted(root):
+        raise ValueError("o critério da demanda está sem aceite do dono (ou mudou depois do aceite): nenhum executor "
+                         "parte assim. Reporte BLOCKED ao maestro dizendo o que mudou e por quê; é ele que leva ao dono.")
+
+
 def terminal_execute(root, prompt, ticket=None):
     """O executor abre num terminal próprio (tmux) e num worktree próprio, nascido da branch da demanda: uma
     sessão inteira, que o orquestrador (e o maestro) lê e encerra. Devolve o id na hora; o executor avisa
     gravando o relato dele (o hook de parada cobra), e `models wait <id>...` espera por esse arquivo."""
     import terminal
+    _needs_acceptance(root)
     choice = _choice(root, "execution")
     text = _request(root, "execution", prompt, ticket)
     run_id, folder = _run_folder(root)
@@ -579,6 +589,18 @@ def terminal_execute(root, prompt, ticket=None):
     made = subprocess.run(["git", "worktree", "add", "-q", "-b", branch, work, "HEAD"], cwd=root, capture_output=True, text=True)
     if made.returncode:
         raise ValueError(f"o Git não criou o worktree do executor: {(made.stderr or made.stdout).strip()[-200:]}")
+    prepare = registry.load(root).get("prepare_seat")
+    if prepare:
+        # roda aqui, fora do sandbox do executor: sem dependências instaladas ele entrega sem conseguir testar
+        try:
+            ready = subprocess.run(prepare, shell=True, cwd=work, capture_output=True, text=True, timeout=900)
+            failed = ready.returncode and (ready.stderr or ready.stdout).strip()[-300:] or ready.returncode
+        except subprocess.TimeoutExpired:
+            failed = "passou de 15 minutos"
+        if failed:
+            subprocess.run(["git", "worktree", "remove", "--force", work], cwd=root, capture_output=True)
+            subprocess.run(["git", "branch", "-D", branch], cwd=root, capture_output=True)
+            raise ValueError(f"o preparo da vaga (`{prepare}`) falhou: {failed}. É bloqueio do dono: reporte ao maestro.")
     report = os.path.join(work, ".harness-run", f"executor-{short}.md")
     os.makedirs(os.path.dirname(report), exist_ok=True)
     with open(os.path.join(os.path.dirname(report), ".gitignore"), "w", encoding="utf-8") as stream:
@@ -753,6 +775,8 @@ def _terminal_wait(root, run_ids, timeout):
 def execute(root, role, prompt, ticket=None):
     if role not in ("planning", "execution", "review"):
         raise ValueError("papel deve ser planning, execution ou review")
+    if role == "execution":
+        _needs_acceptance(root)
     config = read_file(root).get("models") or {}
     choice = _choice(root, role)
     prompt = _request(root, role, prompt, ticket)
