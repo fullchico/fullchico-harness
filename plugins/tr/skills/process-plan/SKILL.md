@@ -215,12 +215,20 @@ tickets need the same registration point (a router, an index, a schema), make th
 the others do not have to edit (loading by convention, one file per resource), or chain them with `Blocked by`.
 `tr-harness orchestrate` warns about it at boarding.
 
-**The orchestration configuration.** When the definition is closed (acceptance recorded, start gates
-certified), and before the train leaves, settle three choices for this demand with the owner, in one
-`AskUserQuestion` with your recommendation first in each: (1) the orchestrator's model, (2) the executors'
-model, (3) the reviewers' model (Claude: `opus`, `sonnet`, `haiku`; Codex: the ids in the owner's Codex
-config). They are choices of this demand, not of the project: pass them on the command and never write them
-to the registry. If the owner already said them, or told you to follow your recommendation, do not ask again.
+**The orchestration configuration, at every departure.** You, the maestro, never change: you are the Claude
+session the owner talks to. Everything else is assembled for each wave: the first departure, a new departure
+after a block, an adjustment train. Before EVERY `tr-harness orchestrate`, ask the owner the three choices of
+that wave in one `AskUserQuestion` with three questions, your recommendation first in each: (1) who
+orchestrates, (2) who executes, (3) who validates (Claude: `opus`, `sonnet`, `haiku`; Codex: `sol`, `terra`,
+`luna`, `astra`; a name is an alias for the newest version). "Follow your recommendation", said during the
+interview, does NOT answer this question: it is the owner's decision at the edge of each wave. Skip it only
+when the owner already named the three models for this very departure. The command refuses to leave without
+the three (`--model`, `--executors`, `--reviewers`); `--executors auto` means each ticket's `Complexity:`
+decides. They are choices of the wave, never written to the registry.
+
+**The owner watches without asking.** Right after the train leaves, tell the owner once, in one line, that
+`tr-harness watch` in a second terminal shows the board and every fish's terminal live (it only reads). Do not
+make the owner ask for status to know what is happening.
 
 **Departure.** Run `tr-harness orchestrate --agent <claude|codex> --model <id> [--executors <cli:model>]
 [--reviewers <cli:model>] [--terminals]`, alone in the call. With `--terminals` every executor is a full

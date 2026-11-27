@@ -480,6 +480,86 @@ def _choice(root, role):
     return choice
 
 
+def _free_dead_seats(root, seats):
+    """Uma vaga cujo executor morreu sem relato (terminal encerrado à mão, queda) ficaria ocupada para sempre.
+    Se o terminal não existe mais, não há relato e o worktree não tem trabalho por commitar, a vaga é liberada."""
+    import glob
+    import terminal
+    for path in glob.glob(os.path.join(_state_dir(root), "*", "dispatch.json")):
+        try:
+            with open(path, encoding="utf-8") as stream:
+                data = json.load(stream)
+        except (OSError, ValueError):
+            continue
+        work = data.get("worktree") or ""
+        if not work.startswith(seats) or not os.path.isdir(work) or terminal.alive(data.get("session") or ""):
+            continue
+        report = data.get("report") or ""
+        if report and os.path.isfile(report if os.path.isabs(report) else os.path.join(root, report)):
+            continue  # relatou: quem integra é o orquestrador, e é ele que remove
+        dirty = subprocess.run(["git", "status", "--porcelain"], cwd=work, capture_output=True, text=True).stdout.strip()
+        if dirty:
+            continue  # ficou trabalho sem commit: não se joga fora; o orquestrador decide pelo handoff
+        subprocess.run(["git", "worktree", "remove", "--force", work], cwd=root, capture_output=True)
+        if data.get("branch"):
+            subprocess.run(["git", "branch", "-D", data["branch"]], cwd=root, capture_output=True)
+
+
+def unfinished_operation(root):
+    """Nome da operação do Git deixada pela metade no checkout (merge, rebase, cherry-pick, revert), ou None.
+    Um commit feito com ela aberta a conclui: é assim que trabalho de uma viagem cancelada entra sem ninguém pedir."""
+    git_dir = subprocess.run(["git", "rev-parse", "--absolute-git-dir"], cwd=root, capture_output=True,
+                             text=True).stdout.strip()
+    for mark, name in (("MERGE_HEAD", "merge"), ("rebase-merge", "rebase"), ("rebase-apply", "rebase"),
+                       ("CHERRY_PICK_HEAD", "cherry-pick"), ("REVERT_HEAD", "revert")):
+        if git_dir and os.path.exists(os.path.join(git_dir, mark)):
+            return name
+    return None
+
+
+def integrate(root, run_ids):
+    """Integra o trabalho dos executores na branch da demanda, um por vez, e só desmonta a vaga depois de
+    conferir que o trabalho entrou. É o que a chegada não desfaz: branch apagada antes do merge é trabalho perdido."""
+    def git(*args, cwd=root):
+        return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
+
+    pending = unfinished_operation(root)
+    if pending:
+        print(f"há um {pending} pela metade neste checkout (de outra partida): nada foi integrado. Reporte ao "
+              f"maestro; é ele, com o dono, que decide concluir ou abortar.", file=sys.stderr)
+        return 1
+    for run_id in run_ids:
+        try:
+            with open(os.path.join(_state_dir(root), run_id, "dispatch.json"), encoding="utf-8") as stream:
+                data = json.load(stream)
+        except (OSError, ValueError):
+            print(f"{run_id}: execução não encontrada", file=sys.stderr)
+            return 1
+        work, branch = data.get("worktree") or "", data.get("branch") or ""
+        if os.path.isdir(work) and git("status", "--porcelain", "--", ".", ":!.harness-run", cwd=work).stdout.strip():
+            # o executor Codex não commita (o sandbox dele não grava em .git): o commit é feito aqui
+            git("add", "-A", "--", ".", ":!.harness-run", cwd=work)
+            done = git("commit", "-m", f"chore(tr): work of executor {run_id[-8:]}", cwd=work)
+            if done.returncode:
+                print(f"{run_id}: o commit do trabalho falhou; vaga e branch mantidas.\n{(done.stderr or done.stdout)[-600:]}",
+                      file=sys.stderr)
+                return 1
+        merged = git("merge", "--no-ff", "-m", f"chore(tr): merge executor {run_id[-8:]}", branch)
+        if merged.returncode or git("merge-base", "--is-ancestor", branch, "HEAD").returncode:
+            conflicts = git("diff", "--name-only", "--diff-filter=U").stdout.strip()
+            if unfinished_operation(root):
+                git("merge", "--abort")
+            print(f"{run_id}: o merge de `{branch}` não entrou; vaga e branch mantidas, nada foi desmontado."
+                  + (f"\nconflito em: {conflicts}" if conflicts else f"\n{(merged.stderr or merged.stdout)[-600:]}"),
+                  file=sys.stderr)
+            return 1
+        if os.path.isdir(work):
+            git("worktree", "remove", "--force", work)
+        git("branch", "-d", branch)
+        print(f"{run_id}: integrado ({branch}) e vaga desmontada")
+    return 0
+
+
 def terminal_execute(root, prompt, ticket=None):
     """O executor abre num terminal próprio (tmux) e num worktree próprio, nascido da branch da demanda: uma
     sessão inteira, que o orquestrador (e o maestro) lê e encerra. Devolve o id na hora; o executor avisa
@@ -492,6 +572,7 @@ def terminal_execute(root, prompt, ticket=None):
     # Vagas fixas: a pasta do executor é `tr-seat-<n>`, reaproveitada entre tickets. Um CLI que pede confiança
     # por pasta (o Codex) pergunta uma vez por vaga, não uma vez por ticket.
     seats = os.path.join(root, ".claude", "worktrees")
+    _free_dead_seats(root, seats)
     number = next(n for n in range(1, 100) if not os.path.exists(os.path.join(seats, f"tr-seat-{n}")))
     branch, work = f"tr-exec-{short}", os.path.join(seats, f"tr-seat-{number}")
     subprocess.run(["git", "worktree", "prune"], cwd=root, capture_output=True)
@@ -696,10 +777,11 @@ def execute(root, role, prompt, ticket=None):
 
 
 def main(argv):
-    if not argv or argv[0] not in ("configure", "show", "run", "validate-gate", "wait"):
+    if not argv or argv[0] not in ("configure", "show", "run", "validate-gate", "wait", "integrate"):
         print("uso: fullchico-harness models configure [role cli:model ...] [gate:<name> cli:model ...] | show | "
               "run <role> [--prompt texto] [--ticket caminho] [--detach] | "
-              "validate-gate <gate> [--ticket caminho] [--prompt texto] [--detach] | wait <id> [--timeout <s>]",
+              "validate-gate <gate> [--ticket caminho] [--prompt texto] [--detach] | wait <id> [--timeout <s>] | "
+              "integrate <id> [<id>...]",
               file=sys.stderr)
         return 2
     root, args = os.path.abspath("."), argv[1:]
@@ -732,6 +814,10 @@ def main(argv):
             print(error, file=sys.stderr)
             return 2
     try:
+        if argv[0] == "integrate":
+            if not args:
+                raise ValueError("informe o id da execução")
+            return integrate(root, args)
         if argv[0] == "wait":
             if not args:
                 raise ValueError("informe o id da execução")

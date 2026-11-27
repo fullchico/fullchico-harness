@@ -144,6 +144,17 @@ class MaestroTest(Base):
         return subprocess.run([str(ROOT / "plugins/tr/bin/tr-harness"), "orchestrate", *args], cwd=self.root,
                               capture_output=True, text=True, env=env)
 
+    def test_the_train_does_not_leave_without_the_three_models_of_the_wave(self):
+        from tests.helpers import _tmpdir, fake_claude
+        fake = fake_claude(_tmpdir())
+        path = f"{fake}:{os.environ['PATH']}"
+        out = self.run_cli("--agent", "claude", "--model", "sonnet", path=path)
+        self.assertEqual(out.returncode, 2)
+        self.assertIn("AskUserQuestion", out.stderr, "sem os três modelos, o comando manda perguntar ao dono")
+        self.assertFalse((fake / "tmux-calls").exists(), "nenhum terminal foi aberto")
+        ok = self.run_cli("--model", "sonnet", "--executors", "auto", "--reviewers", "claude:sonnet", path=path)
+        self.assertEqual(ok.returncode, 0, ok.stderr)
+
     def test_an_executor_on_another_cli_opens_in_its_own_terminal(self):
         import subprocess
         from tests.helpers import _tmpdir, fake_claude
@@ -265,6 +276,29 @@ class MaestroTest(Base):
                          [("claude", "haiku"), ("codex", "terra"), ("claude", "haiku")])
         tasks.run_choice(self.root, {"executors": "claude:sonnet"})
         self.assertEqual(tasks.next_executor(self.root), ("claude", "sonnet"))
+
+    def test_integration_keeps_the_seat_when_the_merge_does_not_enter(self):
+        """Caso real: um merge pela metade de outra partida fez os merges falharem, e as branches foram apagadas."""
+        import models_cli
+        from tests.helpers import git
+        seat = self.repo / ".claude/worktrees/tr-seat-1"
+        git(self.repo, "worktree", "add", "-q", "-b", "tr-exec-aaaa1111", str(seat))
+        (seat / "novo.md").write_text("trabalho do executor, sem commit\n")
+        folder = os.path.join(models_cli._state_dir(self.root), "20260101T000000Z-aaaa1111")
+        os.makedirs(folder)
+        with open(os.path.join(folder, "dispatch.json"), "w") as stream:
+            json.dump({"worktree": str(seat), "branch": "tr-exec-aaaa1111", "session": "x"}, stream)
+        git_dir = git(self.repo, "rev-parse", "--absolute-git-dir")
+        open(os.path.join(git_dir, "MERGE_HEAD"), "w").write(git(self.repo, "rev-parse", "HEAD") + "\n")
+        self.assertEqual(models_cli.integrate(self.root, ["20260101T000000Z-aaaa1111"]), 1)
+        self.assertTrue(seat.is_dir(), "com um merge pela metade, nada é desmontado")
+        self.assertEqual(self.run_cli("--model", "sonnet", "--executors", "auto", "--reviewers", "claude:sonnet").returncode, 1,
+                         "e o trem não parte")
+        os.remove(os.path.join(git_dir, "MERGE_HEAD"))
+        self.assertEqual(models_cli.integrate(self.root, ["20260101T000000Z-aaaa1111"]), 0)
+        self.assertTrue((self.repo / "novo.md").is_file(), "o trabalho sem commit do executor entrou")
+        self.assertFalse(seat.exists())
+        self.assertNotIn("tr-exec-aaaa1111", git(self.repo, "branch"))
 
     def test_boarding_warns_when_a_codex_executor_cannot_write_where_a_ticket_needs(self):
         import orchestrate_cli

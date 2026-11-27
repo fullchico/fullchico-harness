@@ -167,14 +167,20 @@ def brief(root, cli="claude", executors=None, reviewers=None, checks=(), overlap
            "A verifier marked DOES NOT RUN must be made to run as soon as the ticket that creates it is integrated: "
            "run it then, do not discover it at the arrival."] if checks else []),
         *(["", "Tickets of the same wave that declare the same file (a parallel merge will conflict there):", *overlaps,
-           "Integrate those one at a time: merge the first, then have the next executor start from the updated "
-           "branch, or tell each executor exactly which lines of the shared file are its own."] if overlaps else []),
+           "Sequence them yourself: dispatch one, integrate it, then dispatch the next from the updated branch. Do "
+           "NOT edit the tickets to do it (a changed `Blocked by` changes the criterion the owner accepted)."]
+          if overlaps else []),
         *(["", "Executors still running from a previous departure (do NOT dispatch these tickets again: wait for "
            f"them with `{cli_path} models wait <run> ... --timeout 540` and integrate what they report):", *adopted]
           if adopted else []),
         *(["", "Tickets a Codex executor cannot finish (its sandbox does not write to `.git`, `.codex` or `.agents`); "
            "give these to a Claude executor, or report the block to the maestro before dispatching:", *unwritable]
           if unwritable else []),
+        "",
+        f"Integrate an executor that ran in a terminal ONLY with `{cli_path} models integrate <run> [<run>...]`: it "
+        "commits what a Codex executor left, merges into the demand branch and dismantles the seat only after "
+        "checking the work is in. Never remove a seat or delete an executor branch by hand, and never mark a "
+        "ticket done before its integrate printed `integrado`.",
         "",
         f"Read and follow the orchestrator instructions of the tr harness: {instructions}. They describe the trip, "
         "the arrival audit and the adjustment trains, until `tr-harness deliver` passes. The same rails apply to "
@@ -288,6 +294,17 @@ def main(argv):
     if choice["cli"] == "claude" and not choice.get("model"):
         choice["model"] = "sonnet"
     executors, reviewers = _flag(argv, "--executors"), _flag(argv, "--reviewers")
+    if "--print" not in argv and not (_flag(argv, "--model") and executors and reviewers):
+        # Os três modelos são decisão do dono a cada partida (o maestro é sempre o mesmo; o resto é montado por
+        # onda). Sem os três no comando, o trem não sai: é o que obriga a pergunta a ser feita.
+        print("a partida precisa dos três modelos desta onda, escolhidos pelo dono: `--model <orquestrador>`, "
+              "`--executors <cli:modelo[,cli:modelo]>` e `--reviewers <cli:modelo>`.\n"
+              "Pergunte ao dono com AskUserQuestion, numa mensagem só, três perguntas (a sua recomendação primeiro em "
+              "cada uma): quem orquestra, quem executa e quem valida. \"Siga o recomendado\" na entrevista não responde "
+              "isto; só vale pular a pergunta se o dono já disse os três modelos para esta partida.", file=sys.stderr)
+        return 2
+    if executors == "auto":
+        executors = None  # pela complexidade de cada ticket
     if not certs.demand(root) or not tasks.tickets(root):
         print("sem demanda ativa com tickets (.claude/current-demand)", file=sys.stderr)
         return 2
@@ -299,6 +316,13 @@ def main(argv):
     if pointer:
         # os worktrees dos executores nascem do commit: sem isto eles leriam outra demanda e outro quadro
         print("`.claude/current-demand` não está commitado: commite antes de partir.", file=sys.stderr)
+        return 1
+    import models_cli
+    pending = models_cli.unfinished_operation(root)
+    if pending and "--print" not in argv:
+        print(f"há um {pending} pela metade neste checkout (`git status` mostra): o trem não parte assim, porque o "
+              "próximo commit o concluiria e traria trabalho que ninguém pediu. Mostre ao dono o que ficou e "
+              f"conclua ou aborte (`git {pending} --abort`) com a decisão dele.", file=sys.stderr)
         return 1
     checks = [] if "--print" in argv or "--no-preflight" in argv else preflight(root, reg)
     overlaps = shared_files(root)
