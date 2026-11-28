@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import unittest
+import unittest.mock
 
 from tests.helpers import ROOT, accept, commit_all, make_repo
 sys.path.insert(0, str(ROOT / "plugins/tr/scripts"))
@@ -404,6 +405,35 @@ class MaestroTest(Base):
         (self.repo / ".harness-run/report.md").write_text("DONE\n")
         free = subprocess.run(script, input=payload, capture_output=True, text=True, env=dict(os.environ, TR_ROLE="orchestrator"))
         self.assertEqual(free.stdout.strip(), "")
+
+
+class DismantleTest(Base):
+    def test_only_an_orchestrator_that_really_stopped_is_dismantled(self):
+        """Caso real: o orquestrador relatou, ninguém estava na espera, e o terminal ficou aberto por horas.
+        E o cuidado do dono: nunca encerrar um terminal que voltou a trabalhar."""
+        import subprocess
+        import report_cli
+        import tasks
+        if not __import__("shutil").which("tmux"):
+            self.skipTest("precisa do tmux de verdade")
+        tag = os.path.basename(self.root)[-6:]
+        busy, idle = f"orq-teste-ativo-{tag}", f"orq-teste-parado-{tag}"
+        subprocess.run(["tmux", "new-session", "-d", "-s", busy, "while true; do date +%N; sleep 0.2; done"], check=True)
+        subprocess.run(["tmux", "new-session", "-d", "-s", idle, "echo relatei; sleep 300"], check=True)
+        for name in (busy, idle):
+            self.addCleanup(subprocess.run, ["tmux", "kill-session", "-t", name], capture_output=True)
+        os.makedirs(os.path.dirname(report_cli.path(self.root)), exist_ok=True)
+        with open(report_cli.path(self.root), "w") as stream:
+            stream.write("DONE\n")
+        stamp = os.path.getmtime(report_cli.path(self.root))
+        self.assertIs(report_cli.safe_to_stop(self.root, busy, stamp, quiet=1), False, "a tela muda: ainda trabalha")
+        self.assertIs(report_cli.safe_to_stop(self.root, idle, stamp, quiet=1), True, "parado e com o relato feito")
+        tasks.start_executor(self.root, "docs/specs/pedido/issues/01-soma.md")
+        self.assertIs(report_cli.safe_to_stop(self.root, idle, stamp, quiet=1), False, "com executor em voo, não")
+        tasks.finish_executor(self.root, "docs/specs/pedido/issues/01-soma.md")
+        os.utime(report_cli.path(self.root), (stamp + 50, stamp + 50))
+        self.assertIsNone(report_cli.safe_to_stop(self.root, idle, stamp, quiet=1), "outro relato: é outra partida")
+        self.assertIsNone(report_cli.safe_to_stop(self.root, "orq-nao-existe-" + tag, stamp, quiet=1))
 
 
 class JourneyTest(Base):

@@ -263,10 +263,38 @@ async function selectEnvironment(args) {
   return { environment: selected || "both", args: kept };
 }
 
+// Versões anteriores do instalador deixaram o marketplace `fullchico` declarado no arquivo global do usuário,
+// sem versão. Essa entrada faz o Claude Code ignorar o marketplace nos projetos que fixam a versão. Aqui ela é
+// retirada (só ela, com cópia de segurança ao lado); o projeto continua dizendo de onde o plugin vem.
+function healUserMarketplace() {
+  const file = path.join(require("os").homedir(), ".claude", "settings.json");
+  let raw, data;
+  try { raw = fs.readFileSync(file, "utf8"); data = JSON.parse(raw); } catch (e) { return; }
+  const markets = data.extraKnownMarketplaces;
+  const entry = markets && markets.fullchico;
+  const source = (entry && entry.source) || {};
+  if (!entry || source.source !== "github" || String(source.repo || "").toLowerCase() !== "fullchico/fullchico-harness") return;
+  try {
+    const backup = `${file}.bak-fullchico-${Date.now()}`;
+    fs.writeFileSync(backup, raw);
+    delete markets.fullchico;
+    fs.writeFileSync(file, JSON.stringify(data, null, raw.startsWith("{\n    ") ? 4 : 2) + (raw.endsWith("\n") ? "\n" : ""));
+    console.log("\nRetirei do seu arquivo global (~/.claude/settings.json) a entrada antiga do marketplace `fullchico`: sem" +
+      "\nversão, ela fazia o Claude Code ignorar o plugin nos projetos. O projeto continua fixando a versão." +
+      `\nCópia do arquivo como estava: ${backup.replace(require("os").homedir(), "~")}`);
+  } catch (e) {
+    console.log("\nAviso: o seu ~/.claude/settings.json declara o marketplace `fullchico` sem versão, e isso faz o Claude" +
+      "\nCode ignorar o plugin. Retire essa entrada de `extraKnownMarketplaces` (não consegui gravar o arquivo).");
+  }
+}
+
 // Instala plugins do marketplace do FullChico no escopo do projeto, pelo `claude`. Devolve o status.
 // Os nomes são do marketplace do FullChico; `extras` são [marketplace, repositório, plugin] de outros.
 function addPlugins(names, project, extras = []) {
-  const commands = [["plugin", "marketplace", "add", LOCAL_SOURCE || "FullChico/fullchico-harness"],
+  // `--scope project`: o marketplace é declarado no projeto, que fixa a versão. Declarado no arquivo global do
+  // usuário (o padrão do comando), ele fica sem versão, diverge do que o projeto fixa, e o Claude Code passa a
+  // ignorar o marketplace inteiro: a sessão seguinte abre sem os hooks do plugin.
+  const commands = [["plugin", "marketplace", "add", LOCAL_SOURCE || "FullChico/fullchico-harness", "--scope", "project"],
     ["plugin", "marketplace", "update", "fullchico"],
     ...names.flatMap((n) => [["plugin", "install", `${n}@fullchico`, "--scope", "project"],
                             ["plugin", "update", `${n}@fullchico`, "--scope", "project"]])];
@@ -287,6 +315,7 @@ function addPlugins(names, project, extras = []) {
     if ((["install", "update"].includes(args[1]) || (args[1] === "marketplace" && args[2] === "update")) &&
         run.status !== 0) status = run.status === null ? 1 : run.status;
   }
+  healUserMarketplace();
   // Um marketplace `fullchico` já registrado com outra fonte (uma pasta de teste, um fork) faz o `add`
   // passar em silêncio e o install trazer o plugin de lá. Confere a fonte e para com o conserto.
   const expected = LOCAL_SOURCE || "FullChico/fullchico-harness";
