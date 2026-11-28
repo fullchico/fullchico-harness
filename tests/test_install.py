@@ -189,6 +189,28 @@ class TestInstall(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("o tmux é obrigatório", r.stdout)
 
+    def test_the_marketplace_is_declared_in_the_project_and_the_old_global_entry_is_healed(self):
+        """Caso real: a entrada global do marketplace, sem versão, divergia da versão fixada no projeto, e o Claude
+        Code passou a ignorar o plugin: a sessão do maestro reabriu sem os hooks e o aceite parou de funcionar."""
+        self.assertEqual(self.install("--target", "claude").returncode, 0)
+        calls = (self.bin / "calls").read_text()
+        self.assertIn("plugin marketplace add FullChico/fullchico-harness --scope project", calls)
+        home = pathlib.Path(tempfile.mkdtemp())
+        (home / ".claude").mkdir()
+        settings = home / ".claude/settings.json"
+        settings.write_text(json.dumps({"model": "opus", "extraKnownMarketplaces": {
+            "fullchico": {"source": {"source": "github", "repo": "FullChico/fullchico-harness"}},
+            "outro": {"source": {"source": "github", "repo": "a/b"}}}}, indent=2) + "\n")
+        run = subprocess.run([shutil.which("node"), str(ROOT / "bin/harness.js"), "install", str(self.repo), "--target", "claude"],
+                             capture_output=True, text=True, env=dict(os.environ, PATH=f"{self.bin}:{os.environ['PATH']}", HOME=str(home)))
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        after = json.loads(settings.read_text())
+        self.assertNotIn("fullchico", after["extraKnownMarketplaces"])
+        self.assertIn("outro", after["extraKnownMarketplaces"], "só a entrada do harness sai")
+        self.assertEqual(after["model"], "opus")
+        self.assertEqual(len(list((home / ".claude").glob("settings.json.bak-fullchico-*"))), 1, "com cópia de segurança")
+        self.assertIn("Retirei do seu arquivo global", run.stdout)
+
     def test_the_project_gets_its_own_cli(self):
         """`./tr l`, `./tr doctor`: a CLI do dono mora no projeto, não no PATH (um `tr` global esconderia o do sistema)."""
         self.assertEqual(self.install("--target", "claude").returncode, 0)
@@ -306,7 +328,7 @@ class TestInstall(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         source = json.loads((self.repo / ".claude/settings.json").read_text())["extraKnownMarketplaces"]["fullchico"]["source"]
         self.assertEqual(source, {"source": "directory", "path": str(ROOT)})
-        self.assertIn(f"plugin marketplace add {ROOT}", self.calls())
+        self.assertIn(f"plugin marketplace add {ROOT} --scope project", self.calls())
 
     def legacy_settings(self):
         settings = self.repo / ".claude/settings.json"

@@ -53,6 +53,36 @@ def path_of(root, slug):
     return None
 
 
+def plugins_for(path):
+    """A pasta nova é outro endereço para o Claude Code: os plugins do projeto precisam ser instalados também
+    para ela, senão uma sessão aberta ali (ou retomada ali) sobe sem os hooks do harness e sem os revisores.
+    Instala os mesmos plugins que o `.claude/settings.json` do projeto já habilita; não muda nenhum arquivo dele."""
+    import json
+    import shutil
+    try:
+        with open(os.path.join(path, ".claude", "settings.json"), encoding="utf-8") as stream:
+            enabled = [name for name, on in (json.load(stream).get("enabledPlugins") or {}).items() if on]
+    except (OSError, ValueError, AttributeError):
+        return []
+    if not enabled or not shutil.which("claude"):
+        return []
+    env = {k: v for k, v in os.environ.items() if k not in ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")}
+    failed = []
+    for name in enabled:
+        try:
+            run = subprocess.run(["claude", "plugin", "install", name, "--scope", "project"], cwd=path, env=env,
+                                 capture_output=True, text=True, timeout=180)
+            if run.returncode:
+                failed.append(name)
+        except (OSError, subprocess.SubprocessError):
+            failed.append(name)
+    subprocess.run(["git", "checkout", "--", ".claude/settings.json"], cwd=path, capture_output=True)  # o install pode reformatar
+    if failed:
+        return ["aviso: não consegui instalar para a pasta nova: " + ", ".join(failed) + ". Rode nela, no terminal: "
+                "npx @fullchico/harness install"]
+    return [f"plugins do projeto instalados também para a pasta nova ({len(enabled)})."]
+
+
 def main(argv):
     root = registry.toplevel(os.getcwd())
     if argv[:1] == ["list"]:
@@ -95,6 +125,8 @@ def main(argv):
         # a filha herda o ponteiro da branch de onde nasceu: sem isto ela dividiria o estado do trem da mãe
         with open(os.path.join(path, ".claude", "current-demand"), "w", encoding="utf-8") as stream:
             stream.write(slug + "\n")
+    for line in plugins_for(path):
+        print(line)
     print(f"demanda `{slug}` aberta em {path}, na branch {prefix + slug} (sobre {base}), filha desta pasta; ao chegar, volta para {base} por merge.\n"
           f"Entre nela com EnterWorktree (path: {path}) para a entrevista, o plano, o aceite e a partida; depois "
           "volte para a estação com ExitWorktree (action: keep). Da estação, acompanhe com "

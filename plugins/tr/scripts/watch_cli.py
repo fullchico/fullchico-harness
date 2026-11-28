@@ -11,14 +11,22 @@ sys.path.insert(0, HERE)
 import terminal  # noqa: E402
 
 
+def folders(root):
+    """As pastas deste repositório: a principal e os worktrees (cada demanda em paralelo viaja num worktree
+    próprio, ao lado da pasta). Quem olha de uma delas enxerga os trens de todas."""
+    run = subprocess.run(["git", "worktree", "list", "--porcelain"], cwd=root, capture_output=True, text=True)
+    found = [os.path.realpath(line[9:]) for line in run.stdout.splitlines() if line.startswith("worktree ")]
+    return found or [root]
+
+
 def sessions(root):
-    """Terminais do tr cujo diretório está neste projeto (as vagas dos executores ficam dentro dele)."""
+    """Terminais do tr deste repositório: os desta pasta, os das vagas dos executores e os das outras demandas."""
     run = terminal._run("list-panes", "-a", "-F", "#{session_name}\t#{pane_current_path}")
-    found = []
+    found, places = [], folders(root) + [root]
     for line in run.stdout.splitlines() if not run.returncode else []:
         name, _, path = line.partition("\t")
-        if name.split("-")[0] in ("orq", "exec", "rev") and (os.path.realpath(path) + os.sep).startswith(root + os.sep) \
-                and name not in found:
+        inside = any((os.path.realpath(path) + os.sep).startswith(place + os.sep) for place in places)
+        if name.split("-")[0] in ("orq", "exec", "rev") and inside and name not in found:
             found.append(name)
     return sorted(found, key=lambda n: (("orq", "exec", "rev").index(n.split("-")[0]), n))
 
@@ -105,7 +113,8 @@ def journey(root, names):
     run, orq = read("run.json"), read("orchestrator.json")
     out = [f"viagem · demanda `{demand}`"]
     start = [f"{n} {'✓' if registry.satisfied(root, n, reg) else '…'}" for n in registry.required(root, "start", reg)]
-    start.append(f"aceite {'✓' if certs.accepted(root) else '✗ (o critério mudou ou falta aceitar)'}")
+    start.append("aceite … (ainda sem spec e tickets)" if not certs.criterion(root) else
+                 f"aceite {'✓' if certs.accepted(root) else '✗ (o critério mudou ou falta aceitar)'}")
     out.append("  embarque  " + " · ".join(start))
     if orq:
         who = f"{orq.get('cli', '?')}:{orq.get('model') or '?'}"
@@ -170,10 +179,18 @@ def frame(root, lines):
     status = subprocess.run([sys.executable, "-I", os.path.join(HERE, "status.py")], cwd=root, capture_output=True, text=True)
     out += status.stdout.rstrip().splitlines()
     names = sessions(root)
-    try:
-        out += [""] + journey(root, names)
-    except Exception as error:  # o painel nunca cai por um registro que não conseguiu ler
-        out += ["", f"viagem: não consegui ler ({type(error).__name__})"]
+    import certs
+    seats = os.sep + os.path.join(".claude", "worktrees") + os.sep
+    trains = [root] + [place for place in folders(root)
+                       if place != root and seats not in place + os.sep and certs.demand(place)]
+    for place in trains:  # a viagem desta pasta e a de cada demanda em paralelo (um worktree por demanda)
+        try:
+            lines_ = journey(place, names)
+            if place != root and lines_:
+                lines_[0] += f"   (em {os.path.relpath(place, os.path.dirname(root))}; para ver de lá: cd e ./tr l)"
+            out += [""] + lines_
+        except Exception as error:  # o painel nunca cai por um registro que não conseguiu ler
+            out += ["", f"viagem: não consegui ler ({type(error).__name__})"]
     out += [""] + topology(root, names)
     out += ["", "trilhos de cada papel"] + [f"  {who:<13}{what}" for who, what in RAILS]
     hits = fired(root)

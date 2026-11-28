@@ -50,8 +50,76 @@ def main(argv):
         stream.write(body)
     os.replace(path(root) + ".tmp", path(root))  # quem espera nunca lê um relato pela metade
     print(f"relato gravado em {os.path.relpath(path(root), root)}: quem espera por ele já foi avisado.")
+    dismantle_later(root)
     return 0
 
 
+GRACE = 180  # segundos entre o relato e a primeira tentativa de desmonte, se ninguém desmontar antes
+QUIET = 60   # o terminal só é encerrado depois de ficar este tempo sem mudar nada na tela
+LIMIT = 3600  # depois disso o desmonte de segurança desiste: um terminal que segue ativo é decisão de gente
+
+
+def safe_to_stop(root, session, stamp, quiet=None):
+    """Só se desmonta quem parou de verdade. Devolve True (pode encerrar), False (ainda trabalha: olhe de novo)
+    ou None (não é mais caso deste desmonte: o terminal sumiu, ou o relato mudou porque há outra partida)."""
+    import time
+    import tasks
+    import terminal
+    if not terminal.alive(session):
+        return None
+    try:
+        if os.path.getmtime(path(root)) != stamp:
+            return None
+    except OSError:
+        return None  # o relato foi apagado: uma nova partida começou nesta pasta
+    if tasks._raw_in_flight(root):
+        return False  # há executor em voo: ele ainda coordena alguém
+    try:
+        before = terminal.read(session, 80)
+        time.sleep(QUIET if quiet is None else quiet)
+        return terminal.read(session, 80) == before  # a tela mudou: recebeu um recado e voltou a trabalhar
+    except terminal.Unavailable:
+        return None
+
+
+def watchdog(root, session, log, stamp, grace):
+    import time
+    import terminal
+    time.sleep(grace)
+    deadline = time.time() + LIMIT
+    while time.time() < deadline:
+        verdict = safe_to_stop(root, session, stamp)
+        if verdict is None:
+            return 0
+        if verdict:
+            terminal.stop(session, log)
+            return 0
+        time.sleep(30)
+    return 0
+
+
+def dismantle_later(root):
+    """O orquestrador é descartável: relatou, é desmontado. Quem faz isso é o maestro, ao receber o relato; mas
+    se ninguém estava esperando (o maestro leu o arquivo direto, ou a sessão dele fechou), o terminal ficaria
+    aberto para sempre e confundiria a próxima demanda. Aqui fica um desmonte de segurança: ele só encerra um
+    terminal parado, sem executor em voo, e desiste se o orquestrador voltar a trabalhar."""
+    if os.environ.get("TR_ROLE") != "orchestrator":
+        return
+    try:
+        import orchestrate_cli
+        import tasks
+        session = orchestrate_cli._session(root)
+        if not session:
+            return
+        log = tasks.coordination(root, f"terminal-{session}.log")
+        subprocess.Popen([sys.executable, "-I", os.path.abspath(__file__), "--watchdog", root, session, log,
+                          repr(os.path.getmtime(path(root))), str(GRACE)], start_new_session=True,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass  # o relato já foi gravado: o desmonte de segurança nunca o impede
+
+
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--watchdog"]:
+        sys.exit(watchdog(sys.argv[2], sys.argv[3], sys.argv[4], float(sys.argv[5]), int(sys.argv[6])))
     sys.exit(main(sys.argv[1:]))
