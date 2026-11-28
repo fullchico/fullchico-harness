@@ -111,7 +111,7 @@ def journey(root, names):
         except (OSError, ValueError):
             return {}
     run, orq = read("run.json"), read("orchestrator.json")
-    out = [f"viagem · demanda `{demand}`"]
+    out = [f"viagem · demanda `{demand}`" + (f" · assinatura `{tasks.trip(root)}`" if tasks.trip(root) else "")]
     start = [f"{n} {'✓' if registry.satisfied(root, n, reg) else '…'}" for n in registry.required(root, "start", reg)]
     start.append("aceite … (ainda sem spec e tickets)" if not certs.criterion(root) else
                  f"aceite {'✓' if certs.accepted(root) else '✗ (o critério mudou ou falta aceitar)'}")

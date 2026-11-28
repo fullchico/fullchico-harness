@@ -159,7 +159,8 @@ def remember(root, session):
         import certs
         path = _roster(root)
         known = roster(root)
-        known[session] = {"demand": certs.demand(root) or "", "at": time.time()}
+        import tasks
+        known[session] = {"demand": certs.demand(root) or "", "trip": tasks.trip(root) or "", "at": time.time()}
         with open(path, "w", encoding="utf-8") as stream:
             json.dump(dict(sorted(known.items(), key=lambda item: item[1].get("at", 0))[-300:]), stream)
     except Exception:
