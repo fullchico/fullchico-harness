@@ -50,6 +50,12 @@ def main(argv):
         stream.write(body)
     os.replace(path(root) + ".tmp", path(root))  # quem espera nunca lê um relato pela metade
     print(f"relato gravado em {os.path.relpath(path(root), root)}: quem espera por ele já foi avisado.")
+    if argv[0] == "done":
+        try:
+            import tasks
+            tasks.close_trip(root)  # chegou: a próxima partida desta demanda é outra viagem, com outra assinatura
+        except Exception:
+            pass
     dismantle_later(root)
     return 0
 

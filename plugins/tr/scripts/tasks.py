@@ -294,6 +294,46 @@ def coordination(root, name):
     return os.path.join(base, "demands", slug, name) if slug else os.path.join(base, name)
 
 
+def trip(root, create=False):
+    """A assinatura da viagem em curso desta demanda (`<demanda>-<6 hex>`), ou None. Nasce na primeira partida e
+    vale até o relato de entrega: uma nova partida depois de um bloqueio é a mesma viagem; a demanda seguinte,
+    mesmo com o mesmo nome e na mesma pasta, é outra. Os vagões (executores, revisores) carregam a assinatura,
+    e um trem só adota, integra e responde aos que têm a dele."""
+    import json
+    import uuid
+    import certs
+    path = coordination(root, "trip.json")
+    try:
+        with open(path, encoding="utf-8") as stream:
+            data = json.load(stream)
+        if data.get("id") and not data.get("closed"):
+            return data["id"]
+    except (OSError, ValueError):
+        pass
+    if not create:
+        return None
+    slug = re.sub(r"[^\w.-]", "_", certs.demand(root) or "viagem")
+    data = {"id": f"{slug}-{uuid.uuid4().hex[:6]}", "at": __import__("time").time()}
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as stream:
+        json.dump(data, stream)
+    return data["id"]
+
+
+def close_trip(root):
+    """A viagem chegou (relato de entrega): a próxima partida desta demanda ganha outra assinatura."""
+    import json
+    path = coordination(root, "trip.json")
+    try:
+        with open(path, encoding="utf-8") as stream:
+            data = json.load(stream)
+        data["closed"] = True
+        with open(path, "w", encoding="utf-8") as stream:
+            json.dump(data, stream)
+    except (OSError, ValueError):
+        pass
+
+
 def _in_flight_path(root):
     return coordination(root, "in-flight.json")
 

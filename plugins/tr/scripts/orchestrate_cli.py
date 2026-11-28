@@ -81,9 +81,27 @@ def shared_files(root):
     return lines
 
 
+def same_trip(root, data):
+    """Este executor é desta viagem? Os registros de execução são do repositório inteiro (todas as pastas de
+    demanda os enxergam); cada trem só adota, integra e olha os peixes da própria demanda e da própria pasta."""
+    demand = certs.demand(root) or ""
+    if data.get("trip"):
+        return data["trip"] == tasks.trip(root)  # a assinatura da viagem decide: é única, o nome da demanda não
+    if "demand" in data:
+        return data.get("demand") == demand
+    # execuções gravadas antes de o registro levar a demanda: decide pela pasta da vaga e pelo caminho do ticket
+    work = os.path.realpath(data.get("worktree") or "")
+    seats = os.path.realpath(os.path.join(root, ".claude", "worktrees")) + os.sep
+    if work and not (work + os.sep).startswith(seats):
+        return False
+    ticket = data.get("ticket") or ""
+    return not ticket or not demand or f"/{demand}/" in "/" + ticket
+
+
 def running_executors(root):
-    """Executores em terminal que seguem vivos de uma partida anterior (o orquestrador deles relatou um bloqueio
-    e foi desmontado; o dono destravou depois). O próximo orquestrador os adota em vez de despachar de novo."""
+    """Executores em terminal que seguem vivos de uma partida anterior DESTA demanda (o orquestrador deles
+    relatou um bloqueio e foi desmontado; o dono destravou depois). O próximo orquestrador os adota em vez de
+    despachar de novo. Os de outra demanda em viagem paralela não são dele."""
     import glob
     lines = []
     runs = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=root,
@@ -93,6 +111,8 @@ def running_executors(root):
             with open(path, encoding="utf-8") as stream:
                 data = json.load(stream)
         except (OSError, ValueError):
+            continue
+        if not same_trip(root, data):
             continue
         report = data.get("report") or ""
         report = report if os.path.isabs(report) else os.path.join(root, report)
@@ -344,6 +364,7 @@ def main(argv):
     terminals = "--terminals" in argv
     if terminals and not executors:
         executors = "claude:sonnet"
+    trip = tasks.trip(root, create="--print" not in argv) or ""
     adopted = running_executors(root)
     unwritable = unwritable_for_codex(root, executors)
     text = brief(root, choice["cli"], executors, reviewers, checks, overlaps, terminals, adopted, unwritable)
@@ -366,7 +387,7 @@ def main(argv):
         # o nome do modelo é um apelido: no Codex vira o id mais novo (`sol` sozinho o Codex recusa)
         model = models_cli._runtime_model(choice) if choice.get("model") else None
         terminal.open_agent(root, session, choice["cli"], model, path,
-                            {"TR_ROLE": "orchestrator", "TR_DEMAND": certs.demand(root)},
+                            {"TR_ROLE": "orchestrator", "TR_DEMAND": certs.demand(root), "TR_TRIP": trip},
                             record=tasks.coordination(root, f"terminal-{session}.raw.log"))
     except terminal.Unavailable as error:
         print(f"o orquestrador não abriu: {error}", file=sys.stderr)
@@ -381,6 +402,7 @@ def main(argv):
         print("embarque: um executor Codex não grava ali " + line)
     for line in adopted:
         print("embarque: executor já rodando, será adotado " + line)
+    print(f"viagem `{trip}`: os executores e revisores desta partida carregam esta assinatura.")
     print(f"orquestrador {choice['cli']}{':' + choice['model'] if choice.get('model') else ''} aberto no terminal "
           f"`{session}` (para ver: `tmux attach -t {session}`).\nAgora rode `tr-harness orchestrate --wait` em segundo "
           "plano: ele volta quando o orquestrador gravar o relato, ou se ele parar numa tela que só o dono responde.")

@@ -520,6 +520,10 @@ def answer_request(root, run_id, granted, text=""):
     except (OSError, ValueError):
         print(f"{run_id}: execução não encontrada", file=sys.stderr)
         return 1
+    import orchestrate_cli
+    if not orchestrate_cli.same_trip(root, data):
+        print(f"{run_id}: é de outra demanda, em viagem paralela: quem responde é o orquestrador dela", file=sys.stderr)
+        return 1
     asking = data.get("request") or ""
     if not os.path.isfile(asking):
         print(f"{run_id}: não há pedido aberto", file=sys.stderr)
@@ -583,6 +587,11 @@ def integrate(root, run_ids):
                 data = json.load(stream)
         except (OSError, ValueError):
             print(f"{run_id}: execução não encontrada", file=sys.stderr)
+            return 1
+        import orchestrate_cli
+        if not orchestrate_cli.same_trip(root, data):
+            print(f"{run_id}: é de outra demanda (`{data.get('demand') or data.get('ticket') or '?'}`), em viagem paralela: "
+                  "não se integra aqui. Nada foi feito.", file=sys.stderr)
             return 1
         work, branch = data.get("worktree") or "", data.get("branch") or ""
         if os.path.isdir(work) and git("status", "--porcelain", "--", ".", ":!.harness-run", cwd=work).stdout.strip():
@@ -676,11 +685,13 @@ def terminal_execute(root, prompt, ticket=None):
     import time
     started = time.time()
     terminal.open_agent(work, session, choice["cli"], _runtime_model(choice), request,
-                        {"FULLCHICO_ROLE": "execution", "FULLCHICO_RUN_DIR": folder, "TR_REPORT": report, "TR_REQUEST": asking},
+                        {"FULLCHICO_ROLE": "execution", "FULLCHICO_RUN_DIR": folder, "TR_REPORT": report, "TR_REQUEST": asking,
+                         "TR_TRIP": __import__("tasks").trip(root) or ""},
                         record=os.path.join(folder, "terminal.raw.log"))
     with open(os.path.join(folder, "dispatch.json"), "w", encoding="utf-8") as stream:
         json.dump({"session": session, "report": report, "ticket": ticket, "branch": branch, "worktree": work,
-                   "cli": choice["cli"], "started": started, "request": asking}, stream)
+                   "cli": choice["cli"], "started": started, "request": asking,
+                   "demand": __import__("certs").demand(root) or "", "trip": __import__("tasks").trip(root) or ""}, stream)
     print(json.dumps({"id": run_id, "status": "running", "terminal": session, "branch": branch,
                       "wait": f"tr-harness models wait {run_id}"}, ensure_ascii=False))
     return 0

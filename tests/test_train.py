@@ -1,6 +1,7 @@
 """O trem: auditoria só na chegada; o trem de ajuste revalida só o que reprovou."""
 import json
 import os
+import pathlib
 import sys
 import unittest
 import unittest.mock
@@ -405,6 +406,67 @@ class MaestroTest(Base):
         (self.repo / ".harness-run/report.md").write_text("DONE\n")
         free = subprocess.run(script, input=payload, capture_output=True, text=True, env=dict(os.environ, TR_ROLE="orchestrator"))
         self.assertEqual(free.stdout.strip(), "")
+
+
+class ParallelTripsTest(Base):
+    def test_a_train_never_adopts_or_integrates_the_fish_of_another_demand(self):
+        """Caso real: no embarque do financeiro, o orquestrador recebeu os 3 executores da lista de espera como
+        "adotados", com ordem de integrá-los: o código de uma demanda entraria na branch da outra."""
+        from unittest import mock
+        import models_cli
+        import orchestrate_cli
+        import terminal
+        mine = self.repo / ".claude/worktrees/tr-seat-1"
+        other = pathlib.Path(self.root).parent / "outra-demanda" / ".claude/worktrees/tr-seat-1"
+        for seat in (mine, other):
+            seat.mkdir(parents=True)
+
+        def record(run, data):
+            folder = os.path.join(models_cli._state_dir(self.root), run)
+            os.makedirs(folder)
+            with open(os.path.join(folder, "dispatch.json"), "w") as stream:
+                json.dump(dict(data, session="exec-" + run, report="x.md", branch="tr-exec-" + run), stream)
+        record("r-minha", {"demand": "pedido", "worktree": str(mine), "ticket": "docs/specs/pedido/issues/01-soma.md"})
+        record("r-outra", {"demand": "lista-de-espera", "worktree": str(other), "ticket": "docs/specs/lista-de-espera/issues/02-x.md"})
+        record("r-antiga-outra", {"worktree": str(other), "ticket": "docs/specs/lista-de-espera/issues/03-y.md"})
+        record("r-antiga-minha", {"worktree": str(mine), "ticket": "docs/specs/pedido/issues/01-soma.md"})
+        with mock.patch.object(terminal, "alive", return_value=True):
+            adopted = "\n".join(orchestrate_cli.running_executors(self.root))
+        self.assertIn("r-minha", adopted)
+        self.assertIn("r-antiga-minha", adopted)
+        self.assertNotIn("r-outra", adopted, "o peixe de outra demanda não é adotado")
+        self.assertNotIn("r-antiga-outra", adopted, "nem o de um registro antigo, sem a demanda gravada")
+        self.assertEqual(models_cli.integrate(self.root, ["r-outra"]), 1, "nem integrado, mesmo pedindo pelo id")
+        self.assertEqual(models_cli.answer_request(self.root, "r-outra", True, "true"), 1)
+
+    def test_each_trip_has_its_own_signature_and_the_wagons_carry_it(self):
+        """A ideia do dono: a viagem tem uma assinatura única e os vagões a recebem. O nome da demanda pode se
+        repetir (a mesma pasta, a mesma demanda de novo); a assinatura não."""
+        from unittest import mock
+        import models_cli
+        import orchestrate_cli
+        import tasks
+        import terminal
+        self.assertIsNone(tasks.trip(self.root), "sem partida, não há viagem")
+        first = tasks.trip(self.root, create=True)
+        self.assertRegex(first, r"^pedido-[0-9a-f]{6}$")
+        self.assertEqual(tasks.trip(self.root, create=True), first, "uma nova partida da mesma viagem mantém a assinatura")
+        seat = self.repo / ".claude/worktrees/tr-seat-1"
+        seat.mkdir(parents=True)
+
+        def record(run, trip):
+            folder = os.path.join(models_cli._state_dir(self.root), run)
+            os.makedirs(folder)
+            with open(os.path.join(folder, "dispatch.json"), "w") as stream:
+                json.dump({"demand": "pedido", "trip": trip, "worktree": str(seat), "session": "exec-" + run, "report": "x.md"}, stream)
+        record("r-desta-viagem", first)
+        with mock.patch.object(terminal, "alive", return_value=True):
+            self.assertIn("r-desta-viagem", "\n".join(orchestrate_cli.running_executors(self.root)))
+            tasks.close_trip(self.root)  # a viagem chegou
+            second = tasks.trip(self.root, create=True)
+            self.assertNotEqual(second, first, "a demanda seguinte com o mesmo nome é outra viagem")
+            self.assertNotIn("r-desta-viagem", "\n".join(orchestrate_cli.running_executors(self.root)),
+                             "um vagão da viagem anterior não é adotado, mesmo com o mesmo nome de demanda")
 
 
 class DismantleTest(Base):
